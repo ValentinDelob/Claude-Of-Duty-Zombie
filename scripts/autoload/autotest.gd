@@ -203,7 +203,11 @@ func _reset_between() -> void:
 	Router.pending_message = ""
 	Router.return_scene = ""
 	Router.last_match = {}
+	Router.hub_tab = ""
+	Router.lobby_message = ""
 	HubScreen.last_tab = "lab"
+	HubPlayPanel.last_view = HubPlayPanel.SOLO
+	Net.local_card = {}
 	GameState.reset_to_menu()
 	Audio.stop_music(0.0)
 	# Réglages : valeurs par défaut (comme un processus neuf, sans fichier).

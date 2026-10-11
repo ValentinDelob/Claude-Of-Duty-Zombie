@@ -670,7 +670,7 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
     (la maquette y mettait une note de conception) ; une case active vide
     affiche « LIBRE ».
 
-### Lot E — PARTIE et intégration au flux du jeu (dépend de B ; de A pour la rotation)
+### Lot E — PARTIE et intégration au flux du jeu (dépend de B ; de A pour la rotation) ✅
 
 - Fichiers : `scripts/ui/hub/play_panel.gd` (solo : cartes ; coop :
   héberger / rejoindre / salon, reprend `map_screen.gd`, `host_screen.gd`,
@@ -683,6 +683,58 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
   tourné) et `contract_watch` ; `sh tools/mp_test.sh rematch` toujours vert.
 - Fini quand : une boucle complète hub → partie → hub marche en solo et en
   coop, écran 7 de la maquette reproduit.
+- **Fait** (branche `hub-e` : écrans 9 et 10). Fichiers :
+  `scripts/ui/hub/play_panel.gd` (`HubPlayPanel` : vues SOLO, COOP, SALON),
+  `play_lobby.gd` (`HubPlayLobby`, reprend l'ancien écran du salon),
+  `play_view.gd` (`HubPlayView` : cartes, faits d'une carte, lignes
+  communes) ; `scripts/game/hub/contract_watch.gd` (`ContractWatch`) ;
+  `Router.hub_tab` ; `Net` (fiche de salon). Retirés : écrans
+  MULTIJOUEUR, HÉBERGER, REJOINDRE, CONNEXION, SALON, choix de carte solo
+  (`map_screen.gd`) et le panneau provisoire `HubPlayStubPanel` ; la
+  rotation des contrats était déjà appelée en fin de partie (lot A). Tests :
+  `tests/test_hub_play.gd`, scénario `hub_play` (boucle hub → partie →
+  message → évacuation → hub, à la place de `hub_solo` et
+  `contract_watch`), scénarios `map_select`, `menu_navigation`, `hub_nav`
+  et tests multijoueur `lobby`, `join`, `rematch`, `custommap` adaptés.
+  Choix pris pendant le lot (provisoires) :
+  - **COOP avant connexion** (pas de maquette) : même cadre que l'écran 9 ;
+    à gauche SOLO / COOP puis nom du joueur, HÉBERGER (port, joueurs
+    maximum), REJOINDRE (adresse IP, port), ligne d'état (votre adresse IP,
+    « Connexion à … » avec ANNULER, erreur) ; à droite les règles de la coop,
+    VOUS PARTEZ AVEC et VOS CONTRATS ACTIFS (comme l'écran 10). Les erreurs
+    de connexion et la fin de session s'affichent **sur place** (plus de
+    fenêtre de message), sauf hors du hub (message, puis onglet PARTIE) ;
+  - **salon** : chaque ligne montre aussi les **armes de départ** du joueur
+    (petite ligne sous le nom ; absent de la maquette) ; niveau et armes
+    viennent du profil de chacun (`Net.players[pid].lvl / start`, non
+    vérifiés par l'hôte, affichage seulement) ; couleurs des joueurs : celles
+    du jeu (`ScorePanel.slot_color`), pas celles de la maquette ; état :
+    AU SALON, EN RETOUR… (`LobbyReturn`), CARTE n %, ATTENTE CARTE, CARTE
+    REFUSÉE (carte perso) ; pas de bouton PRÊT (la maquette n'en a pas :
+    l'état AU SALON en tient lieu, l'hôte lance) ; « VOUS » sur sa propre
+    ligne chez l'invité ; places libres jusqu'à 4 lignes ;
+  - DÉMARRER grisé porte la raison dans son texte (maquette) ; la ligne
+    d'état sous le résumé ne garde que les autres messages (carte refusée,
+    joueur parti, lancement) ; QUITTER LE SALON et, en coop, ÉCRAN TITRE du
+    menu du hub demandent un deuxième appui ;
+  - **CHANGER DE CARTE** (hôte) : fenêtre au-dessus de l'onglet, cartes du
+    jeu puis cartes perso ; la carte du salon est gardée d'une partie à
+    l'autre (plus réannoncée au retour) ;
+  - pastille de l'onglet PARTIE : nombre de changements du salon (joueur
+    arrivé ou parti, carte changée) pendant que l'onglet est caché ;
+  - **SOLO** : la ligne d'une carte se choisit au focus (clavier, manette)
+    ou au clic ; Entrée / A / second clic sur la carte choisie la lance ;
+    aperçu : vrai plan de la carte (`MapPreview`) au lieu du dessin de la
+    maquette ; « sur cette carte » / « pas sur cette carte » selon les
+    échantillons qui manquent ; porte d'évacuation « derrière une porte »
+    quand sa zone n'est pas celle du départ ;
+  - **retour au hub** : solo (fin de partie ou QUITTER du menu pause) :
+    onglet LABO ; multijoueur : onglet PARTIE (salon si le groupe est encore
+    connecté) ; partie lancée par TESTER : retour à l'éditeur comme avant ;
+  - **« objectif atteint »** : message sobre sous le compteur d'échantillons
+    (deux lignes, menthe puis gris, 7 s, file d'attente, petit son), une
+    fois par contrat et par partie ; jamais pour un contrat déjà prêt au
+    départ (rien à évacuer pour lui).
 
 ### Lot F — Hub 3D (plus tard)
 

@@ -28,22 +28,22 @@ func run() -> void:
 		return
 	GameState.set_state(GameState.State.CONNECTING)
 	Net.join("127.0.0.1", PORT, "Client")
-	if not await until(func(): return menu.current_name == "lobby", 15.0, "salon de l'invité"):
+	if not await until(func(): return MpHelpers.lobby_of(self) != null, 15.0, "salon de l'invité"):
 		return
 	if not await until(func(): return share.local_state == "telechargement", 15.0, "téléchargement automatique"):
 		return
-	var lobby = menu.current
+	var lobby := MpHelpers.lobby_of(self)
 	var sha: String = share.offer.sha
 	at.check(Net.lobby_map == EditorMapDef.SHARED_PREFIX + sha or Net.lobby_map == "", "carte du salon : %s" % Net.lobby_map)
 	at.check(not CustomMapGuard.is_cached(sha), "pas encore en cache")
-	await until(func(): return lobby._map_label.text.contains("ARÈNE PERSO") or lobby._map_label.text.contains("CUSTOM ARENA"), 5.0, "nom de la carte affiché")
-	at.check(lobby._map_info.text.contains("Ko") or lobby._map_info.text.contains("KB"), "taille affichée : « %s »" % lobby._map_info.text.replace("\n", " / "))
-	at.check(lobby._preview.texture == null, "pas d'aperçu avant la vérification")
+	await until(func(): return lobby.map_title.text.contains("ARÈNE PERSO") or lobby.map_title.text.contains("CUSTOM ARENA"), 5.0, "nom de la carte affiché")
+	at.check(lobby.map_info.text.contains("Ko") or lobby.map_info.text.contains("KB"), "taille affichée : « %s »" % lobby.map_info.text.replace("\n", " / "))
+	at.check(lobby.preview.texture == null, "pas d'aperçu avant la vérification")
 	await at.screenshot("telechargement")
 	if not await until(func(): return share.local_state == "prete", 40.0, "carte reçue et vérifiée"):
 		return
 	at.check(CustomMapGuard.is_cached(sha) and DirAccess.dir_exists_absolute(CustomMapGuard.cache_root().path_join(sha)), "carte en cache sous son empreinte")
-	at.check(lobby._preview.texture != null, "aperçu dessiné depuis la carte vérifiée")
+	at.check(lobby.preview.texture != null, "aperçu dessiné depuis la carte vérifiée")
 	await at.screenshot("prete")
 
 	# Cartes piégées : refusées, jamais en cache, on reste dans le salon.
@@ -55,9 +55,9 @@ func run() -> void:
 		seen.append(bad)
 		at.check(share.local_reason.contains(CustomMapGuard.reason_text(want)), "raison claire : « %s »" % share.local_reason.replace("\n", " / "))
 		at.check(not CustomMapGuard.is_cached(bad), "carte refusée jamais enregistrée")
-		at.check(menu.current_name == "lobby" and GameState.state == GameState.State.LOBBY and Game.instance == null, "toujours dans le salon")
+		at.check(MpHelpers.lobby_of(self) == lobby and GameState.state == GameState.State.LOBBY and Game.instance == null, "toujours dans le salon")
 		await frames(2)
-		at.check(lobby._status.text != "" and lobby._preview.texture == null, "message dans le salon : « %s »" % lobby._status.text.replace("\n", " / "))
+		at.check(lobby.status_text() != "" and lobby.preview.texture == null, "message dans le salon : « %s »" % lobby.status_text().replace("\n", " / "))
 
 	# La bonne carte revient : reprise du cache.
 	if not await until(func(): return share.offer.get("sha", "") == sha and share.local_state == "prete", 20.0, "carte reprise du cache"):

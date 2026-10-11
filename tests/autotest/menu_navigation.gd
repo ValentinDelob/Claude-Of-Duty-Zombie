@@ -106,18 +106,17 @@ func run() -> void:
 	menu.backdrop.force_figure(false)
 	at.check(not menu.backdrop.figure_visible(), "silhouette disparue")
 
-	# JOUER -> onglet PARTIE (Page préc. depuis le LABO) -> SOLO : écran de
-	# sélection de carte, puis la carte validée (BUNKER K-7, focus par défaut)
-	# lance le fondu au noir cinématique AVANT le chargement.
+	# JOUER -> onglet PARTIE (Page préc. depuis le LABO), vue SOLO : BUNKER
+	# K-7 choisie, focus sur LANCER LA PARTIE ; valider lance le fondu au noir
+	# cinématique AVANT le chargement.
 	await press("ui_accept")
 	await _wait_screen("hub")
 	await press("ui_page_up")
 	at.check(menu.current.tab == "play", "Page préc. : onglet PARTIE (%s)" % menu.current.tab)
-	await press("ui_accept")
-	at.check(menu.current_name == "map_select", "SOLO : sélection de la carte (%s)" % menu.current_name)
-	await _wait_screen("sélection de carte")
+	var pp: HubPlayPanel = menu.current.panels.play
+	at.check(pp.view == HubPlayPanel.SOLO and pp.selected == "bunker_k7", "SOLO : BUNKER K-7 choisie (%s)" % pp.selected)
 	await at.screenshot("map_select")
-	at.check(_focused_label() == "BUNKER K-7", "focus sur BUNKER K-7 (%s)" % _focused_label())
+	at.check(at.get_viewport().gui_get_focus_owner() == pp.launch_button, "focus sur LANCER LA PARTIE")
 	await press("ui_accept")
 	await seconds(0.5)
 	at.check(tree().current_scene == menu, "SOLO : toujours dans le menu pendant le fondu")

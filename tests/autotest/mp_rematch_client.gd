@@ -8,8 +8,7 @@ var PORT := 17821 + MpHelpers.port_offset()
 
 
 func _in_lobby() -> bool:
-	var s := tree().current_scene
-	return s is MainMenu and (s as MainMenu).current_name == "lobby" and GameState.state == GameState.State.LOBBY
+	return MpHelpers.lobby_of(self) != null and GameState.state == GameState.State.LOBBY
 
 
 func _in_game() -> bool:
@@ -23,7 +22,8 @@ func _check_lobby(n: int, my_id: int, ids: Array) -> void:
 	keys.sort()
 	at.check(keys == ids, "retour %d : même groupe (%s)" % [n, str(keys)])
 	at.check(Net.multiplayer.multiplayer_peer is ENetMultiplayerPeer and Array(Net.multiplayer.get_peers()) == [1], "retour %d : connexion ENet gardée" % n)
-	var lobby = tree().current_scene.current
+	var lobby := MpHelpers.lobby_of(self)
+	at.check(tree().current_scene.current.tab == "play", "retour %d : hub, onglet PARTIE" % n)
 	at.check(not lobby.is_host and Game.instance == null and Net.cast.is_empty() and Net.current_map == "", "retour %d : salon de l'invité, partie oubliée" % n)
 	at.check(Net.lobby_map.begins_with(EditorMapDef.SHARED_PREFIX), "retour %d : carte du salon gardée (%s)" % [n, Net.lobby_map.substr(0, 20)])
 

@@ -213,12 +213,29 @@ func test_hello_and_character_choice() -> void:
 	for m in n.get_script().get_rpc_config():
 		names.append(String(m))
 	names.sort()
-	assert_eq(names[-1], "_srv_set_character", "nouveau RPC en dernier : %s" % [names])
+	# Puis la fiche de salon (lot E du hub), triée après eux aussi.
+	assert_eq(names.slice(-2), ["_srv_set_character", "_srv_set_lobby_card"], "nouveaux RPC en dernier : %s" % [names])
 	var hello_args := -1
 	for m in n.get_method_list():
 		if m.name == "_srv_hello":
 			hello_args = (m.args as Array).size()
 	assert_eq(hello_args, 3, "bonjour à trois valeurs")
+
+
+func test_lobby_card_from_guest() -> void:
+	var n := _make_net()
+	n.players = {1: {"name": "Hote", "slot": 0}}
+	n.max_players = 4
+	n._srv_hello("Invite", Net.PROTOCOL_VERSION, Net.build_version())
+	n._srv_set_lobby_card(12, ["m1911", "knife"])
+	assert_eq(int(n.players[0].lvl), 12, "niveau de l'invité au registre")
+	assert_eq(Array(n.players[0].start), ["m1911", "knife"], "armes de départ")
+	n._srv_set_lobby_card(-5, "x")
+	assert_eq(int(n.players[0].lvl), 1, "niveau borné")
+	assert_eq(Array(n.players[0].start), Array(BaseWeapons.default_selection()), "armes illisibles : sélection par défaut")
+	n.players.erase(0)
+	n._srv_set_lobby_card(3, [])
+	assert_false(n.players.has(0), "joueur inconnu : ignoré")
 
 
 # ------------------------------------------------------------------ échecs de connexion

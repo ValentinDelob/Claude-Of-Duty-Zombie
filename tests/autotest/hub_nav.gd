@@ -5,7 +5,7 @@ extends AutotestScenario
 ## démonstration proche de la maquette, écran 1) -> les 7 onglets (E, Page
 ## suiv., Q, clic) -> menu du hub (Échap) -> invites à la manette (LB / RB) ->
 ## TAILLE DES MENUS 80 et 130 % (rien ne sort de l'écran) -> anglais ->
-## PARTIE -> SOLO (écran de sélection de carte actuel) -> retour au hub.
+## PARTIE (vue SOLO, COOP sur place, lot E).
 ## Captures pendant le développement (comparaison avec la maquette), suffixe
 ## = hauteur de la fenêtre (720, 1080).
 
@@ -105,9 +105,9 @@ func run() -> void:
 	for i in 5:
 		await key(KEY_E)
 	at.check(hub.tab == "play", "E x5 : PARTIE (%s)" % hub.tab)
-	at.check(_focused() == hub.panels.play.solo_button, "PARTIE : focus sur SOLO")
+	at.check(_focused() == hub.panels.play.launch_button, "PARTIE : focus sur LANCER LA PARTIE")
 	await seconds(0.3)
-	await shot("play_stub")
+	await shot("play")
 	await click(hub.tab_bar.get_global_transform() * hub.tab_bar.tab_rect(3).get_center())
 	at.check(hub.tab == "contracts", "clic : CONTRATS (%s)" % hub.tab)
 	await key(KEY_E)
@@ -185,16 +185,17 @@ func run() -> void:
 	menu.show_screen("hub")
 	await until(_settled, 3.0, "hub réaffiché")
 	hub = menu.current
-	# PARTIE -> SOLO : écran de sélection de carte actuel, Échap : retour au hub.
+	# PARTIE (lot E) : cartes dans l'onglet, COOP sur place ; Échap : menu du hub.
 	hub.select_tab("play")
 	await frames(3)
-	await press("ui_accept")
-	at.check(menu.current_name == "map_select", "PARTIE > SOLO : sélection de carte (%s)" % menu.current_name)
-	await until(_settled, 3.0, "sélection de carte affichée")
+	var pp: HubPlayPanel = hub.panels.play
+	at.check(pp.view == HubPlayPanel.SOLO and pp.selected == "bunker_k7", "PARTIE : vue SOLO, BUNKER K-7")
+	pp.coop_button.pressed.emit()
+	at.check(pp.view == HubPlayPanel.COOP and menu.current_name == "hub", "COOP : héberger / rejoindre dans l'onglet")
+	pp.solo_button.pressed.emit()
 	await press("ui_cancel")
-	at.check(menu.current_name == "hub", "Échap : retour au hub (%s)" % menu.current_name)
-	await until(_settled, 3.0, "hub réaffiché")
-	at.check(menu.current.tab == "play", "retour sur l'onglet PARTIE (%s)" % menu.current.tab)
+	at.check(hub.hub_menu.is_open(), "Échap : menu du hub")
+	await press("ui_cancel")
 	ProfileStore.reset()
 	HubContractsView.day_override = -1
 

@@ -585,15 +585,15 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 À reprendre dans `scripts/ui/` (lot du menu titre et du hub) :
 - `main_menu.gd` : `Lang.t("PARTIE TERMINÉE", "GAME OVER")` -> par exemple
   « LA HORDE L'EMPORTE » / « THE HORDE WINS » ;
-- `menu_logo.gd`, `lobby_screen.gd`, `credits_screen.gd` : « CLAUDE OF DUTY
-  ZOMBIE » (nom du jeu) ;
+- `menu_logo.gd`, `credits_screen.gd` : « CLAUDE OF DUTY ZOMBIE » (nom du
+  jeu ; l'ancien écran du salon a été remplacé par l'onglet PARTIE du hub) ;
 - `ui_style.gd`, `menu_style.gd`, `menu_logo.gd`, `menu_backdrop.gd` : police
   pochoir « Stencil » et rouge sang (`BLOOD`, `BLOOD_BRIGHT`) ; `HudStyle` et
   `CubeFont` peuvent servir de base (police en cubes, palette du
   laboratoire) ;
 - `options_screen.gd` : « 100 % : comme BO1 » (sensibilité en visée),
   « comme dans Black Ops » (gamma, grain) ; commentaires « façon Black Ops »
-  de `main_screen.gd`, `map_screen.gd`, `options_screen.gd` ;
+  de `main_screen.gd`, `options_screen.gd` ;
 - `credits_screen.gd` : « chiens de l'enfer » / « hellhounds » -> chiens
   errants contaminés ; « annonces » / « announcer » -> alertes ; personnages
   Callahan, Orlov, Arakawa, Weissmann ; graphismes (« aucune image
@@ -643,12 +643,14 @@ corriger.
 | Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
 | Échantillons des chiens | `dog_fang` (croc), `dog_fur` (touffe de poils), `dog_collar` (collier) | `LootRules.SAMPLES` |
 | Butin rapporté | armes en main et inventaire, sauf armes de base intactes et pistolet prêté ; exemplaire construit depuis l'arsenal (même `uid`) et amélioré en partie : cette version mise à jour (niveau, rareté, pièces), intact : rien, second exemplaire différent : nouvelle version ; pièces non montées ; échantillons | `ProfileLoot` |
-| Hub (conception, pas encore codé) | **écrans 2D à onglets** (LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE) ; hub 3D (laboratoire) plus tard, qui ouvrira les mêmes panneaux ; menu titre réduit à JOUER, ÉDITEUR, OPTIONS, CRÉDITS, QUITTER ; solo / coop choisis dans PARTIE ; en coop, le salon est l'onglet PARTIE (le groupe reste connecté) ; puissance non affichée (§4.13), meilleur score de l'arsenal à la place ; retirer une pièce et recycler : deux appuis | `docs/HUB_PLAN.md` |
+| Hub (2D, lots A, B, D et E codés) | **écrans 2D à onglets** (LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE) ; hub 3D (laboratoire) plus tard, qui ouvrira les mêmes panneaux ; menu titre réduit à JOUER, ÉDITEUR, OPTIONS, CRÉDITS, QUITTER ; solo / coop choisis dans PARTIE ; en coop, le salon est l'onglet PARTIE (le groupe reste connecté) ; puissance non affichée (§4.13), meilleur score de l'arsenal à la place ; retirer une pièce et recycler : deux appuis | `docs/HUB_PLAN.md` |
 | Contrats : tableau | **5 propositions, 3 actifs** ; rotation **par partie** (≥ 1 manche survécue) : 1 proposition (la plus ancienne) remplacée, cases vides remplies ; une proposition acceptée laisse sa case vide jusqu'à la partie suivante ; tirage pondéré sans doublon, graine du profil ; manches survécues = max(relevé d'XP, manche atteinte − 1) ; une partie quittée après une manche compte aussi ; récompense au niveau du joueur avant l'XP du contrat | `ContractRules`, `MatchContracts`, `docs/HUB_PLAN.md` §5 et lot A |
 | Contrats : récompense | XP = XP de base × (1 + 0,02 × (niveau − 1)), arrondie à 10 ; arme ou pièce au niveau du joueur à la remise ; rareté de l'arme selon les parties nécessaires (< 1,5 commune, 1,5 à 3 rare, 3 à 5 épique, > 5 légendaire ; unique : contrats datés exceptionnels seulement) ; qualité d'une pièce : ordinaire (tirage du butin), soignée (2 bonus de 10 à 25 %), d'exception (2 bonus de 18 à 25 %) ; XP ≈ 25 % de l'XP des parties nécessaires, +25 % si daté | `docs/HUB_PLAN.md` §5, §7 |
 | Contrats et échanges d'exemple | 8 contrats et 5 échanges sur les échantillons des chiens (fichiers `assets/data/hub/`) | `docs/HUB_PLAN.md` §7 |
 | Échanges | pas d'XP, illimités, objet précis au niveau du joueur | `docs/HUB_PLAN.md` §6 |
 | Taille des menus | nouveau réglage 80 à 130 % (défaut 100 %) pour le hub et les menus, même technique que la taille de l'éditeur | `docs/HUB_PLAN.md` §4.2 |
+| Hub : onglet PARTIE et retour | fin d'une partie solo (ou départ en solo) : hub, onglet LABO (« dernière partie ») ; coop : hub, onglet PARTIE (salon) ; session perdue : hub, onglet PARTIE, message sur place ; salon : niveau et armes de départ de chacun affichés (non vérifiés par l'hôte) ; pas de bouton PRÊT (l'état AU SALON en tient lieu) ; QUITTER LE SALON et ÉCRAN TITRE en coop : deux appuis | `HubPlayPanel`, `docs/HUB_PLAN.md` lot E |
+| Message « objectif atteint » | une fois par contrat et par partie, quand profil + échantillons de la partie couvrent un contrat actif ; jamais pour un contrat déjà prêt au départ ; sous le compteur d'échantillons, 7 s | `ContractWatch` |
 
 ## 7. Questions ouvertes
 

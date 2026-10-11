@@ -28,8 +28,8 @@ func enter(_args := {}) -> void:
 
 
 ## JOUER : le hub (docs/HUB_PLAN.md, D2), onglet LABO. Solo et coop se
-## lancent depuis son onglet PARTIE (provisoire jusqu'au lot E : écrans de
-## sélection de carte et MULTIJOUEUR actuels).
+## lancent depuis son onglet PARTIE (HubPlayPanel : cartes, héberger,
+## rejoindre, salon).
 func _play() -> void:
 	if not _leaving:
 		menu.show_screen("hub", {"tab": "lab"})

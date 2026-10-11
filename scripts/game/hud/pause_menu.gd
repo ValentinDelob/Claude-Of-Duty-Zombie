@@ -169,7 +169,8 @@ func _leave() -> void:
 	# L'XP déjà gagnée dans la partie est gardée (GAME_CONCEPT §4.15).
 	if game:
 		game.keep_match_xp()
-	Router.back_to_menu()
+	# Retour au hub : LABO en solo, PARTIE en multijoueur.
+	Router.back_to_menu("", Router.hub_tab_after_match())
 
 
 func _quit_game() -> void:

@@ -7,18 +7,14 @@ extends MenuHost
 ## affiché, la fenêtre passe en mise à l'échelle « canvas_items » (texte net
 ## en 1080p et plus) ; le réglage précédent est restauré à la sortie.
 
+## Solo, coop (héberger, rejoindre) et le salon sont dans l'onglet PARTIE du
+## hub (docs/HUB_PLAN.md D2, D4 ; HubPlayPanel) : plus d'écrans à part.
 const SCREENS := {
 	"main": "res://scripts/ui/screens/main_screen.gd",
-	"multiplayer": "res://scripts/ui/screens/multiplayer_screen.gd",
-	"host": "res://scripts/ui/screens/host_screen.gd",
-	"lobby": "res://scripts/ui/screens/lobby_screen.gd",
-	"join": "res://scripts/ui/screens/join_screen.gd",
-	"connecting": "res://scripts/ui/screens/connecting_screen.gd",
 	"message": "res://scripts/ui/screens/message_screen.gd",
 	"options": "res://scripts/ui/screens/options_screen.gd",
 	"credits": "res://scripts/ui/screens/credits_screen.gd",
 	"career": "res://scripts/ui/screens/career_screen.gd",
-	"map_select": "res://scripts/ui/screens/map_screen.gd",
 	"hub": "res://scripts/ui/hub/hub_screen.gd",
 }
 ## Durées des transitions (fondu au noir puis retour).
@@ -112,14 +108,24 @@ func _ready() -> void:
 	Net.connection_error.connect(_on_connection_error)
 	Net.session_ended.connect(_on_session_ended)
 	Net.joined_server.connect(_on_joined)
+	var tab := Router.hub_tab
+	Router.hub_tab = ""
 	if GameState.state == GameState.State.LOBBY and Net.is_online():
 		# Fin d'une partie multijoueur (Router.back_to_lobby) : tout le groupe
-		# revient au salon, toujours connecté.
-		show_screen("lobby", {"host": Net.mode == Net.Mode.HOST})
+		# revient au salon (onglet PARTIE du hub), toujours connecté.
+		show_screen("hub", {"tab": "play"})
 	elif Router.pending_message != "":
-		show_screen("main")
+		# Session perdue en partie : le message, puis le hub (ou le menu titre).
+		if tab != "":
+			HubScreen.last_tab = tab
+			show_screen("hub", {"tab": tab})
+		else:
+			show_screen("main")
 		show_message(Lang.t("PARTIE TERMINÉE", "GAME OVER"), Router.pending_message)
 		Router.pending_message = ""
+	elif tab != "":
+		# Fin d'une partie : retour au hub (solo : LABO et « dernière partie »).
+		show_screen("hub", {"tab": tab})
 	else:
 		show_screen("main")
 	# Ouverture : sortie lente du noir.
@@ -314,21 +320,36 @@ func _unhandled_input(event: InputEvent) -> void:
 		current.back()
 
 
+## Erreur de connexion : sur place dans l'onglet PARTIE du hub (vue COOP),
+## sinon un message puis le hub, onglet PARTIE.
 func _on_connection_error(t: String, m: String) -> void:
 	if GameState.state == GameState.State.CONNECTING:
 		GameState.set_state(GameState.State.MAIN_MENU)
-	show_message(t, m, "join" if current_name == "connecting" else "multiplayer")
+	_net_message(t, m)
 
 
 func _on_session_ended(reason: String) -> void:
 	GameState.reset_to_menu()
-	show_message(Lang.t("DÉCONNECTÉ", "DISCONNECTED"), reason, "multiplayer")
+	_net_message(Lang.t("DÉCONNECTÉ", "DISCONNECTED"), reason)
 
 
-## Client accepté par un hôte : direction le salon.
+func _net_message(t: String, m: String) -> void:
+	if current is HubScreen:
+		(current as HubScreen).show_net_error(t, m)
+		return
+	HubScreen.last_tab = "play"
+	HubPlayPanel.last_view = HubPlayPanel.COOP
+	show_message(t, m, "hub")
+
+
+## Client accepté par un hôte : direction le salon (onglet PARTIE du hub, qui
+## suit l'état du réseau : HubPlayPanel.sync).
 func _on_joined() -> void:
 	if GameState.state == GameState.State.CONNECTING:
 		GameState.set_state(GameState.State.LOBBY)
 	elif GameState.state == GameState.State.MAIN_MENU:
 		GameState.set_state(GameState.State.LOBBY)
-	show_screen("lobby", {"host": false})
+	if current is HubScreen:
+		(current as HubScreen).select_tab("play", false)
+	else:
+		show_screen("hub", {"tab": "play"})

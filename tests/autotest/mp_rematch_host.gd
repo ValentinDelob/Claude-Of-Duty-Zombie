@@ -33,8 +33,7 @@ func _client_id() -> int:
 
 
 func _in_lobby() -> bool:
-	var s := tree().current_scene
-	return s is MainMenu and (s as MainMenu).current_name == "lobby" and GameState.state == GameState.State.LOBBY
+	return MpHelpers.lobby_of(self) != null and GameState.state == GameState.State.LOBBY
 
 
 func _in_game() -> bool:
@@ -62,8 +61,8 @@ func _mark() -> Dictionary:
 ## Partie lancée depuis le salon, jouée puis perdue (tous morts) ; retour au
 ## salon. `n` : numéro de la partie.
 func _play_and_lose(n: int, cid: int, first_sha: String) -> bool:
-	var lobby = tree().current_scene.current
-	if not await until(func(): return not lobby._start.disabled, 20.0, "DÉMARRER actif (partie %d)" % n):
+	var lobby := MpHelpers.lobby_of(self)
+	if not await until(func(): return not lobby.start_button.disabled, 20.0, "DÉMARRER actif (partie %d)" % n):
 		return false
 	lobby._on_start()
 	if not await until(_in_game, 40.0, "partie %d : les deux joueurs en jeu" % n):
@@ -105,7 +104,7 @@ func _play_and_lose(n: int, cid: int, first_sha: String) -> bool:
 		"retour %d : connexion ENet gardée, même pair (%s)" % [n, str(Net.multiplayer.get_peers())])
 	at.check(Game.instance == null and not Net.match_started and Net.loaded_peers.is_empty() and Net.cast.is_empty(),
 		"retour %d : partie oubliée (Net.end_match)" % n)
-	lobby = tree().current_scene.current
+	lobby = MpHelpers.lobby_of(self)
 	at.check(lobby.is_host and lobby.map_id == MAP and Net.lobby_map == first_sha, "retour %d : carte du salon gardée (%s)" % [n, Net.lobby_map.substr(0, 20)])
 	at.check(String(Net.players[cid].get("char", "")) == "orlov", "retour %d : choix de personnage de l'invité gardé" % n)
 	var col_texts := []
@@ -133,20 +132,17 @@ func run() -> void:
 	m.carte["nom"] = {"fr": "ARÈNE REVANCHE", "en": "REMATCH ARENA"}
 	at.check(m.save_dir(EditorMap.map_dir("arene_rematch")) == OK, "carte perso enregistrée")
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu")
-	var menu: MainMenu = tree().current_scene
-	menu.show_screen("host")
-	await frames(3)
-	menu.current._port.text = str(PORT)
-	menu.current._name.text = "Hote"
 	MpHelpers._clear_sync()
-	menu.current._create()
-	await frames(3)
-	var lobby = menu.current
-	at.check(menu.current_name == "lobby", "salon de l'hôte")
-	var idx: int = lobby.map_ids.find(MAP)
-	# ► jusqu'à la carte perso (comme au clavier).
-	while idx > 0 and lobby.map_row.index() != idx:
-		lobby.map_row.nudge(1)
+	var lobby := await MpHelpers.host_from_hub(self, PORT)
+	at.check(lobby != null, "salon de l'hôte (onglet PARTIE du hub)")
+	if lobby == null:
+		return
+	# CHANGER DE CARTE : la carte perso dans la liste, validée.
+	lobby.open_picker()
+	at.check(lobby.picker_rows.has(MAP), "carte perso proposée")
+	if lobby.picker_rows.has(MAP):
+		lobby.picker_rows[MAP].activated.emit(MAP)
+	at.check(lobby.picker == null, "liste fermée")
 	at.check(lobby.map_id == MAP and Net.lobby_map.begins_with(EditorMapDef.SHARED_PREFIX), "carte perso choisie (%s)" % Net.lobby_map.substr(0, 20))
 	var first_sha := Net.lobby_map
 	MpHelpers.signal_peer("ecoute")

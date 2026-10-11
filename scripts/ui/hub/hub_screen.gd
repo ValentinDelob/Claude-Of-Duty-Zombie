@@ -39,8 +39,7 @@ const PANELS := {
 	"lab": "res://scripts/ui/hub/lab_panel.gd",
 	"contracts": "res://scripts/ui/hub/contracts_panel.gd",
 	"exchanges": "res://scripts/ui/hub/exchanges_panel.gd",
-	# Provisoire jusqu'au lot E : SOLO / COOP par les écrans actuels.
-	"play": "res://scripts/ui/hub/hub_play_stub_panel.gd",
+	"play": "res://scripts/ui/hub/play_panel.gd",
 }
 ## Hauteur de la zone centrale à 100 % (720 − 100 − 12 − 16 − 36).
 const CONTENT_SIZE := Vector2(1248, 556)
@@ -311,9 +310,24 @@ func open_screen(screen_name: String) -> void:
 	menu.show_screen(screen_name)
 
 
+## ÉCRAN TITRE (menu du hub) : en coop, la session est quittée (la
+## confirmation est demandée par HubMenu).
 func to_title() -> void:
 	last_tab = "lab"
+	if Net.is_online() or Net.mode == Net.Mode.CLIENT:
+		Net.leave()
+		GameState.reset_to_menu()
+		Router.lobby_message = ""
 	menu.show_screen("main", {}, false)
+
+
+## Erreur de connexion ou fin de session pendant que le hub est affiché
+## (MainMenu) : onglet PARTIE, message sur place (vue COOP).
+func show_net_error(title: String, message: String) -> void:
+	select_tab("play")
+	var p: HubPanel = panels.get("play")
+	if p and p.has_method("show_error"):
+		p.call("show_error", title, message)
 
 
 func quit_game() -> void:
