@@ -181,6 +181,10 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
   laisse la place aux RÈGLES DU DÉFI ; bouton LANCER LE DÉFI. En coop, le
   défi est la première ligne de CHANGER DE CARTE (hôte) et s'affiche en tête
   de la carte du salon pour tout le groupe.
+- **CARTES PERSONNALISÉES** (décision du 2026-10-11, GAME_CONCEPT §4.20) :
+  les cartes de l'éditeur sont **pour le fun**, aucune progression (ni XP,
+  ni butin, ni contrat, ni codex, ni défi) ; rangées à part, étiquette POUR
+  LE FUN et la règle en une phrase (hub v2, §9.5).
 
 ### 3.8 Options et dossier de combat
 
@@ -1131,3 +1135,96 @@ L'ARSENAL (ouvre l'ARSENAL et appelle `show_item(uid)` si l'écran l'a), FERMER
   barre du haut, Dr Brown borné en hauteur, histoire limitée à 47 % de la
   largeur, contenu des colonnes défilant (molette, focus suivi, sans barre
   visible).
+
+### 9.5 JOUER et récapitulatif (hub v2) ✅
+
+**JOUER** (`screens/hub2_play_panel.gd`, maquettes `Partie.dc.html` et
+`PartieCoop.dc.html`) : vue SOLO, vue COOP sans salon, salon
+(`hub2_lobby_view.gd`) ; données sans interface dans `hub2_play_data.gd`
+(pastilles des vagues : rotation de `WaveRules`, carte du défi, lignes de
+cartes, fiches du salon), cases d'armes et règles du choix des armes de départ
+dans `hub2_equipment.gd` (règles de l'ancien onglet DÉPART), fenêtre (armes de
+départ, CHANGER DE CARTE) `hub2_modal.gd`, images (`object-fit`, ombre
+portée, couche teintée) `hub2_render.gd`, petits éléments `hub2_ui.gd`.
+
+- Aperçu d'une carte du jeu : vue en jeu pré-rendue
+  `assets/ui/hub/maps/<carte>.png` (1280 × 720, départ du joueur tourné vers
+  la porte la plus proche, interface et mains masquées), régénérée par
+  `sh tools/map_shots.sh` (scénario `map_shots`, hors check). Carte perso
+  (`hub2_map_shot.gd`) : vue en jeu rendue hors écran la première fois
+  qu'elle est choisie (SubViewport à monde 3D propre : carte, éclairage,
+  étalonnage, portes ; yeux du joueur au départ, direction la plus dégagée,
+  lumière d'appoint douce), gardée dans `user://map_previews/<empreinte des
+  fichiers>.png` (40 au plus ; fichiers de la carte seulement lus), montrée
+  en fondu ; en attendant (et sans rendu, --headless) : son plan net
+  agrandi d'un nombre entier de fois (×4 au plus), centré sur un fond sombre,
+  et « APERÇU EN PRÉPARATION… » qui pulse. Même image dans le salon.
+- Noms des cartes du jeu en casse de titre (« BUNKER K-7 » -> « Bunker K-7 »,
+  `Hub2PlayData.map_title`) ; sous-titre « 1 à 4 joueurs » ; carte perso
+  « par <nom du joueur> » (faite sur ce PC) ; record = meilleure manche sur
+  la carte (`CareerStats.map_best`, section `best_round_map` du dossier de
+  combat, cartes perso comprises).
+- Défi de la semaine : la carte turquoise biseautée se choisit comme une
+  carte (aperçu de sa carte, armes imposées : « IMPOSÉ PAR LE DÉFI » au lieu
+  de X · MODIFIER) ; en coop, première ligne de CHANGER DE CARTE.
+- X · MODIFIER (X au clavier comme à la manette) : fenêtre ARMES DE DÉPART
+  (trois cases, une ligne par arme de base, AU DÉPART) ; Échap / B : fermer.
+- Salon : PRÊT = revenu au salon après la partie précédente (`LobbyReturn`)
+  et, si l'hôte a choisi une carte perso, carte reçue et vérifiée
+  (`MapShare`) ; pas de bouton PRÊT à part (la maquette n'en montre pas).
+  Ping : mesuré par l'hôte (aller-retour ENet de chaque invité, toutes les
+  2 s au salon), écrit dans le registre des joueurs (champ facultatif
+  « ping », diffusé s'il bouge de 5 ms ou plus) : aucun nouveau RPC,
+  protocole inchangé (tests/autotest/mp_hub2_lobby_*). Niveau et armes de
+  départ : fiche de salon existante. Joueur : `player_neutral` +
+  `player_team_mask` × `HudStyle.player_color(place)`. B / Échap : QUITTER
+  LE SALON (deux appuis) ; Y / Tab : CHANGER DE CARTE (hôte) ; HÉBERGER
+  ouvre un salon de 4 (maquette) ; REJOINDRE accepte « IP » ou « IP:port ».
+
+**Récapitulatif** (`screens/hub2_recap_panel.gd`, `Recap.dc.html` ; données
+`hub2_recap_model.gd`) : ouvert par MainMenu au retour d'une partie
+(`Router.last_match` pas encore vu : clé `recap_seen`), en solo comme en coop
+(CONTINUER : LABO, ou JOUER si le salon est encore ouvert ; « je suis revenu
+au salon » part dès le récapitulatif). L'écran de fin en partie ne montre
+plus le rapport d'XP ni le butin quand le hub v2 est actif.
+
+- Animation (temps `t` depuis l'affichage, `apply_time(t)` pose tout,
+  testable) : XP 0,7 s + 3,8 s ease-out cubique ; à chaque passage de
+  niveau (`Hub2RecapModel.level_ups`, plusieurs possibles) : pavé (lvlPop,
+  cubic-bezier(.2, 1.6, .4, 1) par segment), anneaux jaune puis turquoise
+  (+0,18 s, ×3,2 en 1,1 s), éclair doré radial (0,9 s), « NIVEAU N ! »
+  (lvlText 2,2 s : opacité, montée, échelle, espacement 0,6 -> 0,22 em ->
+  normal), barre turquoise repartie de 0 ; lignes (rowIn 0,4 s, décalées de
+  0,15 s ; armes 0,3 + 0,15 s ; échantillons 0,8 + 0,1 s) ; DÉBLOQUÉ quand
+  le passage est fait et l'XP à 75 %. A / Entrée pendant l'animation : fin
+  immédiate ; ensuite CONTINUER. ↻ REJOUER L'ANIMATION.
+- Détail de l'XP (relevé `XpRules`) : Zombies éliminés (ennemis communs),
+  Vagues spéciales et boss (ennemis des vagues + vagues vaincues), Manches
+  survécues, Évacuation réussie, Défi de la semaine (récompense) ; lignes à
+  0 omises.
+- DÉBLOQUÉ : « Armes de niveau N utilisables » (équiper, construire) puis
+  « K nouveaux échanges au labo » (échanges dont le niveau requis vient
+  d'être atteint) ou, sans échange, « pièces de niveau N au butin ».
+- Butin : armes (rendus, rareté, NEUF pour un nouvel exemplaire, AMÉLIORÉE
+  pour une version de l'arsenal mise à jour), échantillons ×n, pièces dans
+  le titre ; sans évacuation BUTIN PERDU, cartes estompées PERDU et « PERDU :
+  3 armes, 9 échantillons » ; défi ou carte perso : BUTIN NON GARDÉ.
+- Sons (procéduraux, `tools/gen_audio_menu.gd`) : `ui_xp_tick` (catégorie
+  interface, joué à hauteur montante pendant que l'XP grimpe), `level_up`
+  (catégorie ritournelle) ; aucune baisse des autres sons.
+
+Écarts et choix provisoires :
+- Lueur du « NIVEAU N ! » (text-shadow 24 px) : tache floue sous le texte ;
+  lueur de la barre (box-shadow) : dégradé après le bout de la barre.
+- Les nombres de la maquette (8 420 / 13 100) suivent le barème réel du jeu
+  (`PlayerProfile.xp_to_next`).
+- Défaite : titre « LA HORDE L'EMPORTE » en `BAD` (#FF7A5C) à la place
+  d'ÉVACUÉ (pas de maquette de défaite).
+- Vue COOP sans salon et fenêtres (armes de départ, CHANGER DE CARTE) : pas
+  de maquette, style des panneaux du hub v2.
+- TAILLE DES MENUS 130 % : la colonne XP du récapitulatif prend au plus 48 %
+  de la largeur, les textes trop longs sont coupés ; les cartes perso
+  défilent dans leur liste.
+- Captures de développement : `sh tools/scenario.sh hub2_play_look`
+  (`tests/_out/shots/hub2_play_look_*.png`) ; parcours complet :
+  `hub2_recap_flow` (partie -> récapitulatif, carte perso sans progression).

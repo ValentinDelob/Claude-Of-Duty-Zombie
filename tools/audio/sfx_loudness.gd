@@ -64,7 +64,7 @@ const CATEGORIES := [
 	# Ritournelles originales (manches, caisse...) : identité conservée,
 	# seulement mises au même niveau.
 	{"id": "ritournelle", "match": ["round_start", "round_end", "special_wave_start", "special_wave_end",
-		"box_music", "power_on", "menu_start", "decoy_music"],
+		"box_music", "power_on", "menu_start", "decoy_music", "level_up"],
 		"target": -14.0, "tol": 2.5, "mode": "max"},
 	{"id": "musique", "match": ["menu_theme", "special_wave_music"],
 		"target": -20.0, "tol": 2.0, "mode": "int"},

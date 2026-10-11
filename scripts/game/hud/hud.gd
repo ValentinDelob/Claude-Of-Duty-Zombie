@@ -634,8 +634,12 @@ func show_match_end(r: MatchResult) -> void:
 		station_panel.close()
 	show_center(r.title(), r.summary(), 0.6)
 	show_game_over_table(r.details())
-	_show_xp_report(r)
-	_show_loot_report(r.loot_text(), r.evacuated)
+	# Hub v2 : l'XP et le butin sont détaillés au retour au hub, dans le
+	# récapitulatif (Hub2RecapPanel, Recap.dc.html) : l'écran de fin ne garde
+	# que l'issue, la manche et le tableau des scores.
+	if not Settings.use_hub_v2():
+		_show_xp_report(r)
+		_show_loot_report(r.loot_text(), r.evacuated)
 	if not r.evacuated:
 		Audio.play_2d("heartbeat", 0.0, 0.0)
 

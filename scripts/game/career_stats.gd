@@ -24,7 +24,13 @@ const FIELDS := [
 ]
 
 
+## Fichier imposé (tests unitaires : jamais le dossier du joueur) ; "" : aucun.
+static var path_override := ""
+
+
 static func path() -> String:
+	if path_override != "":
+		return path_override
 	return "%s%d.cfg" % [TEST_PATH_PREFIX, OS.get_process_id()] if Autotest.active else PATH
 
 
@@ -43,7 +49,10 @@ static func load_stats() -> Dictionary:
 ## Ajoute une partie terminée. `seconds` : durée de la partie.
 static func record_game(pd: PlayerData, round_n: int, solo: bool, seconds: float) -> Dictionary:
 	var s := accumulate(load_stats(), pd, round_n, solo, seconds)
-	var cfg := ConfigFile.new()
+	# Fichier relu : les autres sections (records par carte) restent.
+	var cfg := SafeConfig.load_file(path())
+	if cfg == null:
+		cfg = ConfigFile.new()
 	for k in s:
 		cfg.set_value("career", k, s[k])
 	var err := cfg.save(path())
@@ -67,6 +76,43 @@ static func accumulate(s: Dictionary, pd: PlayerData, round_n: int, solo: bool, 
 		s.best_score = maxi(s.best_score, pd.points)
 	s.time += int(seconds)
 	return s
+
+
+## Section des records par carte (meilleure manche atteinte, solo et coop
+## confondus ; cartes perso comprises : un record n'est pas une progression).
+const MAP_SECTION := "best_round_map"
+
+
+## Clé d'une carte dans MAP_SECTION (« perso:ma_carte » -> « perso__ma_carte » :
+## jamais de « : » dans une clé de ConfigFile).
+static func map_key(map_id: String) -> String:
+	return map_id.replace(":", "__").validate_filename()
+
+
+## Meilleure manche atteinte sur la carte `map_id` (0 : jamais jouée).
+static func map_best(map_id: String) -> int:
+	if map_id == "":
+		return 0
+	var cfg := SafeConfig.load_file(path())
+	if cfg == null:
+		return 0
+	return SafeConfig.get_int(cfg, MAP_SECTION, map_key(map_id), 0, 0, 1000000)
+
+
+## Note la manche `round_n` atteinte sur `map_id` (garde la meilleure).
+static func record_map_best(map_id: String, round_n: int) -> void:
+	if map_id == "" or round_n <= 0:
+		return
+	var cfg := SafeConfig.load_file(path())
+	if cfg == null:
+		cfg = ConfigFile.new()
+	var k := map_key(map_id)
+	if SafeConfig.get_int(cfg, MAP_SECTION, k, 0, 0, 1000000) >= round_n:
+		return
+	cfg.set_value(MAP_SECTION, k, round_n)
+	var err := cfg.save(path())
+	if err != OK:
+		push_warning("[Career] record de la carte non enregistré (%s)" % error_string(err))
 
 
 ## Réinitialise le dossier (tests).

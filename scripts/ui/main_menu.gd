@@ -112,7 +112,9 @@ func _ready() -> void:
 	Net.joined_server.connect(_on_joined)
 	var tab := Router.hub_tab
 	Router.hub_tab = ""
-	if GameState.state == GameState.State.LOBBY and Net.is_online():
+	if Settings.use_hub_v2() and _open_hub2_after_match(tab):
+		pass
+	elif GameState.state == GameState.State.LOBBY and Net.is_online():
 		# Fin d'une partie multijoueur (Router.back_to_lobby) : tout le groupe
 		# revient au salon (onglet PARTIE du hub), toujours connecté.
 		show_screen("hub", {"tab": "play"})
@@ -138,6 +140,27 @@ func _ready() -> void:
 	_fade_tween.tween_method(_set_fade, 1.0, 0.0, 2.4).set_trans(Tween.TRANS_SINE)
 	glitch(0.35, 0.8)
 	Audio.play_music(MUSIC, MUSIC_DB, 3.0)
+
+
+## Hub v2 (Settings.use_hub_v2, docs/HUB_PLAN.md §9) au retour d'une partie :
+## le récapitulatif (Recap.dc.html) d'une partie qui vient de finir
+## (Router.last_match pas encore vu), sinon JOUER (salon coop, retour du
+## groupe) ou l'écran demandé (`tab` : LABO, JOUER). Rend faux s'il n'y a
+## rien à ouvrir (menu titre).
+func _open_hub2_after_match(tab: String) -> bool:
+	var in_lobby := GameState.state == GameState.State.LOBBY and Net.is_online()
+	var fresh: bool = not Router.last_match.is_empty() and not Router.last_match.get("recap_seen", false)
+	var interrupted := Router.pending_message != ""
+	if not in_lobby and tab == "" and not interrupted:
+		return false
+	var screen := "play" if in_lobby or tab == "play" else "lab"
+	if fresh and not interrupted:
+		screen = "recap"
+	show_screen("hub2", {"screen": screen})
+	if interrupted:
+		show_message(Lang.t("PARTIE INTERROMPUE", "GAME INTERRUPTED"), Router.pending_message, "hub2")
+		Router.pending_message = ""
+	return true
 
 
 func _process(delta: float) -> void:
@@ -343,6 +366,19 @@ func _net_message(t: String, m: String) -> void:
 	if current is HubScreen:
 		(current as HubScreen).show_net_error(t, m)
 		return
+	# Hub v2 : erreur sur place dans JOUER (vue COOP).
+	if current is Hub2Screen:
+		var h2 := current as Hub2Screen
+		h2.open("play")
+		var p := h2.panel("play")
+		if p.has_method("show_error"):
+			p.call("show_error", t, m)
+		return
+	if Settings.use_hub_v2():
+		Hub2Screen.last_screen = "play"
+		Hub2PlayPanel.last_view = Hub2PlayPanel.COOP
+		show_message(t, m, "hub2")
+		return
 	HubScreen.last_tab = "play"
 	HubPlayPanel.last_view = HubPlayPanel.COOP
 	show_message(t, m, "hub")
@@ -357,5 +393,9 @@ func _on_joined() -> void:
 		GameState.set_state(GameState.State.LOBBY)
 	if current is HubScreen:
 		(current as HubScreen).select_tab("play", false)
+	elif current is Hub2Screen:
+		(current as Hub2Screen).open("play", false)
+	elif Settings.use_hub_v2():
+		show_screen("hub2", {"screen": "play"})
 	else:
 		show_screen("hub", {"tab": "play"})

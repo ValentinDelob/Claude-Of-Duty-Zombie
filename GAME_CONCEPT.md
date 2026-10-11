@@ -582,6 +582,14 @@ de 2,5 cm** (§ 4.19).
   l'arsenal, versions d'armes mises à jour, échantillons, XP.
 - Il mentionne aussi **ce que le joueur n'a pas pu garder** : armes,
   échantillons et améliorations perdus faute d'évacuation.
+- 🧪 Hub v2 (docs/hub_v2/Recap.dc.html, `Hub2RecapPanel`) : au retour au
+  hub, écran **RETOUR AU LABO** : ÉVACUÉ ou LA HORDE L'EMPORTE, manche,
+  zombies, durée ; XP qui grimpe avec passage de niveau animé et détail
+  (zombies, vagues spéciales et boss, manches, évacuation, défi), ce que
+  débloque le nouveau niveau ; BUTIN GARDÉ (armes NEUF ou mises à jour,
+  échantillons) ou BUTIN PERDU (« 3 armes, 9 échantillons ») ; contrat prêt
+  à remettre. L'écran de fin en partie ne garde alors que l'issue et les
+  scores.
 
 ### 4.17 Bestiaire de profondeur ✅
 - De nouveaux types de zombies n'apparaissent qu'à partir de certaines manches
@@ -698,6 +706,27 @@ de 2,5 cm** (§ 4.19).
   (couloir du laboratoire, zombie cubique qui passe) ; docs/ART_DIRECTION.md
   « Menus », « Ciel », « Étiquettes 3D ».
 - ❓ Lumières, post-traitement (brume, lueur).
+
+### 4.20 Cartes personnalisées : pour le fun, aucune progression ✅
+- Décision du 2026-10-11 : une partie sur une **carte faite avec l'éditeur**
+  (carte perso du joueur, ou carte perso d'un hôte reçue en coop) ne fait
+  **pas progresser** le profil : **ni XP** (ni niveau), **ni butin gardé**
+  (armes, pièces, échantillons, même après une évacuation), **ni contrat**
+  (le tableau ne tourne pas, l'histoire n'avance pas), **ni codex**, **ni
+  défi de la semaine**. Seul le dossier de combat (records, statistiques)
+  compte la partie : ce n'est pas une progression.
+- But : les cartes de l'éditeur restent un terrain de jeu libre (cartes
+  faciles, cartes de test) sans fausser la progression des cartes du jeu.
+- Interface : à JOUER, les cartes de l'éditeur sont rangées à part, sous
+  **CARTES PERSONNALISÉES**, étiquette **POUR LE FUN** et la phrase « Créées
+  avec l'éditeur. Aucune progression : ni XP, ni butin, ni contrat. » ; en
+  partie, pas de compteur d'XP ni de message « objectif atteint » ; au
+  retour, le récapitulatif montre « +0 XP », BUTIN NON GARDÉ et POUR LE FUN.
+- Code : `ProgressGate` (seule décision : identifiant de carte « perso:… »
+  ou « partagee:… »), lu une fois par `Game` (`Game.progress`) qui ferme
+  chaque chemin du profil (MatchXp, ProfileLoot, MatchContracts,
+  WeeklyChallenge, ContractWatch, compteur d'XP) ; tests :
+  `tests/test_progress_gate.gd`, scénario `hub2_recap_flow`.
 
 ## 5. Mécaniques prototypées (code actuel)
 

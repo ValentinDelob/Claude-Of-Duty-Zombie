@@ -321,6 +321,14 @@ même intensité de catégorie, aucune baisse des autres sons) :
 | `menu_theme` | bourdon, nappe mineure, **chœur** lointain, **boîte à musique** désaccordée, **glas**, battements de cœur | boucle de 40 s à 96 bpm : bourdonnement des néons et ventilation, nappes de synthé suspendues (la sus2 puis fa add9), motif de synthé pincé en 7 croches, bips de moniteur, pulsation grave, compteur Geiger, sirène à deux tons très lointaine |
 | `menu_start` | porte blindée, **chœur qui hurle**, grondement | verrou du sas et souffle pneumatique, montée de synthé, trois bips d'alarme qui montent, grondement qui retombe |
 
+Récapitulatif d'après partie du hub v2 (11/10/2026, `tools/gen_audio_menu.gd`,
+procéduraux, aucune baisse des autres sons) : `ui_xp_tick.wav` (clic sec et
+court bip de moniteur, catégorie `interface`, joué à hauteur montante pendant
+que l'XP grimpe) et `level_up.wav` (trois bips qui montent, accord de synthé
+en la majeur qui s'ouvre, petit choc métallique ; catégorie `ritournelle`).
+Aperçus des cartes de l'écran JOUER : `assets/ui/hub/maps/<carte>.png`, vues
+en jeu rendues par `tools/map_shots.sh`.
+
 Peluche leurre (11/10/2026) : l'air du **singe-tambour** (orgue de barbarie et
 cymbales à 135 bpm, calque du singe de BO1) est remplacé par une musique
 propre à l'objet leurre du jeu, l'ours en peluche du service de pédiatrie :

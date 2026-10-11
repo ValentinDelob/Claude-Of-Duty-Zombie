@@ -124,13 +124,17 @@ static func _arsenal(pr: PlayerProfile, uid: String) -> OwnedWeapon:
 
 
 ## Résumé pour le rapport de fin (MatchResult.loot) : {"kept": bool,
-## "weapons": [[identifiant, niveau, rareté]...], "parts": n, "samples":
+## "weapons": [[identifiant, niveau, rareté, neuve]...], "parts": n, "samples":
 ## {sorte: n}}. Données seulement (le texte est écrit dans la langue du
-## joueur par MatchResult.loot_lines).
+## joueur par MatchResult.loot_lines). « neuve » : nouvel exemplaire de
+## l'arsenal (butin, arme de base améliorée) ; faux : version de l'arsenal
+## construite à la station et mise à jour (§4.11, récapitulatif du hub v2).
 static func report(loot: Dictionary, kept: bool) -> Dictionary:
 	var ws := []
 	for w in loot.get("weapons", []):
-		ws.append([String(w.get("id", "")), GameWeapon.level_of(w), GameWeapon.rarity_of(w)])
+		var uid := String(w.get("uid", ""))
+		ws.append([String(w.get("id", "")), GameWeapon.level_of(w), GameWeapon.rarity_of(w),
+			uid == "" or uid.begins_with("loot:") or uid.begins_with(BaseWeapons.UID_PREFIX)])
 	return {"kept": kept, "weapons": ws, "parts": (loot.get("parts", []) as Array).size(),
 		"samples": (loot.get("samples", {}) as Dictionary).duplicate()}
 
