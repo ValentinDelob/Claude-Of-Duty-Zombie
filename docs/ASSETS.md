@@ -342,6 +342,15 @@ source n'est pas en cache, `tools/audio/sfx_import.gd`).
   (`DogRound.HOWL_*`), grognement depuis la cachette puis aboiement quand le
   chien jaillit, aboiement au bond puis morsure (`dog_bite_1..2`) 0,22 s plus
   tard ; mort : `dog_whine` et un impact de chair (`flesh_hit_*`).
+- Brancardier (sons **procéduraux**, `tools/gen_audio.gd`, catégories
+  `brancardier*` de `SfxLoudness`) : rugissement et roulettes lointains à
+  l'annonce (`brancard_roar_1`, `brancard_wheels`), grognements
+  (`brancard_groan_1..2`), pas lourds (`brancard_step_1..2`), sabot qui
+  gratte (`brancard_scrape`, 3 fois à la préparation), rugissement de
+  préparation (`brancard_roar_1`) et cri de départ (`brancard_charge`), choc
+  contre un mur et poings abattus (`brancard_impact` : impact grave, cadre
+  d'acier qui claque, gravats), joueur percuté (`brancard_hit`), mort
+  (`brancard_death`).
 - Voix des zombies (groupe `zombie`) plafonnées à 7 simultanées, pas traînants
   (groupe `zombie_step`) à 4 et seulement à moins de 14 m ; au-delà, la voix
   la plus lointaine est remplacée par une plus proche (`Audio._group_voice`).

@@ -484,7 +484,7 @@ limite non atteinte, `has_samples` → consomme exactement, crée l'objet, compt
 
 ## 7. Contenu d'exemple (provisoire)
 
-Seuls échantillons existants : **chiens** — croc (`dog_fang`), touffe de poils
+Échantillons des **chiens** (ceux du Brancardier : §7.2 bis) — croc (`dog_fang`), touffe de poils
 (`dog_fur`), collier (`dog_collar`), chacun **20 %** par chien tué et par
 joueur (§4.7).
 
@@ -539,6 +539,38 @@ joueur (§4.7).
 - La « garniture » du concept (§4.2 ter) est une pièce de dégâts : les
   familles d'emplacements (canon, garniture…) ne sont pas encore dans le jeu
   (💡 §4.9) ; le nom suffit pour l'instant.
+
+### 7.2 bis Brancardier : contrats (3) et échanges (2)
+
+Échantillons du Brancardier (GAME_CONCEPT §4.4) : **sangle de cuir**
+(`brancard_strap`) et **bracelet d'identification** (`brancard_bracelet`),
+20 % chacun sur **chaque zombie de sa vague** (le Brancardier et ses
+5 zombies d'escorte par joueur) : à un joueur, 6 tirages par vague, comme la
+première meute. Icônes du hub : `strap` (sangle à boucle), `bracelet`
+(bande blanche à étiquette bleue) ; groupe « BRANCARDIER » de la réserve.
+
+**Rotation** (format de carte 21) : sur une carte aux deux types, la partie
+de référence (évacuation à la manche 10) a **une** vague de chaque type
+(meute à la 5, Brancardier à la 10) : ≈ 1,2 échantillon de chaque sorte de
+chaque type par partie. Les contrats des chiens (§7.1, calculés avec deux
+meutes) demandent donc ≈ 2 fois plus de parties qu'annoncé tant que la
+carte fait tourner deux types (à revoir avec l'auteur : GAME_CONCEPT §7).
+
+Parties estimées (≈ 1,2 de chaque sorte par partie de référence, comme
+§7.1, non simulées) ; mêmes règles d'équilibre que les chiens ; niveau
+minimal 5 et plus (le Brancardier arrive à la manche 10, quand le joueur
+s'évacue vers la manche 10, XP_RULES §4) :
+
+| Id | Titre FR / EN | Demande | Parties (solo) | XP de base | Récompense | Niveau | Autre |
+|---|---|---|---|---|---|---|---|
+| `orderly_straps` | Sangles de contention / Restraint Straps | 3 sangles | ≈ 2,9 | 1 650 | arme rare | 5+ | |
+| `patient_records` | Dossiers des patients / Patient Records | 4 bracelets | ≈ 3,7 | 2 100 | pièce d'exception | 5+ | |
+| `field_stretcher` | Brancard de campagne / Field Stretcher | 3 sangles, 3 bracelets | ≈ 3,4 | 1 950 | arme épique | 6+ | après `orderly_straps` |
+
+| Id | Titre FR / EN | Coût | Parties (solo) | Objet (au niveau du joueur) | Niveau |
+|---|---|---|---|---|---|
+| `leather_sling` | Bretelle de cuir / Leather Sling | 4 sangles | ≈ 3,7 | pièce : rechargement +20 % | 5+ |
+| `tagged_sights` | Mire étiquetée / Tagged Sights | 3 bracelets + 2 sangles | ≈ 3,2 | pièce : précision +20 %, dégâts +5 % | 6+ |
 
 ### 7.3 Coop
 

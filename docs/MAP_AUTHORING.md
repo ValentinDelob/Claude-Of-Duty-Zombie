@@ -1462,7 +1462,7 @@ plus de liste `etages` : les niveaux sont les altitudes des pièces. Format
 18 : `vagues` (facultatif, jamais écrit à sa valeur par défaut) =
 `{"speciale": {"premiere": 5, "intervalle": 5}, "boss": {"premiere": 15,
 "intervalle": 15}}` : schéma d'apparition des vagues spéciales (mini-boss :
-aujourd'hui la meute de chiens) et des vagues de boss, en manches (entiers de
+meute de chiens, Brancardier ; types : format 21) et des vagues de boss, en manches (entiers de
 0 à 999 ; `premiere` 0 : jamais ; `intervalle` 0 : une seule vague). Valeur
 par défaut : une vague spéciale toutes les 5 manches (5, 10, 15…), un boss
 toutes les 15. Une manche prévue pour les deux est une vague de boss si la
@@ -1471,9 +1471,27 @@ vague de boss ne fait donc rien. Réglable dans le panneau de la carte (rien
 de sélectionné) : « Vague spéciale / Vague de boss : 1re manche, toutes les
 N manches » (`WaveRules`, `EditorMap.set_waves`). Une carte d'un format plus
 ancien a le schéma par défaut. Format 19 : station de construction
-(`station`, obligatoire). Format **20** (courant) : **architecture en cubes de
+(`station`, obligatoire). Format 20 : **architecture en cubes de
 5 cm** (§ 4, « Passage aux cubes de 5 cm (format 20) ») : aucune clé
 nouvelle, toutes les coordonnées d'architecture sont des multiples de 5 cm.
+Format **21** (courant) : `vagues.types_speciaux` (facultatif, jamais écrit
+quand tous les types sont permis) = liste des **types de vagues spéciales**
+permis sur la carte, parmi `"meute"` (chiens errants) et `"brancardier"` (le
+Brancardier, gros zombie qui charge) ; absente, vide ou illisible : tous.
+**Rotation** : la k-ième vague spéciale prévue par le schéma (manches de boss
+exclues quand la carte a un boss) est du type n° (k − 1) modulo le nombre de
+types permis, dans l'ordre meute puis Brancardier : par défaut meute à la
+manche 5, Brancardier à la 10, meute à la 15, Brancardier à la 20… ; une
+carte qui ne permet qu'un type n'a que lui (`WaveRules.special_type_at`).
+Réglage dans le panneau de la carte (rien de sélectionné), sous « Vague
+spéciale » : une case par type (« Vague spéciale : Meute (chiens errants) »,
+« Vague spéciale : Brancardier (gros zombie qui charge) ») ; le dernier type
+coché ne peut pas être décoché (`EditorMap.set_special_types`). Aucune
+conversion : une carte au format 20 ou moins a tous les types, en rotation ;
+une carte reçue en réseau avec un type inconnu est refusée (`CustomMapGuard`).
+Exemple : `"vagues": {"speciale": {"premiere": 4, "intervalle": 4},
+"types_speciaux": ["brancardier"]}` : un Brancardier toutes les 4 manches,
+jamais de meute.
 
 **`pieces.json`** — les pièces :
 
