@@ -351,6 +351,15 @@ source n'est pas en cache, `tools/audio/sfx_import.gd`).
   contre un mur et poings abattus (`brancard_impact` : impact grave, cadre
   d'acier qui claque, gravats), joueur percuté (`brancard_hit`), mort
   (`brancard_death`).
+- Infirmière hurlante (sons **procéduraux**, `tools/gen_audio.gd`,
+  catégories `infirmiere*` de `SfxLoudness`) : hurlements lointains à
+  l'annonce (`nurse_far`), gémissements (`nurse_moan_1..2`), pas légers
+  (`nurse_step_1..2`), inspiration sifflante de la préparation
+  (`nurse_inhale`), **cri** (`nurse_scream`, catégorie la plus forte de la
+  vague : c'est le signal), toux du cri étranglé (`nurse_choke`), glapissement
+  touchée (`nurse_hit`), coup de seringue (`nurse_stab`), mort
+  (`nurse_death`), acouphène 2D du joueur étourdi (`nurse_ring`, discret ;
+  aucun autre son n'est baissé).
 - Voix des zombies (groupe `zombie`) plafonnées à 7 simultanées, pas traînants
   (groupe `zombie_step`) à 4 et seulement à moins de 14 m ; au-delà, la voix
   la plus lointaine est remplacée par une plus proche (`Audio._group_voice`).
