@@ -44,17 +44,19 @@ const MOD_MEANING := {
 	"accuracy": ["moins de dispersion", "tighter spread", "plus de dispersion", "wider spread"],
 }
 
-## Familles d'armes (WeaponDB.CLASSES) : nom [FR, EN] et icône (HubIcon).
+## Familles d'armes (WeaponDB.CLASSES) : nom [FR, EN] (les mots de
+## WeaponDB.FAMILIES en casse de phrase, vérifié par tests/test_hub_arsenal.gd)
+## et icône (HubIcon, une par famille ; la batte pour le corps à corps).
 const CLASS_NAMES := {
 	"pistol": ["Pistolet", "Pistol"], "revolver": ["Revolver", "Revolver"],
-	"smg": ["Pistolet-mitrailleur", "Submachine gun"], "rifle": ["Fusil d'assaut", "Assault rifle"],
+	"smg": ["Mitraillette", "SMG"], "rifle": ["Fusil d'assaut", "Assault rifle"],
 	"lmg": ["Mitrailleuse", "Machine gun"], "shotgun": ["Fusil à pompe", "Shotgun"],
 	"sniper": ["Fusil de précision", "Sniper rifle"], "launcher": ["Lance-grenades", "Grenade launcher"],
-	"rocket": ["Lance-roquettes", "Rocket launcher"],
+	"rocket": ["Lance-roquettes", "Rocket launcher"], "melee": ["Corps à corps", "Melee"],
 }
 const CLASS_ART := {
-	"pistol": "pistol", "revolver": "revolver", "smg": "smg", "rifle": "rifle", "lmg": "rifle", "shotgun": "shotgun",
-	"sniper": "rifle", "launcher": "shotgun", "rocket": "rifle",
+	"pistol": "pistol", "revolver": "revolver", "smg": "smg", "rifle": "rifle", "lmg": "lmg", "shotgun": "shotgun",
+	"sniper": "sniper", "launcher": "launcher", "rocket": "rocket", "melee": "bat",
 }
 
 ## Statistiques d'une arme à feu sur la fiche, dans l'ordre de la maquette :
@@ -85,28 +87,36 @@ const MOD_STAT := {
 # Armes
 # --------------------------------------------------------------------------
 
+## Arme de corps à corps : la batte (WeaponDB, famille « melee ») ou un
+## couteau (KnifeDB, attaque rapide séparée, plus une arme de base).
 static func is_melee(id: String) -> bool:
-	return KnifeDB.exists(id) and not WeaponDB.exists(id)
+	return WeaponDB.is_melee(id) or (KnifeDB.exists(id) and not WeaponDB.exists(id))
 
 
+## Nom affiché d'une arme (source unique du hub) : le nom original du jeu
+## (WeaponDB.display_name, jamais l'identifiant interne ni un nom réel) ;
+## identifiant inconnu : « ? ».
 static func weapon_name(id: String) -> String:
 	if WeaponDB.exists(id):
 		return WeaponDB.display_name(id)
 	if KnifeDB.exists(id):
 		return KnifeDB.display_name(id)
-	return id.to_upper()
+	return "?"
 
 
+## Famille d'une arme en casse de phrase (« Mitraillette », « Corps à corps »).
 static func weapon_class(id: String) -> String:
-	if is_melee(id):
-		return Lang.t("Arme de corps à corps", "Melee weapon")
+	if not WeaponDB.exists(id):
+		return Lang.t("Corps à corps", "Melee") if is_melee(id) else Lang.t("Arme", "Weapon")
 	var c: Array = CLASS_NAMES.get(String(WeaponDB.stats(id).get("class", "")), ["Arme", "Weapon"])
 	return Lang.t(c[0], c[1])
 
 
+## Icône (HubIcon) d'une arme : sa famille, la batte, le couteau ; arme
+## inconnue : pistolet.
 static func weapon_art(id: String) -> String:
-	if is_melee(id):
-		return "knife"
+	if not WeaponDB.exists(id):
+		return "knife" if KnifeDB.exists(id) or id.contains("knife") else "pistol"
 	return CLASS_ART.get(String(WeaponDB.stats(id).get("class", "")), "pistol")
 
 
@@ -409,18 +419,29 @@ static func stat_lines(w: OwnedWeapon) -> Array:
 
 
 ## Lignes d'une arme de corps à corps (§4.9) : dégâts, coups par seconde,
-## énergie par coup.
+## énergie par coup ; la batte d'après WeaponDB (rpm = coups par minute,
+## « energy »), un couteau d'après KnifeDB.
 static func melee_lines(id: String) -> Array:
-	var dmg := KnifeDB.damage(id)
-	var hits := 1.0 / WeaponDB.MELEE_COOLDOWN
+	var dmg: float
+	var hits: float
+	var energy: float
+	if WeaponDB.exists(id):
+		var s := WeaponDB.stats(id)
+		dmg = float(s.damage)
+		hits = float(s.rpm) / 60.0
+		energy = float(s.get("energy", 0.0))
+	else:
+		dmg = float(KnifeDB.damage(id))
+		hits = 1.0 / WeaponDB.MELEE_COOLDOWN
+		energy = KnifeDB.energy_cost(id)
 	return [
-		{"key": "damage", "label": Lang.t("Dégâts", "Damage"), "text": HubStyle.num(dmg), "ratio": clampf(dmg / BAR_FULL.damage, 0.0, 1.0),
+		{"key": "damage", "label": Lang.t("Dégâts", "Damage"), "text": HubStyle.num(roundi(dmg)), "ratio": clampf(dmg / BAR_FULL.damage, 0.0, 1.0),
 			"base_ratio": clampf(dmg / BAR_FULL.damage, 0.0, 1.0), "delta": "", "good": true},
 		{"key": "hits", "label": Lang.t("Coups / s", "Hits / s"), "text": decimal(hits), "ratio": clampf(hits / 3.0, 0.0, 1.0),
 			"base_ratio": clampf(hits / 3.0, 0.0, 1.0), "delta": "", "good": true},
-		{"key": "energy", "label": Lang.t("Énergie / coup", "Energy / hit"), "text": decimal(KnifeDB.energy_cost(id)),
-			"ratio": clampf(1.0 - KnifeDB.energy_cost(id) / 30.0, 0.0, 1.0),
-			"base_ratio": clampf(1.0 - KnifeDB.energy_cost(id) / 30.0, 0.0, 1.0), "delta": "", "good": true},
+		{"key": "energy", "label": Lang.t("Énergie / coup", "Energy / hit"), "text": decimal(energy),
+			"ratio": clampf(1.0 - energy / 30.0, 0.0, 1.0),
+			"base_ratio": clampf(1.0 - energy / 30.0, 0.0, 1.0), "delta": "", "good": true},
 	]
 
 

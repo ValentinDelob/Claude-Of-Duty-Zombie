@@ -17,7 +17,8 @@ const RIGHT_W := 612.0
 ## Description courte de chaque arme de base [FR, EN] (autre : la famille).
 const BASE_TEXT := {
 	"m1911": ["peu efficace, munitions rechargeables à la station", "weak, ammo refilled at the station"],
-	"knife": ["corps à corps, attaque rapide séparée, consomme de l'énergie", "melee, separate quick attack, uses energy"],
+	"bat": ["corps à corps tenu en main, frappe deux zombies, consomme de l'énergie",
+		"held melee, hits two zombies, uses energy"],
 }
 
 var slots: Array = []  # HubSlot ×3

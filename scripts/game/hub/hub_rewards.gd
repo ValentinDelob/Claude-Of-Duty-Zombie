@@ -115,7 +115,7 @@ static func describe(reward: Dictionary, lvl: int) -> String:
 			var id := String(reward.get("weapon", "any"))
 			var l := lvl if id == "any" or not WeaponDB.exists(id) else maxi(lvl, WeaponDB.base_level(id))
 			var what := Lang.t("ARME", "WEAPON") if id == "any" or not WeaponDB.exists(id) \
-					else String(WeaponDB.WEAPONS[id].get("name", id))
+					else WeaponDB.display_name(id)
 			# Ordre des mots : « ARME RARE » / « RARE WEAPON ».
 			var words := [GameWeapon.rarity_name(r), what, l] if Lang.is_en() else [what, GameWeapon.rarity_name(r), l]
 			return Lang.t("%s %s NIV. %d", "%s %s LVL %d") % words

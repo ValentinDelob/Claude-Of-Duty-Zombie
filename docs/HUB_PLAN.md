@@ -496,7 +496,7 @@ joueur (§4.7).
 | `fur_padding` | Bourre de poils / Fur Padding | 6 touffes | 3,0 | pièce : recul +20 % (moins de recul) | 1+ |
 | `collar_strap` | Bride de collier / Collar Strap | 4 colliers + 2 touffes | 2,2 | pièce : chargeur +20 % | 2+ |
 | `sharpened_fangs` | Crocs affûtés / Sharpened Fangs | 8 crocs + 4 colliers | 3,8 | pièce : dégâts +12 %, cadence +10 % | 5+ |
-| `pack_weapon` | Arme de la meute / Pack Weapon | 10 crocs + 10 touffes + 10 colliers | 5,6 | arme épique précise (pistolet-mitrailleur `mp5k`, nom à renommer) | 8+ |
+| `pack_weapon` | Arme de la meute / Pack Weapon | 10 crocs + 10 touffes + 10 colliers | 5,6 | arme épique précise (mitraillette MOUCHERON, identifiant `mp5k`) | 8+ |
 
 - Un échange coûte plus de parties qu'un contrat à récompense comparable,
   sans XP : c'est le prix de la certitude.
@@ -636,11 +636,15 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
   `hub_chip.gd` (puces et barre de filtres) ; scénario `hub_gear` (@rendu,
   captures pendant le développement). Choix pris pendant le lot
   (provisoires) :
-  - **noms des armes** : ceux du jeu (`WeaponDB.display_name` : MP5K, M14…),
-    pas les noms fictifs de la maquette (FRELON…) ; armes de base : le
-    pistolet de départ et le **couteau** (pas encore de batte) ; le couteau
-    se choisit au DÉPART comme une arme de base (§4.10), il reste l'attaque
-    de mêlée séparée en partie ;
+  - **noms des armes** : les noms originaux du jeu (`HubGear.weapon_name`
+    -> `WeaponDB.display_name` : MOUCHERON, MÉTRONOME…, docs/WEAPONS.md),
+    pas les noms fictifs de la maquette (FRELON…) ni les identifiants
+    internes (`mp5k`, gardés dans le profil et `assets/data/hub/*.json`) ;
+    famille (`HubGear.CLASS_NAMES`, mots de `WeaponDB.FAMILIES`) et icône
+    par famille (`HubGear.CLASS_ART`) ; armes de base : la PÉTOIRE et la
+    **BATTE** de baseball (§4.10) ; le couteau n'est plus une arme de base
+    (attaque de mêlée séparée en partie) : un profil qui partait avec lui
+    part avec la batte (`BaseWeapons.migrate`) ;
   - **nom d'une pièce** d'après son modificateur principal (celui de son
     identifiant `part_<modificateur>`, sinon le plus grand bonus) : dégâts
     Renfort, cadence Ressort, rechargement Guide, recul Amortisseur,

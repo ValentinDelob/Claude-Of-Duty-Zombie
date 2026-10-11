@@ -69,6 +69,19 @@ static func clean_selection(sel: Variant) -> PackedStringArray:
 	return out if out.size() >= MIN_START else default_selection()
 
 
+## Sélection d'un profil enregistré mise à jour : chaque ancienne arme de
+## base (RENAMED, ex. le couteau) devient celle qui la remplace (la batte) ;
+## autre valeur rendue telle quelle. Un profil qui partait avec le couteau
+## part donc avec la batte, sans que la sélection compte comme abîmée.
+static func migrate(sel: Variant) -> Variant:
+	if not (sel is Array or sel is PackedStringArray):
+		return sel
+	var out := []
+	for v in sel:
+		out.append(RENAMED.get(String(v), v) if (v is String or v is StringName) else v)
+	return out
+
+
 ## Vrai si `sel` est déjà une sélection valide (1 à 3 armes de base distinctes).
 static func selection_ok(sel: Variant) -> bool:
 	if not (sel is Array or sel is PackedStringArray):

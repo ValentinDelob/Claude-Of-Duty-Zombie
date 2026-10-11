@@ -229,7 +229,7 @@ func test_lobby_card_from_guest() -> void:
 	n._srv_hello("Invite", Net.PROTOCOL_VERSION, Net.build_version())
 	n._srv_set_lobby_card(12, ["m1911", "knife"])
 	assert_eq(int(n.players[0].lvl), 12, "niveau de l'invité au registre")
-	assert_eq(Array(n.players[0].start), ["m1911", "knife"], "armes de départ")
+	assert_eq(Array(n.players[0].start), ["m1911", "bat"], "armes de départ (ancien couteau -> batte)")
 	n._srv_set_lobby_card(-5, "x")
 	assert_eq(int(n.players[0].lvl), 1, "niveau borné")
 	assert_eq(Array(n.players[0].start), Array(BaseWeapons.default_selection()), "armes illisibles : sélection par défaut")
