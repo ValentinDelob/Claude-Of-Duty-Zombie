@@ -2690,6 +2690,33 @@
     "en": "A cubic world",
     "fr": "Un monde en cubes"
    }
+  },
+  "v0.2.1-snapshot.602": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "The hub gets its tabs: ARSENAL (your weapons and their versions, weapon sheet with stats, fitting and removing parts, recycling), PARTS, and LOADOUT to choose your 1 to 3 starting weapons.",
+     "fr": "Le hub reçoit ses onglets : ARSENAL (vos armes et leurs versions, fiche d'arme avec statistiques, pose et retrait de pièces, recyclage), PIÈCES, et DÉPART pour choisir vos 1 à 3 armes de départ."
+    },
+    {
+     "en": "CONTRACTS: the scientist offers jobs paid in samples. Accept up to 3, fill them over your games and hand them in for experience and a weapon or a part at your level. New offers arrive after each game.",
+     "fr": "CONTRATS : le scientifique propose des missions payées en échantillons. Acceptez-en jusqu'à 3, remplissez-les au fil de vos parties et remettez-les contre de l'expérience et une arme ou une pièce à votre niveau. De nouvelles propositions arrivent après chaque partie."
+    },
+    {
+     "en": "EXCHANGES: trade your samples for a precise reward at any time.",
+     "fr": "ÉCHANGES : échangez vos échantillons contre une récompense précise, quand vous le voulez."
+    },
+    {
+     "en": "A new original HUD: round counter made of cubes, lab-alert colours, a new loading screen and new announcement sounds for rounds and special waves.",
+     "fr": "Un nouveau HUD original : compteur de manche en cubes, couleurs de laboratoire en alerte, nouvel écran de chargement et nouveaux sons d'annonce des manches et des vagues spéciales."
+    }
+   ],
+   "title": {
+    "en": "The scientist's lab",
+    "fr": "Le laboratoire du scientifique"
+   }
   }
  }
 }
