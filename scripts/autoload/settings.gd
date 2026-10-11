@@ -16,9 +16,9 @@ signal changed
 signal bindings_changed
 
 var player_name := "Claude"
-## Personnage incarné (OPTIONS > JEU > PERSONNAGE) : « auto » (personnage
-## libre tiré par l'hôte, comme BO1) ou un identifiant de CharacterDB.IDS.
-## Pris en compte au lancement de la partie suivante.
+## Jeu de répliques temporaire (CharacterDB) : « auto » (tiré par l'hôte) ou
+## un identifiant de CharacterDB.IDS. Plus réglable dans les options (le
+## personnage est unique : joueur de baseball) ; relu de settings.cfg.
 var character := CharacterDB.AUTO
 var mouse_sensitivity := 0.25
 ## Multiplicateur de la sensibilité en visée (1 = celle de l'arme, comme BO1).

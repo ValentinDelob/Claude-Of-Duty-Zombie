@@ -79,7 +79,8 @@ et exporte.
 | `setup_render`, `render_view(path, azimut, cible, hauteur_m)`, `sheet`, `load_png`, `save_png` | rendus orthographiques (hauteur visible en mètres : même échelle que la planche) et planches de validation |
 
 - Matières (`MATERIALS`) : `skin`, `eye` (émissif : alpha 0 dans le jeu),
-  `cloth`, `leather`, `metal`, `wound`, `bone` — la matière du shader des
+  `cloth`, `leather`, `metal`, `wound`, `bone`, `team` (zone de couleur
+  d'équipe du joueur, voir « Joueur de baseball ») — la matière du shader des
   zombies (`zombie.gdshader`) ; la couleur vient de la face (COLOR_0, lue par
   `ZombieGlb`, déjà linéaire dans Godot).
 - Personnages : ossature `RigBuilder.BONES` (noms, parents), repos membres
@@ -263,6 +264,56 @@ et exporte.
   `--sheet` et captures `weapon_view`, `melee`, `scope`.
 - Cache : `tools/blender/weapons/weapons_voxel_cells.json` (suivi par git) ;
   `--cache` reconstruit à l'identique.
+### Joueur de baseball (tools/blender/player/player_voxel.py)
+
+- `assets/models/player/player_voxel.glb`, cubes de **2,5 cm**, modèle de
+  **tous les joueurs** vus par les autres (`PlayerModel`, chargé par
+  `ZombieGlb`) : en coop, quatre joueurs identiques distingués par leur
+  couleur (GAME_CONCEPT.md § 3). Pas de planche de référence : formes
+  décrites par pavés de cubes dans le script, comme le chien.
+- Survivant d'une **équipe fictive** (aucune ligue, équipe, logo ni marque
+  réelle) : casquette à visière et losange blanc (un « diamant » de
+  baseball), maillot crème boutonné à liserés, encolure en V sur le
+  sous-maillot, numéro **27** (petit sur la poitrine, grand dans le dos),
+  ceinture à boucle, pantalon gris à liseré latéral, chaussettes hautes à
+  rayure blanche, crampons noirs (crampons d'un cube sous la semelle), gants
+  de frappe à paume de cuir. Visage cubique lisible : yeux 2 × 2 (blanc et
+  pupille), sourcils froncés, nez en saillie, bouche, barbe de trois jours,
+  oreilles, cheveux sous la casquette. Usure : terre (plaques de 3 cubes) et
+  sang séché, déchirure au flanc (peau griffée), genou droit râpé, bandage
+  ensanglanté à l'avant-bras gauche, pansement à la mâchoire, égratignure à
+  la pommette.
+- **Zone de couleur d'équipe** : matière `team` (`voxel_lib.MATERIALS`,
+  `RigBuilder.MAT_TEAM` = 6, `ZombieGlb.MATS`) peinte en **gris** (0,8 =
+  teinte pleine) : casquette et visière, sous-maillot (manches longues, col),
+  liserés du maillot et du pantalon, numéros, chaussettes, bracelets des
+  gants. En jeu, `assets/shaders/player_voxel.gdshader` la multiplie par la
+  couleur du joueur (`team_color` par instance, couleur sRGB de
+  `HudStyle.PLAYER_COLORS` : ambre, cyan, rose, vert anis) : couleur =
+  couleur du joueur × gris / 0,8 (calcul en sRGB, le même que la planche).
+- 1,80 m (72 cubes), 27 × 17 × 72 cubes, ~9 100 cellules, **4 078
+  triangles** (budget 9 000), palette réduite ; un mesh partagé par tous les
+  joueurs (un draw call + l'arme), ombres portées.
+- Ossature `RigBuilder.BONES` aux positions de l'animation procédurale du
+  joueur : bassin à 0,95 m, cuisse et tibia de 0,45 m (hanche 2,5 cm sous le
+  bassin), bras et avant-bras de 0,30 m (point d'attache de l'arme inchangé
+  sur `forearm_r`) ; tête pivotant à sa base (os `head` au menton, yeux à
+  `PlayerModel.EYE_OFFSET`), mains sur l'avant-bras, pieds sur le tibia.
+  Contact au sol (à terre, mort) calculé sur des boîtes **mesurées** sur le
+  modèle (`PlayerModel.dims`).
+- Cache : `tools/blender/player/player_voxel_cells.json` (suivi par git ;
+  `--cache` reconstruit le même modèle). Planche de validation : `--sheet
+  <fichier>.png` (face, dos, profils, trois-quarts avant et arrière ; les
+  quatre couleurs et la zone grise brute ; gros plans du visage et du
+  numéro ; poses de visée et de course). Trois passes rendu -> corrections à
+  la création : visage d'abord illisible (traits noirs sous les yeux et
+  sourcils fondus en « lunettes »), terre et sang trop denses (camouflage),
+  torse trop plat de profil, puis blancs des yeux avalés par la réduction de
+  palette (faces du regard en matière `bone`, hors réduction).
+- Tests : `tests/test_player_voxel.gd`, `tests/test_downed_pose.gd`,
+  `tests/test_player_model.gd` ; captures en jeu `sh tools/scenario.sh
+  downed_pose_look` (poses debout des quatre couleurs, à terre, chute,
+  pente, mur, marche, mort, vue 1re personne d'un coéquipier à terre).
 
 ### Architecture et textures des cartes (fait, docs/VOXEL_ARCHITECTURE_PLAN.md)
 

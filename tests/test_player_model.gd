@@ -4,7 +4,7 @@ extends TestCase
 
 func _model_with_weapon() -> PlayerModel:
 	var m := PlayerModel.new()
-	m.build(Color.RED, 0)
+	m.build(Color.RED)
 	host.add_child(m)
 	m.set_weapon("m1911", false)
 	# Arme épaulée (immobile, regard à l'horizontale) ; le squelette et la

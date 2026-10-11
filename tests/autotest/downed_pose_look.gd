@@ -3,7 +3,9 @@ extends AutotestScenario
 ## @niveau perf
 ## Hors check (captures à regarder, pas de mesure) : à lancer à la main,
 ##   sh tools/scenario.sh downed_pose_look
-## Pose « à terre » (dernier recours BO1) des sept personnages, dans un
+## Joueur de baseball cubique vu par les autres (quatre couleurs) : poses
+## debout (marche, course, accroupi, visée, réanimation, allongé), puis pose
+## « à terre » (dernier recours BO1), dans un
 ## studio construit hors de la carte : de face, de profil, de dos et de
 ## trois quarts ; chute et relevé image par image ; en pente (montée et
 ## descente), face à un mur, sur une marche ; vue 1re personne du joueur à
@@ -35,10 +37,12 @@ func run() -> void:
 	game.add_child(cam)
 	cam.make_current()
 
-	# Les sept personnages assis, côte à côte (regard vers -Z).
+	await _standing_poses()
+	# Les quatre joueurs assis, côte à côte (regard vers -Z).
+	var n := 4
 	var models: Array[PlayerModel] = []
-	for ch in CharacterDB.IDS.size():
-		var m := _model(ch, O + Vector3((ch - 3) * 1.6, 0, 0), 0.0)
+	for ch in n:
+		var m := _model(ch, O + Vector3((ch - 1.5) * 1.6, 0, 0), 0.0)
 		models.append(m)
 	await _animate(models, 90, true)
 	_look(O + Vector3(0, 2.6, -8.5), O + Vector3(0, 0.3, -0.6))
@@ -50,11 +54,11 @@ func run() -> void:
 		for o in models:
 			o.visible = o == m
 		var c := m.global_position
-		var id: String = CharacterDB.IDS[ch]
+		var id := "joueur%d" % ch
 		for v in [["face", Vector3(0.0, 0.9, -2.6)], ["profil", Vector3(-2.6, 0.7, -0.6)], ["dos", Vector3(0.6, 1.3, 2.2)], ["34", Vector3(-1.8, 1.3, -1.9)]]:
 			_look(c + v[1], c + Vector3(0, 0.4, -0.5))
 			await at.screenshot("%s_%s" % [id, v[0]])
-	# Visée : regard levé puis baissé (Callahan).
+	# Visée : regard levé puis baissé.
 	for o in models:
 		o.visible = o == models[0]
 	for pitch in [0.6, -0.6]:
@@ -62,8 +66,8 @@ func run() -> void:
 		_look(models[0].global_position + Vector3(-2.6, 0.7, -0.6), models[0].global_position + Vector3(0, 0.5, -0.5))
 		await at.screenshot("visee_%s" % ("haut" if pitch > 0.0 else "bas"))
 	await _animate([models[0]], 30, true)
-	# Chute et relevé (Mercer), de profil.
-	var mercer := models[4]
+	# Chute et relevé, de profil.
+	var mercer := models[1]
 	for o in models:
 		o.visible = o == mercer
 	await _animate([mercer], 90, false)
@@ -79,9 +83,9 @@ func run() -> void:
 
 	# Pente (montée et descente), mur, marche.
 	var slope_up := _model(0, O + Vector3(21.5, 0, 2.2), 0.0)
-	var slope_down := _model(6, O + Vector3(21.5, 0, -2.2), PI)
-	var wall := _model(4, O + Vector3(30, 0, 0), 0.0)
-	var step := _model(5, O + Vector3(36, 0.2, 0.0), 0.0)
+	var slope_down := _model(1, O + Vector3(21.5, 0, -2.2), PI)
+	var wall := _model(2, O + Vector3(30, 0, 0), 0.0)
+	var step := _model(3, O + Vector3(36, 0.2, 0.0), 0.0)
 	for m in [slope_up, slope_down]:
 		m.global_position.y = _floor_y(m.global_position)
 	var lst: Array[PlayerModel] = [slope_up, slope_down, wall, step]
@@ -106,7 +110,7 @@ func run() -> void:
 	dead.queue_free()
 
 	# Vue 1re personne du joueur à terre, un coéquipier à terre devant lui.
-	var mate := _model(5, O + Vector3(0.6, 0, -3.2), PI * 0.8)
+	var mate := _model(1, O + Vector3(0.6, 0, -3.2), PI * 0.8)
 	var mates: Array[PlayerModel] = [mate]
 	await _animate(mates, 90, true)
 	p.teleport_to(O + Vector3(0, 0.05, 0), 0.0)
@@ -123,12 +127,40 @@ func run() -> void:
 
 func _model(ch: int, pos: Vector3, yaw: float) -> PlayerModel:
 	var m := PlayerModel.new()
-	m.build(ScorePanel.slot_color(ch % 4), ch)
+	m.build(ScorePanel.slot_color(ch % 4))
 	studio.add_child(m)
 	m.global_position = pos
 	m.rotation.y = yaw
 	m.set_weapon("m1911", false)
 	return m
+
+
+## Poses debout côte à côte, une par couleur et par état : arrêt, marche,
+## course, accroupi, visée, réanimation, allongé ; de face, de trois quarts
+## et de profil.
+func _standing_poses() -> void:
+	var P := Player
+	var poses := [
+		["arret", 0.0, 0, false], ["marche", 2.5, P.FLAG_MOVING, false], ["course", 6.0, P.FLAG_SPRINT | P.FLAG_MOVING, false],
+		["accroupi", 0.0, P.FLAG_CROUCH, false], ["visee", 0.0, P.FLAG_AIM, false], ["reanime", 0.0, 0, true],
+		["allonge", 0.0, P.FLAG_PRONE, false]]
+	var ms: Array[PlayerModel] = []
+	for i in poses.size():
+		ms.append(_model(i, O + Vector3((i - 3) * 1.4, 0, 8.0), 0.0))
+		ms[i].set_weapon("m14", false)
+	for f in 50:
+		for i in poses.size():
+			var q: Array = poses[i]
+			ms[i].animate(DT, q[1], 0.0, q[2], false, false, q[3])
+		await tree().physics_frame
+	_look(O + Vector3(0, 1.6, 8.0 - 7.5), O + Vector3(0, 0.8, 8.0))
+	await at.screenshot("debout_face")
+	_look(O + Vector3(-6.5, 2.0, 8.0 - 5.0), O + Vector3(-1.0, 0.8, 8.0))
+	await at.screenshot("debout_34")
+	_look(O + Vector3(-9.5, 1.4, 8.0), O + Vector3(0, 0.8, 8.0))
+	await at.screenshot("debout_profil")
+	for m in ms:
+		m.queue_free()
 
 
 func _animate(ms: Array, n: int, downed: bool, pitch := 0.0, dead := false) -> void:
@@ -157,9 +189,9 @@ func _build_studio() -> void:
 	_box(O + Vector3(15, -0.1, 0), Vector3(50, 0.2, 20), Basis.IDENTITY, Color(0.35, 0.33, 0.3))
 	# Rampe (montée vers -Z), sous les deux premiers modèles.
 	_box(O + Vector3(21.5, 1.25, 0.0), Vector3(5, 0.2, 9), Basis(Vector3.RIGHT, deg_to_rad(15.0)), Color(0.4, 0.36, 0.3))
-	# Mur à 0,9 m devant Mercer.
+	# Mur à 0,9 m devant le 3e modèle.
 	_box(O + Vector3(30, 1.0, -0.9 - 0.1), Vector3(3, 2.0, 0.2), Basis.IDENTITY, Color(0.45, 0.42, 0.38))
-	# Marche de 20 cm sous Berg, puis la suivante à 0,8 m devant elle.
+	# Marche de 20 cm sous le 4e modèle, puis la suivante à 0,8 m devant lui.
 	_box(O + Vector3(36, 0.1, 0.0), Vector3(3, 0.2, 1.6), Basis.IDENTITY, Color(0.4, 0.38, 0.35))
 	_box(O + Vector3(36, 0.2, -1.6), Vector3(3, 0.4, 1.6), Basis.IDENTITY, Color(0.4, 0.38, 0.35))
 	var sun := DirectionalLight3D.new()

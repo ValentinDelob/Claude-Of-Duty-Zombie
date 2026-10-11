@@ -48,6 +48,8 @@ const MAT_LEATHER := 2
 const MAT_METAL := 3
 const MAT_WOUND := 4
 const MAT_BONE := 5
+## Zone de couleur d'équipe du joueur cubique (player_voxel.gdshader).
+const MAT_TEAM := 6
 
 
 ## Accumulateur de sommets indexés : tableaux compacts remplis directement

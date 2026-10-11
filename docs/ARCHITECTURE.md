@@ -407,6 +407,41 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   `[player]` de `settings.cfg`, « auto » par défaut, valeur inconnue -> « auto »),
   ligne PERSONNAGE de l'onglet JEU (noms courts `CharacterDB.short_name`, nom
   complet dans l'aide). Réseau : le client envoie son choix juste après le
+- **Joueur vu par les autres** (`PlayerModel`,
+  `scripts/game/characters/player_model.gd`) : **personnage unique**, le
+  joueur de baseball cubique (`assets/models/player/player_voxel.glb`,
+  docs/ART_DIRECTION.md « Joueur de baseball »), chargé par `ZombieGlb`
+  (mesh et `Skin` partagés, `RigBuilder.instantiate`), matériau unique
+  `player_voxel.gdshader` ; la couleur du joueur
+  (`ScorePanel.slot_color(Net.player_slot(pid))`) teinte la zone d'équipe
+  (`team_color`, paramètre d'instance). `Player._ready` le construit
+  (`visual.build(couleur)`), caché pour le joueur local (vue 1re personne).
+  Animation procédurale (`animate(delta, vitesse, regard, drapeaux, à terre,
+  mort, réanime)`) : marche, course (arme balancée), accroupi, allongé et
+  plongeon (corps basculé à plat ventre), visée (`FLAG_AIM` : arme épaulée
+  bras tendus, sinon tenue plus bas coudes pliés), recul au tir
+  (`fire_kick`), **réanimation** d'un coéquipier (genou à terre, buste
+  penché, bras vers le sol : `DownedSystem.is_reviving(pid)`, lu chez tous
+  depuis l'état réseau des joueurs à terre), à terre (assis, appui sur la
+  main gauche, pistolet tendu, tête à `DOWN_EYE_Y` = 0,70 m, hauteur de la
+  caméra du joueur à terre), mort (couché sur le dos, pose figée une fois
+  posée), spectateur (le corps suivi est le même modèle). Arme tenue :
+  `set_weapon` sur une `BoneAttachment3D` de `forearm_r` (point d'attache
+  inchangé ; modèles d'armes : `WeaponModels`). Contact au sol mesuré sur le
+  modèle (`PlayerModel.dims`). Hitbox de jeu inchangée (capsule de
+  `Player`). Étiquette de nom (`Label3D`) à 2,15 m, à la couleur du joueur.
+  Pas de rechargement visible (l'état n'est pas transmis). Aucun aperçu 3D
+  du personnage au salon ni au hub. Tests : `tests/test_player_voxel.gd`,
+  `tests/test_downed_pose.gd`, `tests/test_player_model.gd`.
+- **Jeux de répliques** (`CharacterDB`, docs/CHARACTERS.md) : les sept
+  anciens personnages (`IDS` = callahan, orlov, arakawa, weissmann, mercer,
+  berg, jojo) ne servent plus qu'à choisir les **voix** de chaque joueur, en
+  attendant les répliques du joueur de baseball (à écrire, à valider par
+  l'utilisateur) ; l'index (0 à 6) choisit encore la tenue des mains FPS
+  (`ViewHands.STYLES`, refaite à part). Plus de ligne PERSONNAGE dans les
+  options ; `Settings.character` (section `[player]` de `settings.cfg`,
+  « auto » par défaut, valeur inconnue -> « auto ») reste relu et envoyé.
+  Réseau : le client envoie son choix juste après le
   bonjour (`_srv_set_character`, RPC séparé trié après les autres : le bonjour
   et les numéros des RPC existants ne changent pas) puis à chaque changement
   (`Net.send_character` sur `Settings.changed`) ; l'hôte le

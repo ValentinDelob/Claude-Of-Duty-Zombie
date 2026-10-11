@@ -233,8 +233,6 @@ func _page_game() -> void:
 	name_row.add_child(name_edit)
 	page.add_child(name_row)
 	_focusables.append(name_edit)
-	_add("character", MenuOptionRow.make_choice(Lang.t("PERSONNAGE", "CHARACTER"), character_choices(),
-			character_choice_index(Settings.character)), func(): return character_hint(Settings.character))
 	_add("language", MenuOptionRow.make_choice("LANGUE / LANGUAGE", PackedStringArray(["FRANÇAIS", "ENGLISH"]),
 			maxi(Settings.LANGUAGES.find(Settings.language), 0)),
 			Lang.t("Langue de l'interface et des voix des personnages.", "Language of the interface and of the characters' voices."))
@@ -365,33 +363,6 @@ func _add(key: String, row: MenuOptionRow, hint: Variant) -> void:
 	row.focus_entered.connect(func(): menu.set_hint(hint.call() if hint is Callable else String(hint)))
 
 
-## Valeurs du sélecteur de personnage : « automatique » puis les sept.
-static func character_choices() -> PackedStringArray:
-	var out := PackedStringArray([CharacterDB.short_name(CharacterDB.AUTO)])
-	for id in CharacterDB.IDS:
-		out.append(CharacterDB.short_name(id))
-	return out
-
-
-static func character_choice_index(choice: String) -> int:
-	return CharacterDB.IDS.find(choice) + 1  # « auto » (absent de IDS) : 0
-
-
-static func character_of_choice_index(i: int) -> String:
-	return CharacterDB.IDS[i - 1] if i >= 1 and i <= CharacterDB.IDS.size() else CharacterDB.AUTO
-
-
-## Aide du sélecteur : nom complet du personnage choisi.
-func character_hint(choice: String) -> String:
-	var h := Lang.t("Automatique : l'hôte vous attribue un personnage libre au lancement de la partie.",
-			"Automatic: the host gives you a free character when the game starts.")
-	if choice in CharacterDB.IDS:
-		h = Lang.t("Vous incarnez %s.", "You play as %s.") % CharacterDB.display_name(choice)
-	if in_game:
-		h += Lang.t(" Appliqué à la prochaine partie.", " Applies from the next game.")
-	return h
-
-
 func _on_changed(key: String, v: float) -> void:
 	match key:
 		"invert_y", "fullscreen", "vsync", "outline":
@@ -404,10 +375,6 @@ func _on_changed(key: String, v: float) -> void:
 			Settings.language = Settings.LANGUAGES[clampi(int(v), 0, Settings.LANGUAGES.size() - 1)]
 			# Tout l'écran est réécrit dans la nouvelle langue.
 			_rebuild.call_deferred("language")
-		"character":
-			Settings.character = character_of_choice_index(int(v))
-			if menu:
-				menu.set_hint(character_hint(Settings.character))
 		_:
 			Settings.set(key, v)
 	Settings.apply()

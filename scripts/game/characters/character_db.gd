@@ -1,16 +1,22 @@
 class_name CharacterDB
 extends RefCounted
-## Les sept personnages jouables (docs/CHARACTERS.md) : l'équipe de quatre de
-## Kino der Toten dans BO1, plus Mercer, Berg et Jojo. Chaque joueur choisit le sien dans
-## OPTIONS > JEU > PERSONNAGE (`Settings.character`) ou laisse « automatique ».
+## JEUX DE VOIX TEMPORAIRES. Tous les joueurs incarnent désormais le même
+## personnage, un joueur de baseball (GAME_CONCEPT.md § 3, `PlayerModel`) :
+## les sept personnages d'avant (docs/CHARACTERS.md : l'équipe de quatre de
+## Kino der Toten dans BO1, plus Mercer, Berg et Jojo) ne servent plus qu'à
+## choisir les RÉPLIQUES de chaque joueur, en attendant celles du joueur de
+## baseball (à écrire et à valider par l'utilisateur). Plus de sélecteur
+## dans les options : `Settings.character` reste « automatique » (une valeur
+## d'un ancien settings.cfg est encore respectée).
 ## L'hôte répartit les personnages au lancement de la partie (resolve_cast) :
 ## les choix explicites sont respectés (doublons permis), les joueurs en
 ## automatique prennent un personnage libre, d'après leur emplacement décalé
 ## d'une rotation tirée par l'hôte (comme le tirage des personnages de BO1).
 ## La distribution est envoyée à tous avec l'ordre de chargement (`Net.cast`).
 ##
-## L'index d'un personnage (0 à 6) choisit aussi sa tenue en vue FPS
-## (`ViewHands.STYLES`) et son apparence vue par les autres (`PlayerModel`).
+## L'index d'un personnage (0 à 6) choisit encore la tenue des mains en vue
+## FPS (`ViewHands.STYLES`, refaite à part) ; l'apparence vue par les autres
+## est la même pour tous (`PlayerModel`, couleur du joueur).
 
 const IDS := ["callahan", "orlov", "arakawa", "weissmann", "mercer", "berg", "jojo"]
 ## Choix « automatique » (Settings.character) : personnage libre tiré par l'hôte.

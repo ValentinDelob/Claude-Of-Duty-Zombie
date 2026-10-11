@@ -1,5 +1,32 @@
 # Personnages jouables et répliques
 
+## État actuel : personnage unique, voix en attente
+
+- **Tous les joueurs incarnent le même personnage**, un **joueur de
+  baseball** (GAME_CONCEPT.md § 3) : modèle cubique unique
+  (`assets/models/player/player_voxel.glb`, docs/ART_DIRECTION.md « Joueur de
+  baseball »), distingué par la couleur du joueur (ambre, cyan, rose, vert
+  anis : casquette, sous-maillot, liserés, numéros, chaussettes). Équipe
+  fictive, numéro 27 ; ni nom ni personnalité décidés.
+- Les **modèles et tenues** des sept personnages ci-dessous (soldats
+  low-poly vus par les autres, `PlayerModel.OUTFITS`, tailles de Berg et de
+  Jojo) sont **retirés**, ainsi que le sélecteur OPTIONS > JEU > PERSONNAGE.
+- Leurs **voix restent pour l'instant** (fichiers `assets/voices/<id>.json`
+  et `assets/audio/vox/` gardés) : `CharacterDB` attribue encore à chaque
+  joueur l'un des sept **jeux de répliques** (distribution de l'hôte,
+  `Settings.character` relu d'un ancien `settings.cfg`), si bien qu'un même
+  joueur de baseball peut parler avec la voix de Callahan ou de Berg. Les
+  tenues des mains en vue FPS (`ViewHands.STYLES`) dépendent encore de cet
+  index, en attendant leur refonte.
+- ⏳ **À faire** : écrire les répliques du joueur de baseball (FR / EN,
+  mêmes catégories que ci-dessous, règles d'écriture inchangées : répliques
+  génériques, drôles, jurons occasionnels permis), les faire **valider par
+  l'utilisateur**, les enregistrer, puis retirer les sept jeux de voix,
+  `CharacterDB.resolve_cast` et les taquineries entre personnages.
+
+Le reste de ce fichier décrit les sept anciens personnages (historique, et
+source des voix encore utilisées).
+
 Les sept protagonistes de Claude of Duty Zombie : les quatre premiers sur le
 modèle de l'équipe de Kino der Toten dans Black Ops 1 (quatre archétypes), plus
 Mercer, Berg et Jojo ; des personnages, des noms, des visages, des répliques et
@@ -10,7 +37,7 @@ Une partie compte quatre joueurs au plus, comme dans BO1 ; chacun incarne l'un
 des sept personnages (`CharacterDB.IDS` : `callahan`, `orlov`, `arakawa`,
 `weissmann`, `mercer`, `berg`, `jojo`, index 0 à 6 ; les mains de la vue FPS
 sont celles du joueur de baseball pour tous, `ViewHands`). Le personnage ne dépend plus de l'emplacement : chaque
-joueur le choisit dans OPTIONS > JEU > PERSONNAGE, « auto » par défaut ou l'un
+joueur le choisissait dans OPTIONS > JEU > PERSONNAGE (sélecteur retiré : voir plus haut), « auto » par défaut ou l'un
 des sept (deux joueurs peuvent prendre le même). En « auto », l'emplacement du
 joueur décalé d'une rotation tirée au sort par l'hôte (0 à 6) désigne le premier personnage encore
 libre. L'hôte résout la distribution et l'envoie à tous (`Net.cast`). Les répliques existent en **français et en anglais** : la

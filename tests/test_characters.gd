@@ -1,9 +1,10 @@
 extends TestCase
-## Choix du personnage (OPTIONS > JEU > PERSONNAGE) et distribution par
+## Jeux de répliques temporaires (CharacterDB : les sept anciens personnages,
+## en attendant les répliques du joueur de baseball) et distribution par
 ## l'hôte (CharacterDB.resolve_cast) : automatique, choix explicites, doublons,
-## valeurs invalides venues du réseau ; tenues des cinquième, sixième et
-## septième personnages (Mercer, Berg, Jojo) en vue FPS et vus par les
-## autres ; libellés du sélecteur.
+## valeurs invalides venues du réseau ; tenues des mains en vue FPS (Mercer,
+## Berg, Jojo). L'apparence vue par les autres est testée par
+## tests/test_player_voxel.gd (personnage unique).
 
 
 func _p(slot: int, choice: Variant = CharacterDB.AUTO) -> Dictionary:
@@ -163,62 +164,3 @@ func test_baseball_view_hands() -> void:
 			hi = maxf(hi, v.x)
 	assert_near(hi - lo, 0.075, 0.002, "avant-bras de 3 cubes de large")
 
-
-func test_jojo_player_model_is_bigger() -> void:
-	var m := PlayerModel.new()
-	host.add_child(m)
-	m.build(Color.RED, 6)
-	assert_near(m.skel.scale.y, PlayerModel.JOJO_SCALE, 0.001, "plus grand")
-	assert_true(PlayerModel.JOJO_SCALE > 1.05 and PlayerModel.JOJO_SCALE < 1.15)
-	m.free()
-
-
-func test_berg_player_model_is_smaller() -> void:
-	var m := PlayerModel.new()
-	host.add_child(m)
-	m.build(Color.RED, 5)
-	assert_near(m.skel.scale.y, PlayerModel.BERG_SCALE, 0.001, "plus petite")
-	assert_true(PlayerModel.BERG_SCALE > 0.85 and PlayerModel.BERG_SCALE < 0.97)
-	m.free()
-	var o := PlayerModel.new()
-	host.add_child(o)
-	o.build(Color.RED, 0)
-	assert_near(o.skel.scale.y, 1.0, 0.001, "Callahan à l'échelle normale")
-	o.free()
-
-
-func test_mercer_player_model() -> void:
-	assert_eq(PlayerModel.OUTFITS.size(), CharacterDB.IDS.size(), "une apparence par personnage")
-	for i in CharacterDB.IDS.size():
-		var m := PlayerModel.new()
-		host.add_child(m)
-		m.build(Color.RED, i)
-		assert_true(m.skel != null and m.bones.size() > 10, "modèle %s construit" % CharacterDB.IDS[i])
-		m.free()
-
-
-func test_options_character_selector() -> void:
-	var screen: GDScript = load("res://scripts/ui/screens/options_screen.gd")
-	var saved_lang := Settings.language
-	for lang in Settings.LANGUAGES:
-		Settings.language = lang
-		var choices: PackedStringArray = screen.character_choices()
-		assert_eq(choices.size(), CharacterDB.IDS.size() + 1, "automatique + sept personnages")
-		assert_eq(choices[0], "AUTOMATIQUE" if lang == "fr" else "AUTOMATIC")
-		assert_eq(choices[5], "SGT-CHEF MERCER" if lang == "fr" else "GYSGT MERCER")
-		assert_eq(choices[6], "DR BERG")
-		assert_eq(choices[7], "JOJO")
-		# Chaque nom tient entre les flèches du sélecteur (MenuOptionRow._draw).
-		var w := MenuOptionRow.GAUGE_W + 88.0 - MenuOptionRow.ARROW_W * 0.5
-		for c in choices:
-			var tw := UiStyle.font("impact").get_string_size(c, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
-			assert_true(tw <= w, "« %s » tient dans le sélecteur (%d / %d px)" % [c, tw, w])
-	Settings.language = saved_lang
-	assert_eq(screen.character_choice_index(CharacterDB.AUTO), 0)
-	assert_eq(screen.character_choice_index("mercer"), 5)
-	assert_eq(screen.character_choice_index("berg"), 6)
-	assert_eq(screen.character_choice_index("jojo"), 7)
-	assert_eq(screen.character_choice_index("zorg"), 0)
-	for i in 8:
-		assert_eq(screen.character_choice_index(screen.character_of_choice_index(i)), i, "aller-retour %d" % i)
-	assert_eq(screen.character_of_choice_index(99), CharacterDB.AUTO)
