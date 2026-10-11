@@ -26,6 +26,12 @@ var map_id := "bunker_k7"
 var target_round := 10
 ## Manche de chiens forcée (0 : aucune).
 var dog_round := 6
+## Budget en secondes de JEU (timeout_sec, en secondes réelles, le suit : avec
+## rendu, scenario.sh, le jeu va au rythme de l'horloge). Manches 1 à 10 en
+## solo : ≈ 400 s au minimum (apparitions une à une, RoundRules :
+## Σ zombies × délai ≈ 280 s, 9 entractes de 10 s, manche de chiens), ≈ 700 s
+## mesurées avec les courses (téléporteur, mise à terre, peluche... : le bot
+## ne tire pas pendant ce temps) ; 900 s laissent ≈ 30 % de marge.
 var budget_sec := 900.0
 
 var _log: SoakLogger
@@ -510,9 +516,10 @@ func use_box(spins: int) -> void:
 			await step()
 			t += 0.1
 		if box.state == MysteryBox.State.READY:
-			var it := ThrowableRules.crate_item(box.item)
+			var item := box.item
+			var it := ThrowableRules.crate_item(item)
 			await press(box, func(): return box.state != MysteryBox.State.READY, "caisse : objet pris")
-			at.check(not it.is_empty() and pd.throwable == int(it.kind) and pd.grenades == ThrowableRules.SLOT_MAX, "caisse : %s pris (%d)" % [box.item, pd.grenades])
+			at.check(not it.is_empty() and pd.throwable == int(it.kind) and pd.grenades == ThrowableRules.SLOT_MAX, "caisse : %s pris (%d)" % [item, pd.grenades])
 			count("objets de la caisse")
 
 
@@ -582,6 +589,7 @@ func downed_and_self_revive() -> void:
 	game.downed.solo_self_revive = true
 	await wait_for_horde()
 	var weapons_before := pd.weapons.size()
+	var held_before := String(pd.current_weapon().get("id", ""))
 	game.combat.debug_invulnerable = false
 	p.input.fire = false
 	var t := 0.0
@@ -605,6 +613,9 @@ func downed_and_self_revive() -> void:
 	game.combat.debug_invulnerable = true
 	at.check(pd.life == PlayerData.Life.ALIVE and GameState.state != GameState.State.PLAYER_DOWN, "auto-réanimation (%.1f s)" % t)
 	at.check(pd.weapons.size() == weapons_before, "armes rendues après la réanimation (%d / %d)" % [pd.weapons.size(), weapons_before])
+	# L'arme d'avant en main, pas le pistolet de départ (sinon le bot finit
+	# la partie au M1911 face aux PV linéaires et les manches s'éternisent).
+	at.check(String(pd.current_weapon().get("id", "")) == held_before, "arme d'avant en main après la réanimation (%s, avant %s)" % [pd.current_weapon().get("id", "?"), held_before])
 
 
 func use_teleporter() -> void:
