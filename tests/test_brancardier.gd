@@ -190,6 +190,6 @@ func test_rotation_default() -> void:
 	var seq := []
 	for n in [5, 10, 15, 20, 25]:
 		seq.append(WaveRules.special_type_at(s, n))
-	assert_eq(seq, ["meute", "brancardier", "meute", "brancardier", "meute"], "rotation par défaut")
+	assert_eq(seq, ["meute", "brancardier", "infirmiere", "meute", "brancardier"], "rotation par défaut")
 	assert_eq(WaveRules.next_special_of(s, WaveRules.BRANCARDIER, 0), 10)
-	assert_eq(WaveRules.next_special_of(s, WaveRules.MEUTE, 5), 15)
+	assert_eq(WaveRules.next_special_of(s, WaveRules.MEUTE, 5), 20)

@@ -90,15 +90,16 @@ func test_carte_integree_par_defaut() -> void:
 ## Format 21 : plusieurs types de vagues spéciales, en rotation.
 func test_rotation_types() -> void:
 	var s := WaveRules.default_schedule()
-	assert_eq(WaveRules.special_types(s), ["meute", "brancardier"], "défaut : tous les types")
+	assert_eq(WaveRules.special_types(s), ["meute", "brancardier", "infirmiere"], "défaut : tous les types")
 	assert_eq(WaveRules.special_rank(s, 15), 3, "15 : 3e vague spéciale")
 	assert_eq(WaveRules.special_rank(s, 14), 0, "14 : manche normale")
 	assert_eq(WaveRules.special_type_at(s, 5), "meute")
 	assert_eq(WaveRules.special_type_at(s, 10), "brancardier")
-	assert_eq(WaveRules.special_type_at(s, 15), "meute")
+	assert_eq(WaveRules.special_type_at(s, 15), "infirmiere")
+	assert_eq(WaveRules.special_type_at(s, 20), "meute", "20 : 4e vague spéciale, retour à la meute")
 	# Avec un boss : la manche 15 est une vague de boss, elle ne compte pas.
 	assert_eq(WaveRules.special_type_at(s, 15, true), "", "15 : vague de boss")
-	assert_eq(WaveRules.special_type_at(s, 20, true), "meute", "20 : 3e vague spéciale (la 15 est de boss)")
+	assert_eq(WaveRules.special_type_at(s, 20, true), "infirmiere", "20 : 3e vague spéciale (la 15 est de boss)")
 	# Un seul type autorisé : toujours lui.
 	var only := WaveRules.parse({"types_speciaux": ["brancardier"]})
 	assert_eq(WaveRules.special_type_at(only, 5), "brancardier")
@@ -107,8 +108,9 @@ func test_rotation_types() -> void:
 	assert_eq(WaveRules.next_special_of(only, WaveRules.BRANCARDIER, 5), 10)
 	# Lecture tolérante : inconnus écartés, doublons fusionnés, ordre canonique, vide : tous.
 	assert_eq(WaveRules.parse_types(["x", "brancardier", "meute", "meute"]), ["meute", "brancardier"])
-	assert_eq(WaveRules.parse_types([]), ["meute", "brancardier"], "liste vide : tous")
-	assert_eq(WaveRules.parse_types("meute"), ["meute", "brancardier"], "illisible : tous")
+	assert_eq(WaveRules.parse_types(["infirmiere", "meute"]), ["meute", "infirmiere"])
+	assert_eq(WaveRules.parse_types([]), ["meute", "brancardier", "infirmiere"], "liste vide : tous")
+	assert_eq(WaveRules.parse_types("meute"), ["meute", "brancardier", "infirmiere"], "illisible : tous")
 	# Une seule vague spéciale (intervalle 0).
 	var once := WaveRules.parse({"speciale": {"premiere": 7, "intervalle": 0}})
 	assert_eq(WaveRules.special_type_at(once, 7), "meute")
@@ -125,7 +127,7 @@ func test_carte_format_21() -> void:
 	assert_true(CustomMapGuard.check_texts(texts).ok, "carte reçue acceptée : %s" % str(CustomMapGuard.check_texts(texts).get("reasons")))
 	var back := EditorMap.from_texts(texts)
 	assert_eq(WaveRules.special_types(EditorMap.waves_of(back.carte)), ["brancardier"], "relu")
-	EditorMap.set_special_types(back.carte, ["meute", "brancardier"])
+	EditorMap.set_special_types(back.carte, ["meute", "brancardier", "infirmiere"])
 	assert_false(back.carte.has("vagues"), "tous les types : retour au défaut, clé retirée")
 	# Première manche changée, types par défaut : la liste n'est pas écrite.
 	EditorMap.set_waves(back.carte, WaveRules.SPECIAL, 4, 6)
@@ -140,4 +142,4 @@ func test_carte_format_21() -> void:
 	old["carte.json"] = String(old["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 20")
 	var o := EditorMap.from_texts(old)
 	assert_true(o.load_errors.is_empty(), "format 20 lu sans erreur")
-	assert_eq(WaveRules.special_types(EditorMap.waves_of(o.carte)), ["meute", "brancardier"])
+	assert_eq(WaveRules.special_types(EditorMap.waves_of(o.carte)), ["meute", "brancardier", "infirmiere"])
