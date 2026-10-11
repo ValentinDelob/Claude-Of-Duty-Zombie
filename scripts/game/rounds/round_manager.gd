@@ -59,8 +59,14 @@ func start_game() -> void:
 		return
 	_started = true
 	phase = Phase.WAITING
-	dogs.srv_plan()
-	brancard.srv_plan()
+	# Défi hebdomadaire « en retard » (§4.18) : première manche plus haute ;
+	# les vagues spéciales gardent leur rythme et leur rotation (prochaine de
+	# chaque type après le départ).
+	var first := game.challenge.start_round() if game and game.challenge else 1
+	if first > 1:
+		round_n = first - 1
+	dogs.srv_plan(round_n)
+	brancard.srv_plan(round_n)
 	_timer = RoundRules.FIRST_ROUND_DELAY
 
 

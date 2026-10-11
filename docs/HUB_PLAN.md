@@ -172,6 +172,15 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
   … » repris tel quel (`LobbyReturn`).
 - Rappel en bas : armes de départ choisies (lien vers DÉPART) et contrats
   actifs (rappel des échantillons visés).
+- **DÉFI DE LA SEMAINE** (GAME_CONCEPT §4.18, provisoire, sans maquette :
+  même style que les lignes de cartes) : une ligne au-dessus des CARTES DU
+  JEU (« S41 · BUNKER K-7 », temps restant ou « réussi ») ; choisie, l'aperçu
+  montre la carte, les modificateurs, l'objectif, le meilleur résultat, le
+  temps restant et la récompense (REÇUE une fois donnée) ; VOUS PARTEZ AVEC
+  montre les armes de base imposées (sans MODIFIER) et CONTRATS ACTIFS
+  laisse la place aux RÈGLES DU DÉFI ; bouton LANCER LE DÉFI. En coop, le
+  défi est la première ligne de CHANGER DE CARTE (hôte) et s'affiche en tête
+  de la carte du salon pour tout le groupe.
 
 ### 3.8 Options et dossier de combat
 

@@ -502,7 +502,34 @@ de 2,5 cm** (§ 4.19).
   conditions).
 - L'équilibre vient de la ferraille : tout le monde part des mêmes armes de
   base.
-- ❓ Contenu exact d'un défi et récompense.
+- 💡 **Règles provisoires appliquées** (à valider ; valeurs : §6 bis ;
+  code : `WeeklyChallenge`, réserve `assets/data/hub/weekly.json`) :
+  - **calculé hors ligne**, sans serveur, depuis le **numéro de semaine ISO**
+    (lundi 0 h UTC au lundi suivant) : une **carte** du jeu (avec porte
+    d'évacuation et station de construction), une **graine** de partie et
+    **1 à 2 modificateurs** tirés dans la réserve ; même semaine et même
+    version du jeu = même défi pour tout le monde ;
+  - **modificateurs** (noms et textes FR / EN dans la réserve) : Horde pressée
+    (zombies et chiens +15 % de vitesse), Peau de cuir (+25 % de PV), En
+    retard (départ à la manche 6), Fonds de tiroir (armes trouvées toutes
+    communes), Station en panne (pas de station : ni construction ni
+    recharge) ;
+  - **conditions égales** : tout le monde part avec **toutes les armes de
+    base** (PÉTOIRE et BATTE, niveau 1, communes), quelle que soit la
+    sélection de DÉPART ; l'**arsenal et les pièces du profil ne servent
+    pas** (la station ne construit que les armes de base) ;
+  - **butin de la partie jamais gardé** (armes, pièces, échantillons), même
+    après une évacuation ; l'**XP** de la partie est gardée comme d'habitude ;
+  - **objectif** : s'évacuer à la **manche 10 ou plus** ; **récompense une
+    fois par semaine** : XP (400 de base, selon le niveau comme un contrat)
+    et des **échantillons** (4 crocs, 3 touffes, 2 colliers) ; le **meilleur
+    résultat** de chaque semaine (manche atteinte, manche d'évacuation) est
+    gardé au profil (12 dernières semaines) ;
+  - au hub, onglet **PARTIE** : ligne **DÉFI DE LA SEMAINE** au-dessus des
+    cartes (carte, modificateurs, objectif, meilleur résultat, temps
+    restant, récompense, LANCER LE DÉFI) ; en **coop**, l'hôte choisit le
+    défi dans CHANGER DE CARTE et **son défi s'applique à tout le groupe** ;
+    chacun reçoit sa récompense dans son propre profil.
 
 ### 4.19 Direction artistique : tout en cubes ✅
 - Le jeu **quitte le rendu réaliste** de BO1 pour une identité propre : un style
@@ -690,6 +717,11 @@ corriger.
 | Taille des menus | nouveau réglage 80 à 130 % (défaut 100 %) pour le hub et les menus, même technique que la taille de l'éditeur | `docs/HUB_PLAN.md` §4.2 |
 | Hub : onglet PARTIE et retour | fin d'une partie solo (ou départ en solo) : hub, onglet LABO (« dernière partie ») ; coop : hub, onglet PARTIE (salon) ; session perdue : hub, onglet PARTIE, message sur place ; salon : niveau et armes de départ de chacun affichés (non vérifiés par l'hôte) ; pas de bouton PRÊT (l'état AU SALON en tient lieu) ; QUITTER LE SALON et ÉCRAN TITRE en coop : deux appuis | `HubPlayPanel`, `docs/HUB_PLAN.md` lot E |
 | Message « objectif atteint » | une fois par contrat et par partie, quand profil + échantillons de la partie couvrent un contrat actif ; jamais pour un contrat déjà prêt au départ ; sous le compteur d'échantillons, 7 s | `ContractWatch` |
+| Défi hebdomadaire : tirage | semaine ISO (lundi 0 h UTC) ; graine = FNV-1a de la clé « 2026-W41 » puis xorshift32 (indépendant du générateur de Godot) ; 1 carte parmi `maps` de la réserve qui ont porte d'évacuation et station (aujourd'hui BUNKER K-7 seule) ; **1 à 2 modificateurs** tirés selon leur poids, sans doublon ; graine de partie appliquée aux tirages du serveur (manches, butin, zombies) | `WeeklyChallenge`, `assets/data/hub/weekly.json` |
+| Défi hebdomadaire : modificateurs | Horde pressée **+15 %** de vitesse (zombies et chiens) ; Peau de cuir **+25 %** de PV ; En retard : **départ à la manche 6** (vagues spéciales à leur rythme, première meute manche 10) ; Fonds de tiroir : armes trouvées **communes** ; Station en panne : **pas de station** | `WeeklyChallenge.MODS`, `weekly.json` |
+| Défi hebdomadaire : conditions | armes de départ = **toutes les armes de base** pour tous ; station : armes de base seulement (l'arsenal n'est pas listé, l'hôte refuse le reste) ; **butin de la partie jamais gardé**, même évacué ; XP de la partie gardée ; pas de message « objectif atteint » des contrats ; la rotation des contrats compte la partie | `Game`, `Session`, `BuildStation` |
+| Défi hebdomadaire : objectif et récompense | **évacuation à la manche 10 ou plus** ; **une fois par semaine** : **400 XP** × (1 + 0,02 × (niveau − 1)), arrondie à 10, et **4 crocs, 3 touffes, 2 colliers** ; donnée à la fin de la partie (rapport « DÉFI S41 RÉUSSI ») ; meilleur résultat (manche atteinte, manche d'évacuation, parties) gardé pour les **12 dernières semaines** ; une partie quittée compte pour le meilleur résultat | `WeeklyChallenge.apply_to`, `WeeklyRecord` (profil v3) |
+| Défi hebdomadaire : coop | l'hôte choisit DÉFI DE LA SEMAINE dans CHANGER DE CARTE ; la clé de semaine part avec l'ordre de chargement, chaque machine recalcule le même défi ; chacun sa récompense dans son profil ; au retour au salon, le défi gardé passe à la semaine en cours | `Net.lobby_challenge`, `HubPlayLobby` |
 
 ## 7. Questions ouvertes
 
@@ -707,7 +739,8 @@ corriger.
 - Liste des armes, leurs niveaux de base et leurs statistiques (liste provisoire
   appliquée : `docs/WEAPONS.md`, à valider).
 - Durées et prix exacts de construction et de recharge des munitions.
-- Contenu du défi hebdomadaire.
+- Contenu du défi hebdomadaire (proposition provisoire appliquée : §4.18,
+  §6 bis ; à valider : modificateurs, objectif, récompense, butin non gardé).
 - Liste des cartes et de leurs vagues spéciales et boss.
 
 ## 8. Idées écartées

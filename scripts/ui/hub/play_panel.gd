@@ -12,6 +12,9 @@ extends HubPanel
 ##     quand elle donne un échantillon qui manque), LANCER LA PARTIE (même
 ##     chemin que l'ancien écran de sélection de carte : fondu cinématique
 ##     puis Router.start_solo, choix mémorisé dans Settings.last_map) ;
+##     au-dessus des cartes, la ligne DÉFI DE LA SEMAINE (GAME_CONCEPT
+##     §4.18, HubPlayWeekly) : aperçu du défi (carte, modificateurs,
+##     objectif, meilleur résultat, temps restant, récompense), LANCER LE DÉFI ;
 ##   - COOP (pas de maquette, même style) : nom du joueur, HÉBERGER (port,
 ##     joueurs maximum), REJOINDRE (adresse IP, port) ; erreurs de connexion
 ##     affichées sur place ;
@@ -44,6 +47,12 @@ var preview: TextureRect
 var info_lines: Array = []  # RichTextLabel
 var _chips: HBoxContainer
 var _contracts: VBoxContainer
+var _contracts_group: HubRow
+var _loadout_box: VBoxContainer
+## SOLO : défi de la semaine (ligne HubPlayWeekly.ROW_ID ; null : aucun) et
+## aperçu affiché (-1 : pas encore, 0 : carte, 1 : défi).
+var weekly: WeeklyChallenge
+var _weekly_view := -1
 ## COOP : champs et boutons.
 var name_edit: LineEdit
 var host_port_edit: LineEdit
@@ -274,6 +283,11 @@ func _build_solo() -> void:
 	var maps := HubPlayView.playable_maps()
 	var game_maps := maps.filter(func(m): return not m.custom)
 	var custom := maps.filter(func(m): return m.custom)
+	# Défi de la semaine (§4.18) : une ligne au-dessus des cartes.
+	weekly = HubPlayWeekly.current()
+	left.content.add_child(HubRow.group(Lang.t("DÉFI DE LA SEMAINE", "WEEKLY CHALLENGE")))
+	_add_row(left.content, HubPlayWeekly.ROW_ID, HubPlayWeekly.row_title(weekly),
+			HubPlayWeekly.row_note(weekly, profile()), HubPlayWeekly.hint(weekly), 0)
 	left.content.add_child(HubRow.group(Lang.t("CARTES DU JEU", "GAME MAPS")))
 	_add_map_rows(left.content, game_maps)
 	left.content.add_child(HubRow.group(Lang.t("CARTES PERSO", "CUSTOM MAPS")))
@@ -317,15 +331,19 @@ func _build_solo() -> void:
 	_chips = HubBox.hbox(6)
 	info.add_child(HubBox.pad(_chips, 0, 4, 0, 0))
 	box.content.add_child(HubRow.group(Lang.t("VOUS PARTEZ AVEC", "YOU HEAD OUT WITH")))
-	var lr := HubPlayView.loadout_row(profile(), self)
-	box.content.add_child(lr[0])
-	modify_button = lr[1]
-	box.content.add_child(HubRow.group(Lang.t("CONTRATS ACTIFS", "ACTIVE CONTRACTS")))
+	_loadout_box = HubBox.vbox(0)
+	box.content.add_child(_loadout_box)
+	_contracts_group = HubRow.group("")
+	box.content.add_child(_contracts_group)
 	_contracts = HubBox.vbox(0)
 	box.content.add_child(_contracts)
-	launch_button = hub_button(Lang.t("LANCER LA PARTIE", "START THE GAME"), _launch_selected, HubButton.PRIMARY,
-			Lang.t("La partie ne se termine jamais d'elle-même : évacuez après une vague spéciale.",
-				"The game never ends on its own: evacuate after a special wave."))
+	launch_button = hub_button(Lang.t("LANCER LA PARTIE", "START THE GAME"), _launch_selected, HubButton.PRIMARY, "")
+	# Aide selon l'aperçu (partie ou défi) : lue au moment du focus.
+	launch_button.focus_entered.connect(func():
+		if hub:
+			hub.set_hint(launch_button.hint))
+	_weekly_view = -1
+	_set_weekly_view(false)
 	launch_button.big = true
 	launch_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	launch_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -347,16 +365,60 @@ func _add_map_rows(parent: Control, maps: Array) -> void:
 		var f := HubPlayView.map_facts(m.id, def)
 		var hint := Lang.t("Carte perso (éditeur de cartes) : %s.", "Custom map (map editor): %s.") % HubPlayView.map_name(def) \
 				if m.custom else (def.description if def.description != "" else HubPlayView.map_name(def))
-		var row := HubPlayView.MapRow.new(m.id, HubPlayView.map_name(def) if m.custom else def.display_name, HubPlayView.list_note(f), hint)
-		row.alt = i % 2 == 1
-		row.chosen.connect(select_map)
-		row.activated.connect(func(_id): _launch_selected())
-		row.focus_entered.connect(func():
-			if hub:
-				hub.set_hint(row.hint))
-		parent.add_child(row)
-		map_rows[m.id] = row
+		_add_row(parent, m.id, HubPlayView.map_name(def) if m.custom else def.display_name, HubPlayView.list_note(f), hint, i)
 		i += 1
+
+
+func _add_row(parent: Control, id: String, title: String, note: String, hint: String, i: int) -> void:
+	var row := HubPlayView.MapRow.new(id, title, note, hint)
+	row.alt = i % 2 == 1
+	row.chosen.connect(select_map)
+	row.activated.connect(func(_id): _launch_selected())
+	row.focus_entered.connect(func():
+		if hub:
+			hub.set_hint(row.hint))
+	parent.add_child(row)
+	map_rows[id] = row
+
+
+## Aperçu de droite en mode défi (`on`) ou carte : armes de départ (imposées
+## ou du profil), CONTRATS ACTIFS ou RÈGLES DU DÉFI, texte de LANCER.
+func _set_weekly_view(on: bool) -> void:
+	if _weekly_view == int(on):
+		return
+	_weekly_view = int(on)
+	for c in _loadout_box.get_children():
+		_loadout_box.remove_child(c)
+		c.queue_free()
+	if on:
+		_loadout_box.add_child(HubPlayWeekly.loadout_row())
+		modify_button = null
+	else:
+		var lr := HubPlayView.loadout_row(profile(), self)
+		_loadout_box.add_child(lr[0])
+		modify_button = lr[1]
+	(_contracts_group.box.get_child(0) as Label).text = Lang.t("RÈGLES DU DÉFI", "CHALLENGE RULES") if on \
+			else Lang.t("CONTRATS ACTIFS", "ACTIVE CONTRACTS")
+	launch_button.label = Lang.t("LANCER LE DÉFI", "START THE CHALLENGE") if on else Lang.t("LANCER LA PARTIE", "START THE GAME")
+	launch_button.hint = Lang.t("Évacuez à la manche %d ou plus pour la récompense de la semaine.", "Evacuate at round %d or later for this week's reward.") \
+			% (weekly.goal_round if weekly else 0) if on else Lang.t("La partie ne se termine jamais d'elle-même : évacuez après une vague spéciale.",
+				"The game never ends on its own: evacuate after a special wave.")
+
+
+## SOLO : le défi de la semaine choisi (aperçu de droite).
+func _show_weekly() -> void:
+	_set_weekly_view(true)
+	map_title.text = Lang.t("DÉFI DE LA SEMAINE", "WEEKLY CHALLENGE")
+	preview.texture = MapPreview.texture(weekly.map_id) if weekly else null
+	var lines := HubPlayWeekly.info_lines(weekly, profile())
+	for i in info_lines.size():
+		(info_lines[i] as RichTextLabel).text = HubSamplesColumn.style_bbcode(lines[i])
+	HubPlayWeekly.fill_reward(_chips, weekly, profile())
+	for c in _contracts.get_children():
+		_contracts.remove_child(c)
+		c.queue_free()
+	for r in HubPlayWeekly.rule_rows():
+		_contracts.add_child(r)
 
 
 ## SOLO : choisit la carte `id` (ligne surlignée, aperçu, contrats).
@@ -372,6 +434,10 @@ func select_map(id: String) -> void:
 		for k in map_rows:
 			var r: Control = map_rows[k]
 			r.focus_neighbor_right = r.get_path_to(launch_button)
+	if id == HubPlayWeekly.ROW_ID:
+		_show_weekly()
+		return
+	_set_weekly_view(false)
 	var def := HubPlayView.def_of(id)
 	var f := HubPlayView.map_facts(id, def)
 	map_title.text = HubPlayView.map_name(def).to_upper()
@@ -399,9 +465,16 @@ func select_map(id: String) -> void:
 func _launch_selected() -> void:
 	if _leaving or selected == "" or hub == null or hub.menu == null:
 		return
+	var ch := weekly if selected == HubPlayWeekly.ROW_ID else null
+	if selected == HubPlayWeekly.ROW_ID and ch == null:
+		return
 	_leaving = true
 	for r in map_rows.values():
 		(r as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if ch:
+		# Défi de la semaine : sa carte, sa clé (la carte mémorisée ne change pas).
+		hub.menu.launch(func(): Router.start_solo(ch.map_id, ch.key))
+		return
 	var id := selected
 	Settings.last_map = id
 	Settings.save_settings()

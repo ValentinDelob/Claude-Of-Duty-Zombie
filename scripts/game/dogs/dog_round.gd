@@ -97,8 +97,8 @@ func _has_boss() -> bool:
 
 ## Serveur : première manche de chiens d'après le schéma de la carte
 ## (RoundManager.start_game).
-func srv_plan() -> void:
-	next_dog_round = WaveRules.next_special_of(_waves(), WaveRules.MEUTE, 0, _has_boss())
+func srv_plan(after := 0) -> void:
+	next_dog_round = WaveRules.next_special_of(_waves(), WaveRules.MEUTE, after, _has_boss())
 
 
 ## Tests : la prochaine manche sera une manche de chiens.

@@ -1,0 +1,49 @@
+{
+	"format": "hub_weekly",
+	"version": 1,
+	"rules": {
+		"goal_round": 10,
+		"xp": 400,
+		"min_modifiers": 1,
+		"max_modifiers": 2
+	},
+	"reward": {"dog_fang": 4, "dog_fur": 3, "dog_collar": 2},
+	"maps": ["bunker_k7"],
+	"modifiers": [
+		{
+			"id": "fast_zombies",
+			"value": 0.15,
+			"weight": 3,
+			"title": {"fr": "Horde pressée", "en": "Hasty Horde"},
+			"text": {"fr": "Zombies et chiens {pct} % plus rapides.", "en": "Zombies and dogs {pct}% faster."}
+		},
+		{
+			"id": "tough_zombies",
+			"value": 0.25,
+			"weight": 3,
+			"title": {"fr": "Peau de cuir", "en": "Leather Hide"},
+			"text": {"fr": "Zombies et chiens avec {pct} % de points de vie en plus.", "en": "Zombies and dogs with {pct}% more health."}
+		},
+		{
+			"id": "late_start",
+			"value": 6,
+			"weight": 2,
+			"title": {"fr": "En retard", "en": "Running Late"},
+			"text": {"fr": "La partie commence à la manche {n}.", "en": "The game starts at round {n}."}
+		},
+		{
+			"id": "common_loot",
+			"value": 0,
+			"weight": 2,
+			"title": {"fr": "Fonds de tiroir", "en": "Bottom of the Drawer"},
+			"text": {"fr": "Les armes trouvées sont toutes communes.", "en": "Every weapon found is common."}
+		},
+		{
+			"id": "no_station",
+			"value": 0,
+			"weight": 1,
+			"title": {"fr": "Station en panne", "en": "Station Down"},
+			"text": {"fr": "Pas de station de construction : ni construction ni recharge de munitions.", "en": "No build station: no building and no ammo refills."}
+		}
+	]
+}

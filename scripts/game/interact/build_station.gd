@@ -174,6 +174,9 @@ func srv_build(wd: Variant) -> void:
 		return
 	var w := BuildRules.clean_weapon(wd)
 	var why := BuildRules.build_refusal(game.session.get_data(pid), w, builds.has(pid))
+	# Défi hebdomadaire (§4.18) : armes de base seulement (pas d'arsenal).
+	if why == BuildRules.OK and game.challenge and not WeeklyChallenge.build_allowed(w):
+		why = BuildRules.INVALID
 	if why != BuildRules.OK:
 		print("[Station] construction refusée (%d) : %s" % [pid, why])
 		game.interact.deny(pid, why)

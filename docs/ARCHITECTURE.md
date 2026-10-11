@@ -1736,6 +1736,24 @@ codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
   pastilles NOUVEAU : `is_new_weapon`, `mark_weapon_seen`…) ; un profil v1 se
   lit sans perte (`_migrate` : contrats neufs, aucun échange, tout
   l'existant marqué vu) et est réécrit en v2 au prochain enregistrement.
+  **Version 3** : section `weekly` (`WeeklyRecord` : meilleur résultat et
+  récompense donnée par semaine ISO, 12 dernières semaines) ; un profil v1
+  ou v2 se lit sans perte, sans défi joué.
+- **Défi hebdomadaire** (GAME_CONCEPT §4.18) : `WeeklyChallenge`
+  (`scripts/game/hub/`, pur) tire hors ligne, depuis la semaine ISO (FNV-1a
+  de « 2026-W41 » + xorshift32), une carte de la réserve
+  `assets/data/hub/weekly.json` (avec porte d'évacuation et station), une
+  graine et 1 à 2 modificateurs ; il les applique (`ZombieManager.spawn` :
+  PV et vitesse ; `RoundManager.start_game` : première manche ;
+  `LootSystem` : butin commun ; `Game._build_station` : station absente ;
+  `Session.apply_loadout` : armes de base pour tous ; `BuildStation` et
+  `StationPanel` : armes de base seulement) ; fin de partie :
+  `Game._record_weekly` (butin non gardé, récompense une fois par semaine,
+  rapport `MatchResult.challenge_text`). Clé envoyée par l'hôte avec
+  l'ordre de chargement (`Net.start_match(carte, clé)`,
+  `Net.current_challenge`) ; défi du salon `Net.lobby_challenge`. Hub :
+  `HubPlayWeekly` (onglet PARTIE et salon). Tests : `tests/test_weekly.gd`,
+  `tests/test_hub_play.gd`, scénario `weekly_challenge`.
 - **XP de partie** (barème, coop, calibrage et méthode pour un nouveau mob :
   **docs/XP_RULES.md**) : `XpRules` (pur : barème par type d'ennemi, bonus
   de manche, manches, vagues, évacuation ; relevé sérialisable), `XpSystem`

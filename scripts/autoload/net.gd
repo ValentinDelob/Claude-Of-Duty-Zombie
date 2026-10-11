@@ -210,6 +210,33 @@ func _cl_lobby_map(map_id: Variant) -> void:
 	lobby_map_changed.emit(map_id)
 
 
+## Défi hebdomadaire choisi par l'hôte dans le salon (clé de semaine
+## « 2026-W41 », "" : partie normale ; GAME_CONCEPT §4.18). Le défi de l'hôte
+## s'applique à tout le groupe : chaque machine le recalcule depuis la clé
+## (WeeklyChallenge.from_key).
+var lobby_challenge := ""
+signal lobby_challenge_changed(key: String)
+## Défi de la partie en cours (clé reçue avec l'ordre de chargement, "" :
+## partie normale) : lu par Game.
+var current_challenge := ""
+
+
+## Serveur (salon) : annonce le défi `key` ("" : aucun) à tout le groupe.
+func set_lobby_challenge(key: String) -> void:
+	if multiplayer.multiplayer_peer == null or not multiplayer.is_server():
+		return
+	_cl_lobby_challenge.rpc(key)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_lobby_challenge(key: Variant) -> void:
+	# Clé bornée et lisible, ou vide.
+	if not key is String or (key != "" and WeeklyChallenge.parse_key(key).x <= 0):
+		return
+	lobby_challenge = key
+	lobby_challenge_changed.emit(key)
+
+
 ## Carte que cette machine accepte de charger sur ordre de l'hôte : carte du
 ## registre, carte perso partagée présente dans le cache ; une carte perso
 ## locale « perso:<id> » seulement pour l'hôte lui-même (solo, TESTER).
@@ -225,8 +252,9 @@ func can_load_map(map_id: Variant) -> bool:
 
 ## Serveur : ordonne à tout le monde de charger la partie sur `map_id`. Carte
 ## perso partagée : seulement quand TOUS les joueurs ont confirmé l'avoir
-## (MapShare.can_start) ; faux sinon (rien n'est envoyé).
-func start_match(map_id: String) -> bool:
+## (MapShare.can_start) ; faux sinon (rien n'est envoyé). `challenge` : clé
+## du défi hebdomadaire ("" : partie normale), envoyée avec l'ordre.
+func start_match(map_id: String, challenge := "") -> bool:
 	if not multiplayer.is_server():
 		return false
 	if map_id.begins_with(EditorMapDef.SHARED_PREFIX):
@@ -245,7 +273,7 @@ func start_match(map_id: String) -> bool:
 		return false
 	match_started = true
 	loaded_peers.clear()
-	_cl_load_game.rpc(map_id, srv_resolve_cast(0 if Autotest.active else randi() % CharacterDB.IDS.size()))
+	_cl_load_game.rpc(map_id, srv_resolve_cast(0 if Autotest.active else randi() % CharacterDB.IDS.size()), challenge)
 	return true
 
 
@@ -259,7 +287,7 @@ func srv_resolve_cast(rotation: int) -> Dictionary:
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_load_game(map_id: Variant, new_cast: Variant = {}) -> void:
+func _cl_load_game(map_id: Variant, new_cast: Variant = {}, challenge: Variant = "") -> void:
 	# Carte inconnue, identifiant invalide, carte partagée absente ou refusée
 	# ici : on ne charge jamais autre chose (la partie serait désynchronisée).
 	if not can_load_map(map_id):
@@ -272,6 +300,8 @@ func _cl_load_game(map_id: Variant, new_cast: Variant = {}) -> void:
 	match_started = true
 	current_map = map_id
 	cast = CharacterDB.clean_cast(new_cast)
+	# Défi hebdomadaire : clé lisible seulement (sinon partie normale).
+	current_challenge = challenge if challenge is String and WeeklyChallenge.parse_key(challenge).x > 0 else ""
 	GameState.set_state(GameState.State.LOADING)
 	get_tree().change_scene_to_file(GAME_SCENE)
 
@@ -308,6 +338,7 @@ func end_match() -> void:
 	match_started = false
 	loaded_peers.clear()
 	current_map = ""
+	current_challenge = ""
 	cast = {}
 
 
@@ -523,6 +554,8 @@ func _srv_hello(wanted_name: Variant, version: Variant, build_v: Variant) -> voi
 	map_share.srv_peer_joined(sender)
 	if lobby_map != "":
 		_cl_lobby_map.rpc_id(sender, lobby_map)
+	if lobby_challenge != "":
+		_cl_lobby_challenge.rpc_id(sender, lobby_challenge)
 	player_joined.emit(sender)
 
 
@@ -756,6 +789,8 @@ func _reset_peer(close_peer := true) -> void:
 	match_started = false
 	_handshake_done = false
 	lobby_map = ""
+	lobby_challenge = ""
+	current_challenge = ""
 	if map_share:
 		map_share.reset()
 	if lobby_return:

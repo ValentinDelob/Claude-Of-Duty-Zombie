@@ -80,8 +80,8 @@ func _has_boss() -> bool:
 	return game != null and game.map_def != null and game.map_def.boss != ""
 
 
-func srv_plan() -> void:
-	next_round = WaveRules.next_special_of(_waves(), WaveRules.BRANCARDIER, 0, _has_boss())
+func srv_plan(after := 0) -> void:
+	next_round = WaveRules.next_special_of(_waves(), WaveRules.BRANCARDIER, after, _has_boss())
 
 
 ## Tests : la manche `n` sera une manche du Brancardier.

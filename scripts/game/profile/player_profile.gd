@@ -43,6 +43,9 @@ var seen_parts: PackedStringArray = []
 ## Codex (bestiaire, §4.17) : ennemis rencontrés, éliminations par type
 ## (CodexState ; section facultative « codex », absente = codex vide).
 var codex := CodexState.new()
+## Défi hebdomadaire : meilleur résultat et récompense de chaque semaine
+## (version 3, WeeklyRecord, GAME_CONCEPT §4.18).
+var weekly := WeeklyRecord.new()
 
 static var _thresholds: PackedInt64Array = []
 
@@ -373,6 +376,8 @@ func to_dict() -> Dictionary:
 		"seen": {"weapons": Array(seen_weapons), "parts": Array(seen_parts)},
 		# Codex (section facultative, sans changement de version).
 		"codex": codex.to_dict(),
+		# Version 3 (défi hebdomadaire) :
+		"weekly": weekly.to_dict(),
 	}
 
 
@@ -453,6 +458,8 @@ static func from_dict(d: Dictionary, dropped := [0]) -> PlayerProfile:
 		dropped[0] += 1
 	# Codex : section facultative (profil plus ancien : codex vide).
 	pr.codex = CodexState.from_dict(d.get("codex"), dropped)
+	# Version 3 : section absente (profil v1 ou v2) : aucun défi joué.
+	pr.weekly = WeeklyRecord.from_dict(d.get("weekly"), dropped)
 	return pr
 
 
