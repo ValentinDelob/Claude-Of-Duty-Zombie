@@ -620,7 +620,66 @@ static func clean_players(v: Variant) -> Dictionary:
 			out[pid].merge(clean_card(p.get("lvl"), p.get("start")), true)
 		if p.get("away") is bool:
 			out[pid]["away"] = p.away
+		# Ping mesuré par l'hôte (facultatif : un hôte d'avant ne l'envoie pas).
+		var pg: Variant = p.get("ping")
+		if pg is int or pg is float:
+			out[pid]["ping"] = clampi(int(pg), 0, PING_MAX)
 	return out
+
+
+# --------------------------------------------------------------------------
+# Ping du salon (hub v2, PartieCoop.dc.html : « Niveau 31 · 24 ms ») : l'hôte
+# mesure l'aller-retour ENet de chaque invité (seul à le voir) et l'écrit dans
+# le registre (« ping », ms), diffusé seulement s'il bouge de PING_STEP ms au
+# moins, au salon seulement (jamais pendant une partie). Champ facultatif du
+# registre : pas de nouveau RPC (numéros inchangés), protocole inchangé.
+# --------------------------------------------------------------------------
+
+const PING_MAX := 9999
+const PING_STEP := 5
+const PING_PERIOD := 2.0
+var _ping_t := 0.0
+
+
+func _process(delta: float) -> void:
+	if mode != Mode.HOST or GameState.state != GameState.State.LOBBY:
+		_ping_t = 0.0
+		return
+	_ping_t += delta
+	if _ping_t < PING_PERIOD:
+		return
+	_ping_t = 0.0
+	srv_refresh_pings()
+
+
+## Hôte : relève le ping de chaque invité ; diffuse le registre si l'un a
+## changé de PING_STEP ms ou plus (ou est apparu). Rend vrai si diffusé.
+func srv_refresh_pings() -> bool:
+	var peer := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if mode != Mode.HOST or peer == null:
+		return false
+	var changed := false
+	for pid in players:
+		if pid == 1:
+			continue
+		var pp := peer.get_peer(pid)
+		if pp == null:
+			continue
+		var rtt := clampi(int(pp.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)), 0, PING_MAX)
+		if apply_ping(players[pid], rtt):
+			changed = true
+	if changed:
+		_cl_players.rpc(players)
+	return changed
+
+
+## Écrit le ping `rtt` dans la fiche `p` s'il est nouveau ou a bougé de
+## PING_STEP ms ou plus ; vrai si écrit. Pure.
+static func apply_ping(p: Dictionary, rtt: int) -> bool:
+	if p.has("ping") and absi(int(p.ping) - rtt) < PING_STEP:
+		return false
+	p["ping"] = rtt
+	return true
 
 
 # --------------------------------------------------------------------------

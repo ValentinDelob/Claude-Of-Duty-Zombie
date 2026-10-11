@@ -110,6 +110,10 @@ func loot_text() -> String:
 			if n > 0:
 				items.append("%d %s" % [n, LootRules.sample_name(String(k)).to_lower()])
 	var xp_t := Lang.t("+%d XP", "+%d XP") % xp
+	# Carte personnalisée (ProgressGate, GAME_CONCEPT §4.20).
+	if loot.get("custom", false) == true:
+		return Lang.t("CARTE PERSO : aucune progression (ni XP, ni butin, ni contrat)",
+				"CUSTOM MAP: no progression (no XP, no loot, no contract)")
 	if loot.get("challenge") is Dictionary:
 		return challenge_text(loot.challenge, items, xp_t)
 	if items.is_empty():

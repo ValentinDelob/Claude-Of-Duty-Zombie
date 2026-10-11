@@ -101,6 +101,12 @@ var station: BuildStation
 ## Défi hebdomadaire de la partie (null : partie normale ; GAME_CONCEPT
 ## §4.18) : modificateurs, armes de base imposées, butin non gardé.
 var challenge: WeeklyChallenge
+## Identifiant de la carte chargée (Game.MAP_SCRIPTS, « perso:… », « partagee:… »).
+var loaded_map := ""
+## La partie fait-elle progresser le profil (ProgressGate, GAME_CONCEPT
+## §4.20) ? Faux sur une carte personnalisée (éditeur) : ni XP, ni butin
+## gardé, ni contrat, ni codex, ni défi.
+var progress := true
 signal power_changed(on: bool)
 ## Chargement local terminé (préchauffage fait), juste avant de l'annoncer au
 ## serveur. Jamais émis si la session s'est terminée pendant le chargement.
@@ -141,11 +147,13 @@ func _ready() -> void:
 	xp.name = "Xp"
 	add_child(xp)
 	# Contrats actifs du joueur local : message « objectif atteint » (D13).
-	# Pas pendant le défi : son butin n'est pas gardé (message trompeur).
+	# Pas pendant le défi ni sur une carte perso : leur butin n'est pas gardé
+	# (message trompeur).
 	if challenge == null:
-		contract_watch = ContractWatch.new()
-		contract_watch.name = "ContractWatch"
-		add_child(contract_watch)
+		if progress:
+			contract_watch = ContractWatch.new()
+			contract_watch.name = "ContractWatch"
+			add_child(contract_watch)
 	elif multiplayer.is_server():
 		# Mêmes tirages pour tout le monde cette semaine (graine du défi).
 		rounds._rng.seed = challenge.match_seed
@@ -179,12 +187,17 @@ func _ready() -> void:
 	Net.report_loaded()
 
 
-func _load_map(map_id: String) -> void:
-	map_def = make_map_def(map_id)
+func _load_map(id: String) -> void:
+	loaded_map = id
+	map_def = make_map_def(id)
 	if map_def == null:
 		# Carte perso refusée par le contrôle de légitimité (CustomMapGuard).
-		push_warning("[Game] carte « %s » indisponible : %s" % [map_id, DEFAULT_MAP])
+		push_warning("[Game] carte « %s » indisponible : %s" % [id, DEFAULT_MAP])
+		loaded_map = DEFAULT_MAP
 		map_def = make_map_def(DEFAULT_MAP)
+	progress = ProgressGate.allows(loaded_map)
+	if not progress:
+		print("[Game] carte personnalisée « %s » : aucune progression (XP, butin, contrats, codex)" % loaded_map)
 	layout = map_def.create_layout()
 	if layout is GridMapLayout:
 		map_data = (layout as GridMapLayout).data
@@ -433,6 +446,9 @@ func _record_xp(l: Dictionary) -> Dictionary:
 	if _xp_recorded:
 		return {}
 	_xp_recorded = true
+	# Carte perso (ProgressGate) : ni XP ni codex.
+	if not progress:
+		return {}
 	return MatchXp.apply(l)
 
 
@@ -465,6 +481,9 @@ func _rotate_contracts(rounds_survived: int) -> void:
 	if _contracts_rotated:
 		return
 	_contracts_rotated = true
+	# Carte perso (ProgressGate) : la partie ne compte pas pour les contrats.
+	if not progress:
+		return
 	var res := MatchContracts.after_match(rounds_survived)
 	if res.get("rotated", false):
 		print("[Game] contrats : tableau tourné (%d manche(s) survécue(s), %d nouvelle(s) proposition(s))"
@@ -481,7 +500,7 @@ func keep_match_xp() -> void:
 		survived = maxi(survived, int(xp.my_ledger.get("rounds", 0)))
 	_rotate_contracts(survived)
 	# Défi : la tentative compte pour le meilleur résultat (sans évacuation).
-	if challenge and not _weekly_recorded and rounds:
+	if challenge and progress and not _weekly_recorded and rounds:
 		_weekly_recorded = true
 		challenge.apply_result(rounds.round_n, false)
 	# Rien à garder : ni XP ni ennemi rencontré (codex).
@@ -502,6 +521,8 @@ func _show_match_end(r: MatchResult) -> void:
 		var lpd := session.local_data()
 		CareerStats.record_game(lpd, r.round_reached, Net.mode == Net.Mode.SOLO,
 				(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
+		# Record de la carte (liste des cartes de JOUER, hub v2).
+		CareerStats.record_map_best(loaded_map, r.round_reached)
 		# XP de la partie, comptée par le serveur et toujours gardée
 		# (GAME_CONCEPT §4.6) : ajoutée une fois au profil du joueur local.
 		r.xp_ledger = local_xp_ledger(r)
@@ -512,22 +533,35 @@ func _show_match_end(r: MatchResult) -> void:
 			r.level_after = int(res.level_after)
 			r.profile_xp = int(res.total_xp)
 			print("[Game] XP de la partie : +%d (niveau %d -> %d)" % [r.xp, r.level_before, r.level_after])
+		elif not progress:
+			# Carte perso : rien d'ajouté, niveau et XP du profil inchangés.
+			var pr := ProfileStore.load_profile()
+			r.xp = 0
+			r.level_before = pr.level()
+			r.level_after = pr.level()
+			r.profile_xp = pr.xp
 		# Butin de la partie (§4.6, §4.7) : rapporté au profil seulement après
 		# une évacuation (versions d'arsenal construites et améliorées mises à
 		# jour, §4.11) ; rapport gardé ou perdu dans le résultat.
 		var carried := ProfileLoot.carried(lpd, loot.my_parts, loot.my_samples)
-		# Défi hebdomadaire (§4.18) : le butin de la partie n'est jamais gardé.
-		if r.evacuated and challenge == null:
+		# Défi hebdomadaire (§4.18) et carte perso (§4.20) : le butin de la
+		# partie n'est jamais gardé.
+		var keep := r.evacuated and challenge == null and progress
+		if keep:
 			ProfileLoot.apply_evacuation(carried)
-		r.loot = ProfileLoot.report(carried, r.evacuated and challenge == null)
-		if challenge:
+		r.loot = ProfileLoot.report(carried, keep)
+		if not progress:
+			r.loot["custom"] = true
+		if challenge and progress:
 			_record_weekly(r)
 		# Contrats (§4.2) : le tableau tourne après une partie d'au moins une
 		# manche survécue, après l'XP (le niveau compte pour le tirage).
 		_rotate_contracts(MatchContracts.rounds_survived(r))
 		# Résumé pour le LABO du hub (HUB_PLAN §3.1, « DERNIÈRE PARTIE »).
+		# Récapitulatif du hub v2 : identifiant de la carte, progression.
 		Router.last_match = {"result": r, "map": map_def.display_name if map_def else "",
-			"solo": Net.mode == Net.Mode.SOLO}
+			"solo": Net.mode == Net.Mode.SOLO, "map_id": loaded_map, "progress": progress,
+			"challenge": challenge != null}
 	xp.hide_live()
 	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
 			r.round_reached, MatchResult.time_text(r.duration_sec)])

@@ -160,6 +160,9 @@ func _cl_xp(l: Variant, gained: Variant, source: Variant) -> void:
 	xp_changed.emit()
 	if GameState.state == GameState.State.GAME_OVER or game.hud == null:
 		return
+	# Carte perso (ProgressGate) : l'XP n'est pas gardée, rien d'affiché.
+	if not game.progress:
+		return
 	_refresh_counter()
 	if g > 0 and source is String and String(source) in [SRC_KILL, SRC_ROUND]:
 		_show_pop(g)

@@ -284,3 +284,32 @@ func gen_menu_presence() -> void:
 	b = s.lowpass(b, 900.0)
 	s.mix(b, s.gain(_breath(1.6, false), 0.4), 0.5, 1.0)
 	_save("menu_presence", s.finish(s.reverb(b, 0.95, 0.55, 2.0), 0.7, 0.3))
+
+
+## Récapitulatif du hub v2 : tic de l'XP qui grimpe (compteur de laboratoire :
+## clic sec et court bip de moniteur ; joué à hauteur montante, Hub2RecapPanel).
+func gen_ui_xp_tick() -> void:
+	var b := s.env_exp(s.bandpass(s.noise(0.03), 4200.0, 4.0), 0.0003, 0.004)
+	b.resize(int(0.08 * Synth.RATE))
+	s.mix(b, s.env_exp(s.tone(0.08, 1760.0, "tri"), 0.001, 0.018), 0.002, 0.35)
+	s.mix(b, s.env_exp(s.tone(0.08, 2640.0), 0.001, 0.012), 0.002, 0.12)
+	_save("ui_xp_tick", s.finish(s.reverb(b, 0.4, 0.12, 0.2), 0.6))
+
+
+## Passage de niveau (récapitulatif du hub v2) : le moniteur s'emballe (trois
+## bips qui montent), accord de synthé qui s'ouvre (la, do dièse, mi, la),
+## petit choc métallique, queue de réverbération du labo.
+func gen_level_up() -> void:
+	var b := s.buf(2.2)
+	for k in 3:
+		s.mix(b, _beep([880.0, 1108.7, 1318.5][k], 0.07), k * 0.075, 0.28)
+	var chord := s.buf(1.8)
+	for f in [220.0, 277.18, 329.63, 440.0, 659.25]:
+		for det in [-0.003, 0.004]:
+			s.mix(chord, s.tone(1.8, f * (1.0 + det), "saw"), 0.0, 0.05)
+	chord = s.lowpass_sweep(chord, 600.0, 4200.0)
+	chord = s.env_adsr(chord, 0.04, 0.3, 0.55, 1.0)
+	s.mix(b, chord, 0.22, 0.7)
+	s.mix(b, _clank(520.0, 0.25, 0.4), 0.22, 0.35)
+	s.mix(b, s.env_exp(s.sweep(0.5, 90.0, 55.0), 0.002, 0.15), 0.22, 0.5)
+	_save("level_up", s.finish(s.reverb(b, 0.85, 0.3, 1.2), 0.85, 0.15))
