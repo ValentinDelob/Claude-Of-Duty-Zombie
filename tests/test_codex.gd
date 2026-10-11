@@ -2,39 +2,23 @@ extends TestCase
 ## Codex du hub (bestiaire, GAME_CONCEPT §4.17, HUB_PLAN §3.10) : fiches
 ## livrées (CodexData), rencontres du relevé d'XP (XpRules « met »),
 ## enregistrement dans le profil (CodexState, MatchXp.apply), migration d'un
-## profil sans codex, onglet CODEX (fiches connues / inconnues, pastille
-## NOUVEAU).
+## profil sans codex. L'écran CODEX du hub : tests/test_hub2_items.gd.
 
 ## Fichier propre à ce processus (les tests ne touchent jamais au vrai profil).
 var file := "user://profile_codex_unittest_%d.json" % OS.get_process_id()
-var _frame: Control
 var _saved := {}
-
-
-class FakeHost extends MenuHost:
-	func show_screen(_screen_name: String, _args := {}, _remember := true) -> void:
-		pass
-
-	func set_hint(_t: String) -> void:
-		pass
 
 
 func before_each() -> void:
 	ProfileStore.reset(file)
-	for k in ["menu_ui_scale", "using_pad", "language"]:
-		_saved[k] = Settings.get(k)
-	Settings.using_pad = false
+	_saved["language"] = Settings.language
 	Settings.language = "fr"
-	Settings.menu_ui_scale = 1.0
 
 
 func after_each() -> void:
 	ProfileStore.reset(file)
-	if is_instance_valid(_frame):
-		_frame.queue_free()
 	for k in _saved:
 		Settings.set(k, _saved[k])
-	HubScreen.last_tab = "lab"
 
 
 # --------------------------------------------------------------------------
@@ -186,105 +170,3 @@ func test_migration_profil_sans_codex() -> void:
 	assert_eq(c.enemies.size(), 1)
 	assert_eq(dropped[0], 4)
 	assert_eq(CodexState.from_dict("Object(Node)", dropped).enemies.size(), 0)
-
-
-# --------------------------------------------------------------------------
-# Onglet CODEX
-# --------------------------------------------------------------------------
-
-func _open(pr: PlayerProfile) -> HubScreen:
-	_frame = Control.new()
-	_frame.size = Vector2(1280, 720)
-	host.add_child(_frame)
-	var h := FakeHost.new()
-	h.size = Vector2(1280, 720)
-	_frame.add_child(h)
-	var hub := HubScreen.new()
-	hub.menu = h
-	hub.size = Vector2(1280, 720)
-	h.add_child(hub)
-	h.current = hub
-	h.current_name = "hub"
-	hub.enter({"tab": "lab", "profile": pr})
-	await wait_frames(3)
-	return hub
-
-
-func test_onglet_codex() -> void:
-	var pr := PlayerProfile.new()
-	pr.codex.add_kills(XpRules.WALKER, 1234)
-	pr.codex.encounter(XpRules.DOG)
-	pr.codex.mark_seen(XpRules.WALKER)
-	var hub := await _open(pr)
-	var cp: HubCodexPanel = hub.panels.codex
-	var i := HubScreen.TABS.find("codex")
-	assert_eq(i, HubScreen.TABS.find("play") - 1, "CODEX juste avant PARTIE")
-	assert_eq(int(hub.tab_bar.badges.get(i, 0)), 1, "pastille : une fiche nouvelle (chien)")
-	assert_eq(cp.cards.size(), cp.data.entries.size(), "une fiche par ennemi")
-	assert_eq(cp.box.right_label.text, "2 / %d rencontrés" % cp.data.entries.size())
-	var w := cp.card_of("walker")
-	assert_true(w.known and not w.empty)
-	assert_true(_has_text(w, "MARCHEUR"), "nom")
-	assert_true(_has_text(w, HubStyle.num(1234)), "éliminations")
-	assert_true(_has_text(w, str(XpRules.base_xp(XpRules.WALKER))), "XP du barème")
-	assert_false(_has_tag(w), "déjà vu : pas de NOUVEAU")
-	var dog := cp.card_of("dog")
-	assert_true(_has_tag(dog), "chien : NOUVEAU")
-	assert_true(_has_text(dog, "CROC"), "échantillons")
-	var s := cp.card_of("surgeon")
-	assert_true(not s.known and s.empty, "inconnu : fiche grisée")
-	assert_true(_has_text(s, "???"))
-	assert_true(_has_text(s, "Peut apparaître dès la manche 15"), "seulement l'indice de manche")
-	assert_false(_has_text(s, "CHIRURGIEN"), "nom caché")
-	# Affichage : focus sur la première fiche, flèches entre les fiches.
-	hub.select_tab("codex")
-	await wait_frames(2)
-	assert_eq(hub.get_viewport().gui_get_focus_owner(), cp.cards[0])
-	assert_eq(cp.cards[0].find_valid_focus_neighbor(SIDE_RIGHT), cp.cards[1], "droite : fiche suivante")
-	assert_eq(cp.cards[0].find_valid_focus_neighbor(SIDE_BOTTOM), cp.cards[HubCodexPanel.COLUMNS], "bas : rangée suivante")
-	# Vu : enregistré en quittant l'onglet, la pastille disparaît.
-	assert_false(pr.codex.is_new(XpRules.DOG))
-	assert_true(_has_tag(cp.card_of("dog")), "NOUVEAU reste affiché pendant la visite")
-	assert_eq(int(hub.tab_bar.badges.get(i, 0)), 0, "pastille de l'onglet retirée à l'affichage")
-	hub.select_tab("lab")
-	assert_eq(int(hub.tab_bar.badges.get(i, 0)), 0, "plus de pastille")
-	assert_false(_has_tag(cp.card_of("dog")), "visite suivante : plus de NOUVEAU")
-	Settings.language = "en"
-	assert_eq(HubScreen.tab_label("codex"), "CODEX")
-	assert_eq(CodexData.round_hint(20), "May appear from round 20")
-
-
-func test_codex_taille_des_menus() -> void:
-	var pr := PlayerProfile.new()
-	for t in XpRules.ENEMIES:
-		pr.codex.add_kills(t, 99999)
-	for f in [0.8, 1.3]:
-		Settings.menu_ui_scale = f
-		var hub := await _open(pr)
-		hub.select_tab("codex")
-		await wait_frames(3)
-		var cp: HubCodexPanel = hub.panels.codex
-		var r := Rect2(Vector2.ZERO, Vector2(1280, 720)).grow(1.0)
-		assert_true(r.encloses(cp.box.get_global_rect()), "%d %% : le bestiaire reste à l'écran" % roundi(f * 100))
-		for c in cp.cards:
-			assert_true(c.size.x > 0.0 and c.size.y >= HubStyle.px(HubCodexCard.CARD_H) - 1.0, "fiche dimensionnée")
-		_frame.queue_free()
-		await wait_frames(1)
-
-
-func _has_text(n: Node, t: String) -> bool:
-	if n is Label and (n as Label).text.contains(t):
-		return true
-	for c in n.get_children():
-		if _has_text(c, t):
-			return true
-	return false
-
-
-func _has_tag(n: Node) -> bool:
-	if n is HubTag and (n as HubTag).kind == HubTag.NEW:
-		return true
-	for c in n.get_children():
-		if _has_tag(c):
-			return true
-	return false

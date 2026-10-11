@@ -23,7 +23,7 @@ func _check_lobby(n: int, my_id: int, ids: Array) -> void:
 	at.check(keys == ids, "retour %d : même groupe (%s)" % [n, str(keys)])
 	at.check(Net.multiplayer.multiplayer_peer is ENetMultiplayerPeer and Array(Net.multiplayer.get_peers()) == [1], "retour %d : connexion ENet gardée" % n)
 	var lobby := MpHelpers.lobby_of(self)
-	at.check(tree().current_scene.current.tab == "play", "retour %d : hub, onglet PARTIE" % n)
+	at.check(MpHelpers.hub_screen(self) == "play", "retour %d : hub, écran JOUER" % n)
 	at.check(not lobby.is_host and Game.instance == null and Net.cast.is_empty() and Net.current_map == "", "retour %d : salon de l'invité, partie oubliée" % n)
 	at.check(Net.lobby_map.begins_with(EditorMapDef.SHARED_PREFIX), "retour %d : carte du salon gardée (%s)" % [n, Net.lobby_map.substr(0, 20)])
 
@@ -58,7 +58,8 @@ func run() -> void:
 		MpHelpers.signal_peer("en_jeu%d" % n)
 		if not await until(func(): return GameState.state == GameState.State.GAME_OVER, 40.0, "GAME OVER %d" % n):
 			return
-		if not await until(_in_lobby, Game.GAME_OVER_DELAY + 15.0, "retour au salon après la partie %d" % n):
+		# Retour du groupe : récapitulatif, CONTINUER : le salon.
+		if await MpHelpers.through_recap(self, Game.GAME_OVER_DELAY + 15.0) == null or not _in_lobby():
 			return
 		_check_lobby(n, my_id, ids)
 		if not await until(func(): return Net.map_share.local_state == "prete", 20.0, "carte toujours prête au salon"):

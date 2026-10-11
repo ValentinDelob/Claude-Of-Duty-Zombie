@@ -6,7 +6,8 @@ extends TestCase
 ## onglets LB / RB / Q / E, JOUER (START / P), retours B / Échap (sous-écran,
 ## onglet, LABO -> menu du hub), fil d'Ariane, cadre masqué du récapitulatif,
 ## pastilles, écran remplacé à l'exécution, reconstruction à 130 %, anglais,
-## réglage caché hub_v2. Sans MainMenu : un hôte d'écrans minimal (FakeHost).
+## menu du hub (Hub2Menu, ÉCRAN TITRE en coop), le hub est LE hub (plus de
+## réglage caché). Sans MainMenu : un hôte d'écrans minimal (FakeHost).
 
 const TMP := "user://settings_hub2_unittest.cfg"
 
@@ -39,7 +40,7 @@ class BadgePanel extends Hub2Panel:
 
 func before_each() -> void:
 	Input.flush_buffered_events()
-	for k in ["menu_ui_scale", "using_pad", "language", "hub_v2", "player_name"]:
+	for k in ["menu_ui_scale", "using_pad", "language", "player_name"]:
 		_saved[k] = Settings.get(k)
 	Settings.using_pad = false
 	Settings.language = "fr"
@@ -54,6 +55,9 @@ func after_each() -> void:
 		Settings.set(k, _saved[k])
 	Hub2Screen.register_panel("arsenal", null)
 	Hub2Screen.last_screen = "lab"
+	if Net.mode != Net.Mode.NONE:
+		Net.leave()
+	GameState.reset_to_menu()
 	if FileAccess.file_exists(TMP):
 		DirAccess.remove_absolute(TMP)
 
@@ -77,7 +81,7 @@ func _open(screen := "lab") -> Hub2Screen:
 	hub.size = Vector2(1280, 720)
 	_host.add_child(hub)
 	_host.current = hub
-	_host.current_name = "hub2"
+	_host.current_name = "hub"
 	hub.enter({"screen": screen, "profile": _profile()})
 	await wait_frames(3)
 	return hub
@@ -453,21 +457,46 @@ func test_hub_menu_screens() -> void:
 	assert_eq(_host.shown, ["options", "main"])
 
 
-func test_hidden_setting() -> void:
-	Settings.hub_v2 = false
-	assert_false(Settings.use_hub_v2(), "ancien hub par défaut")
-	Settings.hub_v2 = true
-	assert_true(Settings.use_hub_v2())
-	Settings.save_to(TMP)
-	var cfg := ConfigFile.new()
-	assert_eq(cfg.load(TMP), OK)
-	assert_true(cfg.get_value("interface", "hub_v2", false), "enregistré")
-	Settings.hub_v2 = false
-	assert_true(Settings.load_from(TMP))
-	assert_true(Settings.hub_v2, "relu")
-	Settings.hub_v2 = false
-	Settings.save_to(TMP)
-	cfg = ConfigFile.new()
-	cfg.load(TMP)
-	assert_false(cfg.has_section_key("interface", "hub_v2"), "caché : absent du fichier s'il est désactivé")
-	assert_eq(MainMenu.SCREENS.hub2, "res://scripts/ui/hub2/hub2_screen.gd")
+## Le hub v2 est LE hub : MainMenu.SCREENS.hub (JOUER, retour d'une partie,
+## salon, erreurs), plus d'ancien hub ni de réglage pour choisir.
+func test_hub_is_the_hub() -> void:
+	assert_eq(MainMenu.SCREENS.hub, "res://scripts/ui/hub2/hub2_screen.gd")
+	assert_false(MainMenu.SCREENS.has("hub2"), "plus d'écran à part")
+	assert_false("hub_v2" in Settings, "plus de réglage caché")
+	assert_false(ResourceLoader.exists("res://scripts/ui/hub/hub_screen.gd"), "ancien hub retiré")
+
+
+## Menu du hub (Hub2Menu) : ses cinq boutons, le focus tourne en boucle.
+func test_hub_menu_buttons() -> void:
+	var hub := await _open()
+	hub.open_menu()
+	await wait_frames(2)
+	var labels := []
+	for b in hub.hub_menu.buttons:
+		labels.append(Hub2Menu.button_label(b))
+	assert_eq(labels, ["REPRENDRE", "OPTIONS", "DOSSIER DE COMBAT", "ÉCRAN TITRE", "QUITTER LE JEU"])
+	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.hub_menu.resume_button, "focus sur REPRENDRE")
+	var first: Hub2Button = hub.hub_menu.buttons[0]
+	var last: Hub2Button = hub.hub_menu.buttons[-1]
+	assert_eq(first.get_node(first.focus_neighbor_top), last, "▲ sur REPRENDRE : QUITTER LE JEU")
+	assert_eq(last.get_node(last.focus_neighbor_bottom), first, "▼ sur QUITTER LE JEU : REPRENDRE")
+	hub.hub_menu.resume_button.pressed.emit()
+	assert_false(hub.hub_menu.is_open(), "REPRENDRE : menu fermé")
+
+
+## ÉCRAN TITRE en coop (salon ouvert) : deux appuis, le premier demande
+## confirmation ; le second quitte la session.
+func test_title_screen_needs_confirmation_online() -> void:
+	var hub := await _open()
+	Net.host(16700 + OS.get_process_id() % 100, 4, "Hote")
+	GameState.set_state(GameState.State.LOBBY)
+	hub.open_menu()
+	hub.hub_menu.title_button.pressed.emit()
+	assert_eq(_host.shown, [], "premier appui : confirmation")
+	assert_true(hub.hub_menu.is_title_armed())
+	assert_eq(Hub2Menu.button_label(hub.hub_menu.title_button), "CONFIRMER : QUITTER LE SALON")
+	assert_eq(Net.mode, Net.Mode.HOST)
+	hub.hub_menu.title_button.pressed.emit()
+	assert_eq(_host.shown, ["main"], "ÉCRAN TITRE")
+	assert_eq(Net.mode, Net.Mode.NONE, "session quittée")
+	GameState.reset_to_menu()

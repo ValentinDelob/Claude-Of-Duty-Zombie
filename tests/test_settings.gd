@@ -9,7 +9,7 @@ extends TestCase
 const TMP := "user://settings_unittest.cfg"
 const SAVED_KEYS := ["bindings", "pad_bindings", "pad_look_sensitivity", "using_pad", "pad_device",
 	"render_scale", "max_fps", "brightness", "ads_sensitivity",
-	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "outline", "quality", "editor_ui_scale", "character"]
+	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "outline", "quality", "editor_ui_scale", "menu_ui_scale", "character"]
 
 var _saved := {}
 
@@ -1150,3 +1150,42 @@ func test_retired_map_falls_back_to_bunker() -> void:
 	assert_true(Settings.load_from(TMP))
 	assert_eq(Settings.last_map, "draft_arena", "carte existante gardée")
 	Settings.last_map = saved
+
+
+## TAILLE DES MENUS (hub) : 80 à 130 %, pas de 5 %, enregistrée et relue ;
+## Hub2Style suit le facteur.
+func test_menu_ui_scale_setting() -> void:
+	assert_near(Settings.MENU_UI_SCALE_DEFAULT, 1.0)
+	Settings.menu_ui_scale = 3.0
+	assert_near(Settings.menu_ui_scale, 1.3, 0.001, "130 % au plus")
+	Settings.menu_ui_scale = 0.1
+	assert_near(Settings.menu_ui_scale, 0.8, 0.001, "80 % au moins")
+	Settings.menu_ui_scale = 1.07
+	assert_near(Settings.menu_ui_scale, 1.05, 0.001, "pas de 5 %")
+	@warning_ignore("static_called_on_instance")
+	assert_near(Settings.clamp_menu_ui_scale(NAN), 1.0)
+	Settings.menu_ui_scale = 1.15
+	Settings.save_to(TMP)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(TMP), OK)
+	assert_near(float(cfg.get_value("interface", "menu_ui_scale")), 1.15, 0.001, "enregistré")
+	Settings.menu_ui_scale = 1.0
+	assert_true(Settings.load_from(TMP))
+	assert_near(Settings.menu_ui_scale, 1.15, 0.001, "relu")
+	assert_near(Hub2Style.px(100), 115.0, 0.5)
+
+
+## Ancien réglage caché du hub v2 (« hub_v2 », retiré : le hub v2 est le
+## hub) : un fichier qui l'a encore se lit sans erreur, et il disparaît à
+## l'enregistrement suivant.
+func test_old_hub_v2_key_ignored() -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("interface", "hub_v2", true)
+	cfg.set_value("interface", "menu_ui_scale", 1.1)
+	assert_eq(cfg.save(TMP), OK)
+	assert_true(Settings.load_from(TMP), "fichier relu")
+	assert_near(Settings.menu_ui_scale, 1.1, 0.001)
+	Settings.save_to(TMP)
+	cfg = ConfigFile.new()
+	assert_eq(cfg.load(TMP), OK)
+	assert_false(cfg.has_section_key("interface", "hub_v2"), "clé retirée à l'enregistrement")

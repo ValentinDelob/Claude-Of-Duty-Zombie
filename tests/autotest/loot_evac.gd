@@ -102,6 +102,7 @@ func run() -> void:
 	at.check(pr.sample_count("dog_fang") == killed and pr.sample_count("dog_collar") == killed, "échantillons au profil")
 	at.check(pr.xp == game.last_result.xp and pr.xp > 0, "XP gardée (%d)" % pr.xp)
 	at.check(game.last_result.loot.get("kept", false) == true, "résultat : butin gardé")
-	at.check(game.hud.loot_report().begins_with(Lang.t("BUTIN GARDÉ", "LOOT KEPT")), "rapport : « %s »" % game.hud.loot_report())
+	var rc: Hub2RecapModel = H.recap()
+	at.check(rc.loot_title() == Lang.t("BUTIN GARDÉ", "LOOT KEPT"), "récapitulatif : « %s »" % rc.loot_title())
 	await at.screenshot("report")
 	ProfileStore.reset()

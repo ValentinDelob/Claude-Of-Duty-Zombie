@@ -226,8 +226,8 @@ func _reset_between() -> void:
 	Router.last_match = {}
 	Router.hub_tab = ""
 	Router.lobby_message = ""
-	HubScreen.last_tab = "lab"
-	HubPlayPanel.last_view = HubPlayPanel.SOLO
+	Hub2Screen.last_screen = "lab"
+	Hub2PlayPanel.last_view = Hub2PlayPanel.SOLO
 	Net.local_card = {}
 	GameState.reset_to_menu()
 	Audio.stop_music(0.0)

@@ -5,7 +5,7 @@ extends AutotestScenario
 ## dans le fichier de réglages, puis restaurée) -> retour -> CRÉDITS
 ## (défilement) -> retour ->
 ## JOUER -> hub (onglets, menu du hub, ÉCRAN TITRE) -> apparition de la
-## silhouette du fond -> JOUER -> hub, onglet PARTIE -> SOLO -> sélection de
+## silhouette du fond -> JOUER -> hub, écran JOUER (P) -> SOLO -> sélection de
 ## carte -> BUNKER K-7
 ## (fondu au noir cinématique avant le chargement). Captures de chaque écran.
 
@@ -85,10 +85,11 @@ func run() -> void:
 	at.check(menu.current_name == "hub", "JOUER : hub (%s)" % menu.current_name)
 	await _wait_screen("hub")
 	await at.screenshot("hub")
+	at.check(menu.current.current_id == "lab", "JOUER : LABO (%s)" % menu.current.current_id)
 	await press("ui_page_down")
-	at.check(menu.current.tab == "arsenal", "Page suiv. : onglet ARSENAL (%s)" % menu.current.tab)
+	at.check(menu.current.current_id == "arsenal", "Page suiv. : onglet ARSENAL (%s)" % menu.current.current_id)
 	await press("ui_page_up")
-	at.check(menu.current.tab == "lab", "Page préc. : onglet LABO (%s)" % menu.current.tab)
+	at.check(menu.current.current_id == "lab", "Page préc. : onglet LABO (%s)" % menu.current.current_id)
 	await press("ui_cancel")
 	at.check(menu.current.hub_menu.is_open(), "Échap : menu du hub")
 	menu.current.to_title()
@@ -106,17 +107,17 @@ func run() -> void:
 	menu.backdrop.force_figure(false)
 	at.check(not menu.backdrop.figure_visible(), "silhouette disparue")
 
-	# JOUER -> onglet PARTIE (Page préc. depuis le LABO), vue SOLO : BUNKER
-	# K-7 choisie, focus sur LANCER LA PARTIE ; valider lance le fondu au noir
-	# cinématique AVANT le chargement.
+	# JOUER -> écran JOUER du hub (P depuis le LABO), vue SOLO : BUNKER K-7
+	# choisie, focus sur sa ligne ; valider la carte choisie lance le fondu au
+	# noir cinématique AVANT le chargement.
 	await press("ui_accept")
 	await _wait_screen("hub")
-	await press("ui_page_up")
-	at.check(menu.current.tab == "play", "Page préc. : onglet PARTIE (%s)" % menu.current.tab)
-	var pp: HubPlayPanel = menu.current.panels.play
-	at.check(pp.view == HubPlayPanel.SOLO and pp.selected == "bunker_k7", "SOLO : BUNKER K-7 choisie (%s)" % pp.selected)
+	await press_key(KEY_P)
+	at.check(menu.current.current_id == "play", "P : écran JOUER (%s)" % menu.current.current_id)
+	var pp: Hub2PlayPanel = menu.current.panels.play
+	at.check(pp.view == Hub2PlayPanel.SOLO and pp.selected == "bunker_k7", "SOLO : BUNKER K-7 choisie (%s)" % pp.selected)
 	await at.screenshot("map_select")
-	at.check(at.get_viewport().gui_get_focus_owner() == pp.launch_button, "focus sur LANCER LA PARTIE")
+	at.check(at.get_viewport().gui_get_focus_owner() == pp.map_buttons.bunker_k7, "focus sur la ligne de BUNKER K-7")
 	await press("ui_accept")
 	await seconds(0.5)
 	at.check(tree().current_scene == menu, "SOLO : toujours dans le menu pendant le fondu")
@@ -169,6 +170,19 @@ func press(action: String) -> void:
 	await frames(2)
 	var up := InputEventAction.new()
 	up.action = action
+	up.pressed = false
+	Input.parse_input_event(up)
+	await frames(3)
+
+
+func press_key(key: Key) -> void:
+	var ev := InputEventKey.new()
+	ev.physical_keycode = key
+	ev.keycode = key
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await frames(2)
+	var up := ev.duplicate() as InputEventKey
 	up.pressed = false
 	Input.parse_input_event(up)
 	await frames(3)

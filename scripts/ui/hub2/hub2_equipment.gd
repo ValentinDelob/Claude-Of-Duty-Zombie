@@ -6,7 +6,7 @@ extends RefCounted
 ## et les petites cases des cartes de joueurs du salon (PartieCoop.dc.html :
 ## 32 px de haut, rendu 26 px). Règles du choix (au moins 1, au plus 3 armes
 ## de base distinctes, GAME_CONCEPT §4.10) : celles de l'ancien onglet DÉPART
-## (HubLoadoutPanel.toggle / remove_slot), ici sans interface.
+## (toggle / remove_slot), ici sans interface.
 
 ## Couleur du liseré d'une arme de base (commune).
 const BASE_RARITY := 0

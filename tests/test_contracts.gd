@@ -548,3 +548,35 @@ func test_etat_lu_et_ecrit() -> void:
 	var fresh := ContractState.from_dict(null, dropped)
 	assert_eq(dropped[0], 0, "section absente : état neuf sans erreur")
 	assert_eq(fresh.rotation, 0)
+
+
+# --------------------------------------------------------------------------
+# Annonce en partie (ContractWatch)
+# --------------------------------------------------------------------------
+
+## « Objectif atteint » annoncé une seule fois par contrat ; un contrat déjà
+## couvert au départ n'est jamais annoncé ; un contrat expiré est ignoré.
+func test_annonce_une_fois_par_contrat() -> void:
+	var data := _data({"pret": {"samples": {"dog_fang": 1}}, "fourrure": {"samples": {"dog_fur": 1}},
+		"colliers": {"samples": {"dog_fur": 2, "dog_collar": 3}, "ends": "2026-10-11"}})
+	var pr := PlayerProfile.new()
+	pr.add_samples("dog_fang", 1)
+	ContractRules.rotate(pr.contracts, data, 1, day, false)
+	for id in ["pret", "fourrure", "colliers"]:
+		ContractRules.accept(pr.contracts, data, id, day)
+	assert_eq(pr.contracts.active_ids().size(), 3, "trois contrats en cours")
+	var w := ContractWatch.new()
+	host.add_child(w)
+	w.setup(pr, data, day)
+	assert_true(w.announced.has("pret"), "contrat déjà prêt au départ : jamais annoncé")
+	w.check({})
+	assert_eq(w.shown.size(), 0, "rien de neuf")
+	w.check({"dog_fur": 1})
+	assert_eq(Array(w.shown), [ContractRules.goal_message(data.contract("fourrure"))], "objectif atteint : %s" % w.shown)
+	w.check({"dog_fur": 2})
+	assert_eq(w.shown.size(), 1, "une seule fois par contrat")
+	w.check({"dog_fur": 2, "dog_collar": 3})
+	assert_eq(w.shown.size(), 2, "second contrat couvert")
+	assert_false("colliers" in ContractWatch.new_goals(pr, data, {"dog_fur": 2, "dog_collar": 3}, day + 1, {}),
+			"contrat expiré : pas de message")
+	w.queue_free()

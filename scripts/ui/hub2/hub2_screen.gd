@@ -1,7 +1,7 @@
 class_name Hub2Screen
 extends MenuScreen
-## Hub v2 (maquettes validées docs/hub_v2, architecture docs/HUB_PLAN.md §9) :
-## le cadre commun à tous les écrans du hub.
+## Le hub (maquettes validées docs/hub_v2, architecture docs/HUB_PLAN.md §9) :
+## le cadre commun à tous les écrans du hub (MainMenu.SCREENS.hub).
 ##
 ##  - Fond : le fond 3D du menu en direct (MenuBackdrop de MainMenu, couloir
 ##    et zombie qui marche ; l'habillage du menu titre est masqué :
@@ -18,9 +18,10 @@ extends MenuScreen
 ##  - Écrans : un Hub2Panel par maquette (SCREENS), construit au premier
 ##    affichage et gardé en vie.
 ##
-## Ouverture (provisoire, tant que l'ancien hub reste celui du jeu) : réglage
-## caché `Settings.hub_v2` ([interface] hub_v2=true dans settings.cfg) ou
-## argument `--hub2` : JOUER au menu titre ouvre ce hub (MainMenu.SCREENS.hub2).
+## Ouverture : JOUER au menu titre (LABO), retour d'une partie
+## (récapitulatif, puis LABO ; salon coop : JOUER), erreurs réseau (JOUER),
+## retour des OPTIONS et du DOSSIER DE COMBAT (écran d'avant) ; voir
+## MainMenu._open_hub_after_match.
 
 ## Onglets de la barre du haut, dans l'ordre.
 const TABS := ["lab", "arsenal", "inventory", "codex"]
@@ -66,7 +67,7 @@ var pages: Control
 var crumb: Hub2Breadcrumb
 var top_bar: Hub2TopBar
 var prompts: Hub2Prompts
-var hub_menu: HubMenu
+var hub_menu: Hub2Menu
 var _hint := ""
 
 signal screen_changed(id: String)
@@ -159,7 +160,7 @@ func _build() -> void:
 	prompts.offset_top = -Hub2Style.px(Hub2Style.PROMPTS_H)
 	prompts.prompt_clicked.connect(_on_prompt_clicked)
 	add_child(prompts)
-	hub_menu = HubMenu.new(self)
+	hub_menu = Hub2Menu.new(self)
 	hub_menu.closed.connect(_on_menu_closed)
 	add_child(hub_menu)
 	panels.clear()
@@ -180,8 +181,16 @@ func rebuild() -> void:
 
 
 func _on_scale_changed(_v: float) -> void:
-	if is_inside_tree():
-		rebuild()
+	# Hub sur le départ (écran quitté, libéré à la fin de l'image) : rien à
+	# reconstruire, et surtout pas de focus donné à un écran qui s'en va.
+	if not is_inside_tree():
+		return
+	var n: Node = self
+	while n:
+		if n.is_queued_for_deletion():
+			return
+		n = n.get_parent()
+	rebuild()
 
 
 func current_panel() -> Hub2Panel:
@@ -356,7 +365,7 @@ func _profile_updated() -> void:
 
 
 # --------------------------------------------------------------------------
-# Menu du hub (provisoire : celui de l'ancien hub, sans maquette v2)
+# Menu du hub (Hub2Menu, sans maquette dédiée)
 # --------------------------------------------------------------------------
 
 func open_menu() -> void:

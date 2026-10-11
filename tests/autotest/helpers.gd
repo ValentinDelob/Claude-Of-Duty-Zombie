@@ -16,6 +16,12 @@ static func start_solo_game(sc: AutotestScenario, map_id := "test_arena") -> Pla
 	return p
 
 
+## Récapitulatif du hub (Hub2RecapModel, ce que montre le retour au labo) de
+## la dernière partie (Router.last_match) et du profil enregistré.
+static func recap() -> Hub2RecapModel:
+	return Hub2RecapModel.new().read(Router.last_match, ProfileStore.load_profile())
+
+
 ## Oriente le joueur (bot) vers un point du monde.
 static func aim_at(p: Player, point: Vector3) -> void:
 	var dir := point - p.camera.global_position

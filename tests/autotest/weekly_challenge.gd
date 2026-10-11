@@ -86,6 +86,10 @@ func run() -> void:
 	at.check(pr.weapons.size() == 1 and pr.versions_of("mp40").is_empty(), "butin de la partie non gardé")
 	var wxp := int((r.loot.get("challenge", {}) as Dictionary).get("xp", 0))
 	at.check(wxp > 0 and pr.xp == r.xp + wxp, "XP de la partie (%d) + XP du défi (%d) = %d" % [r.xp, wxp, pr.xp])
-	at.check(game.hud.loot_report().begins_with(Lang.t("DÉFI S%d RÉUSSI", "W%d CHALLENGE COMPLETE") % ch.week), "rapport : « %s »" % game.hud.loot_report())
+	var rc: Hub2RecapModel = H.recap()
+	var wrow := rc.rows.filter(func(row): return row.key == "weekly")
+	at.check(rc.challenge and rc.outcome()[2] == "challenge" and wrow.size() == 1
+			and int(wrow[0].xp) == wxp and rc.gained == r.xp + wxp,
+			"récapitulatif : défi, « %s », +%d XP (%s)" % [rc.outcome()[0], rc.gained, rc.rows])
 	await at.screenshot("report")
 	ProfileStore.reset()

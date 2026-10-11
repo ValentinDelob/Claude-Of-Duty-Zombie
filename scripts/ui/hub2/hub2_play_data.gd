@@ -70,7 +70,7 @@ static func wave_color(type: String) -> Color:
 ## capitales (« BUNKER K-7 ») remis en casse de titre (mots avec un chiffre
 ## gardés : « K-7 ») ; carte perso : son nom tel quel (nettoyé).
 static func map_title(def: MapDef) -> String:
-	var n := HubPlayView.map_name(def)
+	var n := HubMaps.map_name(def)
 	if def == null or def is EditorMapDef or n.to_upper() != n:
 		return n
 	return title_case(n)
@@ -92,16 +92,16 @@ static func title_case(t: String) -> String:
 
 ## Nom de la carte `id` (Hub2PlayData.map_title de sa définition).
 static func map_title_of(id: String) -> String:
-	return map_title(HubPlayView.def_of(id)) if id != "" else "..."
+	return map_title(HubMaps.def_of(id)) if id != "" else "..."
 
 
 ## Cartes de JOUER : {game: [...], custom: [...]} ; chaque carte {id, def,
-## custom, name, sub, best} (HubPlayView.playable_maps : cartes du jeu puis
+## custom, name, sub, best} (HubMaps.playable_maps : cartes du jeu puis
 ## cartes perso jouables de l'éditeur).
 static func map_lists() -> Dictionary:
 	var game := []
 	var custom := []
-	for m in HubPlayView.playable_maps():
+	for m in HubMaps.playable_maps():
 		var row := map_row(String(m.id), m.def, bool(m.custom))
 		(custom if m.custom else game).append(row)
 	return {"game": game, "custom": custom}
@@ -121,6 +121,14 @@ static func map_row(id: String, def: MapDef, custom: bool) -> Dictionary:
 # --------------------------------------------------------------------------
 # Défi de la semaine
 # --------------------------------------------------------------------------
+
+## Aide de la carte du défi (barre d'invites).
+static func weekly_hint(ch: WeeklyChallenge) -> String:
+	if ch == null:
+		return Lang.t("Aucune carte du jeu ne convient au défi cette semaine.", "No game map suits the challenge this week.")
+	return Lang.t("Le même défi pour tout le monde cette semaine : mêmes armes de base, même carte, mêmes conditions.",
+		"The same challenge for everyone this week: same base weapons, same map, same conditions.")
+
 
 ## Carte du défi (maquette) : {kicker « DÉFI DE LA SEMAINE · S41 », left
 ## « 3 j 14 h » (ou « réussi »), title « Bunker K-7 · Horde pressée »,

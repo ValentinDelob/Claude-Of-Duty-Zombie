@@ -756,6 +756,17 @@ func popup_open() -> bool:
 # Hub2Panel
 # --------------------------------------------------------------------------
 
+## Contrat `id` (en cours, ou proposition) choisi : focus sur sa carte (A
+## sur un échantillon de l'INVENTAIRE). Faux s'il n'est pas affiché.
+func select_item(id: String) -> bool:
+	var c: Control = temp_cards.get(id, offer_buttons.get(id))
+	if c == null:
+		return false
+	if hub:
+		hub.focus_later(c)
+	return true
+
+
 ## Focus : REMETTRE si l'étape est prête, sinon un contrat temporaire prêt,
 ## sinon une proposition qu'on peut accepter, sinon REMETTRE (grisé).
 func first_focus() -> Control:

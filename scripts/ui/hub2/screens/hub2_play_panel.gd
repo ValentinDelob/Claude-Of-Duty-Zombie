@@ -1,8 +1,7 @@
 class_name Hub2PlayPanel
 extends Hub2Panel
-## JOUER du hub v2 (docs/hub_v2/Partie.dc.html en solo, PartieCoop.dc.html
-## pour le salon coop ; logique reprise de l'ancien onglet PARTIE :
-## HubPlayPanel, HubPlayLobby, HubLoadoutPanel).
+## JOUER du hub (docs/hub_v2/Partie.dc.html en solo, PartieCoop.dc.html
+## pour le salon coop ; logique reprise de l'ancien onglet PARTIE).
 ##
 ## Trois vues, qui suivent l'état du réseau (sync) :
 ##   - SOLO (Partie.dc.html) : à gauche SOLO / COOP, DÉFI DE LA SEMAINE
@@ -23,7 +22,7 @@ const SOLO := "solo"
 const COOP := "coop"
 const LOBBY := "lobby"
 ## Identifiant de la carte « défi de la semaine » dans la sélection.
-const WEEKLY := HubPlayWeekly.ROW_ID
+const WEEKLY := HubMaps.WEEKLY_ROW
 ## Invite propre : armes de départ (X).
 const PROMPT_LOADOUT := "loadout"
 
@@ -344,7 +343,7 @@ func _build_solo() -> void:
 	left.custom_minimum_size.x = Hub2Style.px(380)
 	row.add_child(left)
 	left.add_child(mode_tabs())
-	weekly = HubPlayWeekly.current()
+	weekly = WeeklyChallenge.current()
 	weekly_button = Hub2Button.new()
 	weekly_button.pressed.connect(func(): _row_pressed(WEEKLY))
 	weekly_button.focus_entered.connect(func(): select_map(WEEKLY))
@@ -412,7 +411,7 @@ func _fill_weekly(b: Hub2Button) -> void:
 	line.clip_text = true
 	line.custom_minimum_size.x = Hub2Style.px(60)
 	v.add_child(line)
-	b.hint = HubPlayWeekly.hint(weekly)
+	b.hint = Hub2PlayData.weekly_hint(weekly)
 	b.disabled = weekly == null
 
 
@@ -649,7 +648,7 @@ func select_map(id: String) -> void:
 	if weekly_button:
 		_fill_weekly(weekly_button)
 	var map_id := weekly.map_id if id == WEEKLY else id
-	var def := HubPlayView.def_of(map_id)
+	var def := HubMaps.def_of(map_id)
 	var pic := picture_for(map_id)
 	apply_picture(preview, pic)
 	# Plan : sur un fond sombre (proportions réelles, centré).

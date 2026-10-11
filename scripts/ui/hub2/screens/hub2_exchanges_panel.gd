@@ -406,6 +406,19 @@ func popup_open() -> bool:
 # Hub2Panel
 # --------------------------------------------------------------------------
 
+## Échange `id` choisi : filtre TOUS s'il était caché, focus sur sa fiche
+## (A sur un échantillon de l'INVENTAIRE). Faux s'il n'est pas au catalogue.
+func select_item(id: String) -> bool:
+	if not cards.has(id) and only_tradable:
+		set_filter(false)
+	var c: Control = cards.get(id)
+	if c == null:
+		return false
+	if hub:
+		hub.focus_later(c)
+	return true
+
+
 ## Focus : premier échange possible, sinon la première fiche.
 func first_focus() -> Control:
 	for id in cards:

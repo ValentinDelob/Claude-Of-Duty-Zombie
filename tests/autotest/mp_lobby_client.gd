@@ -12,18 +12,18 @@ func run() -> void:
 		return
 	GameState.set_state(GameState.State.CONNECTING)
 	Net.join("127.0.0.1", PORT, "Client")
-	var ok: bool = await until(func(): return MpHelpers.lobby_of(self) != null, 15.0, "salon client (onglet PARTIE du hub)")
+	var ok: bool = await until(func(): return MpHelpers.lobby_of(self) != null, 15.0, "salon client (écran JOUER du hub)")
 	if not ok:
 		return
-	at.check(GameState.state == GameState.State.LOBBY and menu.current.tab == "play", "état LOBBY côté client, onglet PARTIE")
+	at.check(GameState.state == GameState.State.LOBBY and menu.current.current_id == "play", "état LOBBY côté client, écran JOUER")
 	var lobby := MpHelpers.lobby_of(self)
-	at.check(not lobby.is_host and lobby.change_button == null and lobby.start_button.disabled, "invité : ni CHANGER DE CARTE ni DÉMARRER")
+	at.check(not lobby.is_host and lobby.change_button == null and lobby.launch_button.disabled, "invité : ni CHANGER DE CARTE ni LANCER")
 	# La carte de l'hôte (BUNKER K-7) s'affiche dans le salon du client.
-	ok = await until(func(): return Net.lobby_map == "bunker_k7" and lobby.map_title.text.contains("BUNKER K-7"), 15.0, "carte annoncée par l'hôte")
+	ok = await until(func(): return Net.lobby_map == "bunker_k7" and lobby.map_title.text.to_upper().contains("BUNKER K-7"), 15.0, "carte annoncée par l'hôte")
 	if ok:
 		at.check(true, "carte de l'hôte affichée : %s" % lobby.map_title.text)
-	ok = await until(func(): return lobby.player_lines.size() == 2 and lobby.player_lines[0].contains("Hote"), 5.0, "hôte dans la liste")
-	at.check(ok, "liste du salon de l'invité : %s" % ", ".join(lobby.player_lines))
+	ok = await until(func(): return lobby.cards.size() == 2 and String(lobby.cards[0].name) == "Hote", 5.0, "hôte dans la liste")
+	at.check(ok, "liste du salon de l'invité : %s" % ", ".join(MpHelpers.player_lines(lobby)))
 	await at.screenshot("lobby")
 	MpHelpers.signal_peer("carte_vue")
 	ok = await until(func(): return Game.instance != null and Game.instance.players.size() == 2, 40.0, "partie lancée par l'hôte")

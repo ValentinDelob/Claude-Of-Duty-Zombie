@@ -269,3 +269,11 @@ func test_donnees_exportees() -> void:
 	# Vérification du paquet : chaque fichier de données doit y être.
 	var want := (load("res://tools/pack_check.gd") as GDScript).call("data_files", "res://assets/data") as PackedStringArray
 	assert_true(HubData.CONTRACTS_PATH in want and HubData.EXCHANGES_PATH in want, "pack_check exige les données : %s" % want)
+
+
+## Jours restants avant une date de fin (« encore 12 j ») ; sans date : -1.
+func test_jours_restants() -> void:
+	var now := Time.get_unix_time_from_datetime_string("2026-11-18T12:00:00")
+	assert_eq(HubContractsView.days_left("2026-11-30", now), 12, "maquette : encore 12 j")
+	assert_eq(HubContractsView.days_left("", now), -1)
+	assert_eq(HubContractsView.days_left("2026-11-01", now), 0)

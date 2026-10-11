@@ -11,9 +11,8 @@ var PORT := 17830 + MpHelpers.port_offset()
 func run() -> void:
 	timeout_sec = 120
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu")
-	Settings.hub_v2 = true
 	var menu: MainMenu = tree().current_scene
-	menu.show_screen("hub2", {"screen": "play"})
+	menu.show_screen("hub", {"screen": "play"})
 	await frames(3)
 	var hub: Hub2Screen = menu.current
 	var pp: Hub2PlayPanel = hub.panels.play
@@ -49,7 +48,6 @@ func run() -> void:
 	rp.continue_button.pressed.emit()
 	at.check(hub.current_id == "play" and (hub.panels.play as Hub2PlayPanel).view == Hub2PlayPanel.LOBBY, "CONTINUER : salon")
 	await MpHelpers.wait_peer(self, "retour_vu", 30.0)
-	Settings.hub_v2 = false
 	await MpHelpers.finish(self)
 
 

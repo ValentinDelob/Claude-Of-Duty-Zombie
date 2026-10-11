@@ -11,7 +11,7 @@ func run() -> void:
 	MpHelpers._clear_sync()
 	var lobby := await MpHelpers.host_from_hub(self, PORT)
 	at.check(Net.mode == Net.Mode.HOST and GameState.state == GameState.State.LOBBY, "partie hébergée, état LOBBY")
-	at.check(lobby != null and lobby.is_host, "salon dans l'onglet PARTIE du hub")
+	at.check(lobby != null and lobby.is_host, "salon dans l'écran JOUER du hub")
 	if lobby == null:
 		return
 	MpHelpers.signal_peer("ecoute")
@@ -19,10 +19,10 @@ func run() -> void:
 	if not ok:
 		return
 	var read_names := func():
-		var n := lobby.player_lines
+		var n := MpHelpers.player_lines(lobby)
 		return n.size() == 2 and n[0].contains("Hote") and n[1].contains("Client") and n[1].contains("NIV.1")
 	await until(read_names, 5.0, "client dans la liste du salon (niveau reçu)")
-	at.check(read_names.call(), "liste du salon : %s" % ", ".join(lobby.player_lines))
+	at.check(read_names.call(), "liste du salon : %s" % ", ".join(MpHelpers.player_lines(lobby)))
 	# Carte de l'hôte : BUNKER K-7 (seule carte du jeu depuis le retrait de
 	# KINO), annoncée au client.
 	at.check(lobby.change_button != null and lobby.map_id == "bunker_k7", "carte par défaut : %s" % lobby.map_id)

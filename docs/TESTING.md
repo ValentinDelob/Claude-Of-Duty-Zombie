@@ -32,7 +32,9 @@ Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
   tirage. Hors autotest, l'aléatoire du jeu n'est pas touché.
 - **Captures d'écran** : uniquement pour un ajout **en cours** (revue humaine) ;
   une fois la fonctionnalité publiée, la capture sort du check. Les
-  vérifications logiques restent.
+  vérifications logiques restent. Exception assumée : `hub_look` (parcours
+  réel du hub) garde quelques captures informatives, jamais comparées ni
+  bloquantes (seules ses vérifications logiques comptent).
 
 ## 2. Niveaux
 
@@ -133,10 +135,13 @@ par `tools/mp_test.sh <nom>` (sans délai entre les deux), à cadence fixe ×3.
 - Démarrage : `MpHelpers.host_game(self, PORT)` / `MpHelpers.join_game(self, PORT)`
   (le client attend que l'hôte écoute, l'hôte que le client soit au salon ;
   connexion abandonnée : le client réessaie, `MpHelpers.JOIN_TRIES`).
-- Salon : il est dans l'onglet PARTIE du hub (plus d'écran « lobby ») ;
+- Salon : il est dans l'écran JOUER du hub (plus d'écran « lobby ») ;
   `MpHelpers.host_from_hub(self, PORT)` héberge comme au clavier et rend le
-  salon (`HubPlayLobby`), `MpHelpers.lobby_of(self)` le salon affiché (null
-  sinon).
+  salon (`Hub2LobbyView`), `MpHelpers.lobby_of(self)` le salon affiché (null
+  sinon), `MpHelpers.player_lines(salon)` ses joueurs (« Nom NIV.n »).
+  Après une partie, le groupe revient sur le RÉCAPITULATIF :
+  `await MpHelpers.through_recap(self)` le passe (CONTINUER) et rend le
+  panneau vu (null si le salon ne revient pas).
 - Port : unique parmi tous les tests multijoueur (17801 à 17999), toujours
   `+ MpHelpers.port_offset()` (check.sh décale de 1000 par place).
 - **Jamais de délai fixe pour attendre l'autre jeu** : rendez-vous par

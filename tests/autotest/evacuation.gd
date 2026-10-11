@@ -118,7 +118,10 @@ func run() -> void:
 			"XP : 3 manches et 3 vagues vaincues comptées (%s)" % l)
 	at.check(int(l.evac_bonus) > 0 and int(l.evac_bonus) == XpRules.evac_bonus(XpRules.subtotal(l)), "bonus d'évacuation : %d" % l.evac_bonus)
 	at.check(r.xp == XpRules.total(l) and xp == r.xp, "XP de l'évacuation au profil (%d, résultat %d)" % [xp, r.xp])
-	at.check(game.hud.xp_report_text().contains(r.xp_title()) and game.hud.xp_report_text().contains(
-			Lang.t("Bonus d'évacuation", "Evacuation bonus")), "rapport d'XP à l'écran : %s" % game.hud.xp_report_text())
+	# Récapitulatif du hub (retour au labo) : XP gagnée, ligne d'évacuation.
+	var rc: Hub2RecapModel = H.recap()
+	var evac_row := rc.rows.filter(func(row): return row.key == "evac")
+	at.check(rc.gained == r.xp and rc.evacuated and evac_row.size() == 1 and int(evac_row[0].xp) == int(l.evac_bonus),
+			"récapitulatif : +%d XP, évacuation réussie (%s)" % [rc.gained, rc.rows])
 	await at.screenshot("evacuated")
 	ProfileStore.reset()

@@ -582,22 +582,21 @@ de 2,5 cm** (§ 4.19).
   l'arsenal, versions d'armes mises à jour, échantillons, XP.
 - Il mentionne aussi **ce que le joueur n'a pas pu garder** : armes,
   échantillons et améliorations perdus faute d'évacuation.
-- 🧪 Hub v2 (docs/hub_v2/Recap.dc.html, `Hub2RecapPanel`) : au retour au
+- 🧪 Hub (docs/hub_v2/Recap.dc.html, `Hub2RecapPanel`) : au retour au
   hub, écran **RETOUR AU LABO** : ÉVACUÉ ou LA HORDE L'EMPORTE, manche,
   zombies, durée ; XP qui grimpe avec passage de niveau animé et détail
   (zombies, vagues spéciales et boss, manches, évacuation, défi), ce que
   débloque le nouveau niveau ; BUTIN GARDÉ (armes NEUF ou mises à jour,
   échantillons) ou BUTIN PERDU (« 3 armes, 9 échantillons ») ; contrat prêt
-  à remettre. L'écran de fin en partie ne garde alors que l'issue et les
-  scores.
+  à remettre. L'écran de fin en partie ne garde que l'issue et les scores.
 
 ### 4.17 Bestiaire de profondeur ✅
 - De nouveaux types de zombies n'apparaissent qu'à partir de certaines manches
   (par exemple 20, 30, 40).
 - Leur fiche reste grisée (« ??? ») au codex tant que le joueur ne les a pas
   rencontrés : la curiosité pousse à aller plus loin.
-- 🧪 **Implémenté** : onglet **CODEX** du hub, avant PARTIE (docs/HUB_PLAN.md
-  §3.10). « Rencontré » = coup porté, coup reçu ou élimination, compté pour
+- 🧪 **Implémenté** : onglet **CODEX** du hub (rendus des ennemis,
+  docs/hub_v2/Codex.dc.html, docs/HUB_PLAN.md §9). « Rencontré » = coup porté, coup reçu ou élimination, compté pour
   chaque joueur (coop comprise) et ajouté au profil à la fin de la partie
   avec l'XP. Une fiche inconnue ne montre que la manche à partir de laquelle
   l'ennemi peut apparaître ; une fiche connue montre nom, description,
@@ -625,7 +624,7 @@ de 2,5 cm** (§ 4.19).
     recharge) ;
   - **conditions égales** : tout le monde part avec **toutes les armes de
     base** (PÉTOIRE et BATTE, niveau 1, communes), quelle que soit la
-    sélection de DÉPART ; l'**arsenal et les pièces du profil ne servent
+    sélection d'ÉQUIPEMENT ; l'**arsenal et les pièces du profil ne servent
     pas** (la station ne construit que les armes de base) ;
   - **butin de la partie jamais gardé** (armes, pièces, échantillons), même
     après une évacuation ; l'**XP** de la partie est gardée comme d'habitude ;
@@ -634,9 +633,9 @@ de 2,5 cm** (§ 4.19).
     et des **échantillons** (4 crocs, 3 touffes, 2 colliers) ; le **meilleur
     résultat** de chaque semaine (manche atteinte, manche d'évacuation) est
     gardé au profil (12 dernières semaines) ;
-  - au hub, onglet **PARTIE** : ligne **DÉFI DE LA SEMAINE** au-dessus des
-    cartes (carte, modificateurs, objectif, meilleur résultat, temps
-    restant, récompense, LANCER LE DÉFI) ; en **coop**, l'hôte choisit le
+  - au hub, écran **JOUER** : carte **DÉFI DE LA SEMAINE** au-dessus des
+    cartes (carte, modificateurs, objectif, temps restant ou « réussi »,
+    récompense ; armes imposées) ; en **coop**, l'hôte choisit le
     défi dans CHANGER DE CARTE et **son défi s'applique à tout le groupe** ;
     chacun reçoit sa récompense dans son propre profil.
 
@@ -677,7 +676,7 @@ de 2,5 cm** (§ 4.19).
   - les modèles libres de droits téléchargés doivent être convertis au style
     cubique avant d'entrer dans le jeu.
 - L'**interface** (HUD, menus) n'a pas besoin d'être cubique, mais elle doit
-  rester **en harmonie** avec le style du jeu. Hub v2 (maquettes validées
+  rester **en harmonie** avec le style du jeu. Hub (maquettes validées
   `docs/hub_v2/`, cadre `scripts/ui/hub2/`, docs/HUB_PLAN.md §9) : panneaux
   de verre sombres floutés sur la scène 3D du menu, accent jaune `#F5C542`,
   turquoise `#4FE3C1`, polices libres (OFL) fournies avec le jeu : Chakra
@@ -867,19 +866,19 @@ corriger.
 | Échantillons de l'Infirmière | `nurse_vocal_cords` (cordes vocales), `nurse_syringe` (seringue cassée), `nurse_badge` (badge nominatif), 20 % chacun sur **chaque zombie de la vague** (escorte comprise : à un joueur, 7 tirages par vague) | `LootRules.SAMPLES`, `LootSystem.special_kind` |
 | Infirmière hurlante : nom anglais | « Screaming Nurse » ; bandeau « L'INFIRMIÈRE FAIT SA RONDE » / « THE NURSE IS DOING HER ROUNDS » (coop : « LES INFIRMIÈRES FONT LEUR RONDE » / « THE NURSES ARE DOING THEIR ROUNDS ») | `NurseRound` |
 | Butin rapporté | armes en main et inventaire, sauf armes de base intactes et pistolet prêté ; exemplaire construit depuis l'arsenal (même `uid`) et amélioré en partie : cette version mise à jour (niveau, rareté, pièces), intact : rien, second exemplaire différent : nouvelle version ; pièces non montées ; échantillons | `ProfileLoot` |
-| Hub (2D, lots A, B, D et E codés) | **écrans 2D à onglets** (LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE) ; hub 3D (laboratoire) plus tard, qui ouvrira les mêmes panneaux ; menu titre réduit à JOUER, ÉDITEUR, OPTIONS, CRÉDITS, QUITTER ; solo / coop choisis dans PARTIE ; en coop, le salon est l'onglet PARTIE (le groupe reste connecté) ; puissance non affichée (§4.13), meilleur score de l'arsenal à la place ; retirer une pièce et recycler : deux appuis | `docs/HUB_PLAN.md` |
+| Hub (2D, hub v2 depuis le 2026-10-11) | laboratoire de **Dr Brown** : onglets **LABO** (› CONTRATS d'histoire et temporaires, › ÉCHANGES), **ARSENAL** (rail des niveaux, pièces), **INVENTAIRE** (échantillons), **CODEX** ; bouton **JOUER** (START / P) : solo, coop, salon ; **récapitulatif** au retour d'une partie ; hub 3D plus tard ; menu titre réduit à JOUER, ÉDITEUR, OPTIONS, CRÉDITS, QUITTER ; en coop, le salon est l'écran JOUER (le groupe reste connecté) ; puissance non affichée (§4.13) ; retirer une pièce et recycler : deux appuis ; le premier hub à huit onglets est retiré | `docs/HUB_PLAN.md` §9 |
 | Contrats : tableau | **5 propositions, 3 actifs** ; rotation **par partie** (≥ 1 manche survécue) : 1 proposition (la plus ancienne) remplacée, cases vides remplies ; une proposition acceptée laisse sa case vide jusqu'à la partie suivante ; tirage pondéré sans doublon, graine du profil ; manches survécues = max(relevé d'XP, manche atteinte − 1) ; une partie quittée après une manche compte aussi ; récompense au niveau du joueur avant l'XP du contrat | `ContractRules`, `MatchContracts`, `docs/HUB_PLAN.md` §5 et lot A |
 | Contrats : récompense | XP = XP de base × (1 + 0,02 × (niveau − 1)), arrondie à 10 ; arme ou pièce au niveau du joueur à la remise ; rareté de l'arme selon les parties nécessaires (< 1,5 commune, 1,5 à 3 rare, 3 à 5 épique, > 5 légendaire ; unique : contrats datés exceptionnels seulement) ; qualité d'une pièce : ordinaire (tirage du butin), soignée (2 bonus de 10 à 25 %), d'exception (2 bonus de 18 à 25 %) ; XP ≈ 25 % de l'XP des parties nécessaires, +25 % si daté | `docs/HUB_PLAN.md` §5, §7 |
 | Contrats et échanges d'exemple | 17 contrats et 11 échanges : 8 et 5 sur les échantillons des chiens, 3 et 2 sur ceux du Brancardier, 3 et 2 sur ceux de l'Infirmière hurlante, 3 et 2 sur ceux du Chirurgien (niveau 10 et plus) (fichiers `assets/data/hub/`) | `docs/HUB_PLAN.md` §7 |
 | Échanges | pas d'XP, illimités, objet précis au niveau du joueur | `docs/HUB_PLAN.md` §6 |
 | Taille des menus | nouveau réglage 80 à 130 % (défaut 100 %) pour le hub et les menus, même technique que la taille de l'éditeur | `docs/HUB_PLAN.md` §4.2 |
-| Hub : onglet PARTIE et retour | fin d'une partie solo (ou départ en solo) : hub, onglet LABO (« dernière partie ») ; coop : hub, onglet PARTIE (salon) ; session perdue : hub, onglet PARTIE, message sur place ; salon : niveau et armes de départ de chacun affichés (non vérifiés par l'hôte) ; pas de bouton PRÊT (l'état AU SALON en tient lieu) ; QUITTER LE SALON et ÉCRAN TITRE en coop : deux appuis | `HubPlayPanel`, `docs/HUB_PLAN.md` lot E |
+| Hub : JOUER et retour | fin d'une partie : **récapitulatif**, puis LABO (solo) ou JOUER (coop, salon, groupe connecté) ; départ en solo : LABO ; session perdue : message puis hub ; erreur réseau : sur place dans JOUER (vue COOP) ; salon : niveau, ping et armes de départ de chacun affichés (non vérifiés par l'hôte) ; pas de bouton PRÊT (PRÊT = revenu au salon et carte reçue) ; QUITTER LE SALON et ÉCRAN TITRE en coop : deux appuis | `Hub2PlayPanel`, `Hub2LobbyView`, `docs/HUB_PLAN.md` §9.5, §9.6 |
 | Message « objectif atteint » | une fois par contrat et par partie, quand profil + échantillons de la partie couvrent un contrat actif ; jamais pour un contrat déjà prêt au départ ; sous le compteur d'échantillons, 7 s | `ContractWatch` |
 | Défi hebdomadaire : tirage | semaine ISO (lundi 0 h UTC) ; graine = FNV-1a de la clé « 2026-W41 » puis xorshift32 (indépendant du générateur de Godot) ; 1 carte parmi `maps` de la réserve qui ont porte d'évacuation et station (aujourd'hui BUNKER K-7 seule) ; **1 à 2 modificateurs** tirés selon leur poids, sans doublon ; graine de partie appliquée aux tirages du serveur (manches, butin, zombies) | `WeeklyChallenge`, `assets/data/hub/weekly.json` |
 | Défi hebdomadaire : modificateurs | Horde pressée **+15 %** de vitesse (zombies et chiens) ; Peau de cuir **+25 %** de PV ; En retard : **départ à la manche 6** (vagues spéciales à leur rythme et leur rotation : Brancardier manche 10, Infirmière 15, meute 20) ; Fonds de tiroir : armes trouvées **communes** ; Station en panne : **pas de station** | `WeeklyChallenge.MODS`, `weekly.json` |
 | Défi hebdomadaire : conditions | armes de départ = **toutes les armes de base** pour tous ; station : armes de base seulement (l'arsenal n'est pas listé, l'hôte refuse le reste) ; **butin de la partie jamais gardé**, même évacué ; XP de la partie gardée ; pas de message « objectif atteint » des contrats ; la rotation des contrats compte la partie | `Game`, `Session`, `BuildStation` |
 | Défi hebdomadaire : objectif et récompense | **évacuation à la manche 10 ou plus** ; **une fois par semaine** : **400 XP** × (1 + 0,02 × (niveau − 1)), arrondie à 10, et **4 crocs, 3 touffes, 2 colliers** ; donnée à la fin de la partie (rapport « DÉFI S41 RÉUSSI ») ; meilleur résultat (manche atteinte, manche d'évacuation, parties) gardé pour les **12 dernières semaines** ; une partie quittée compte pour le meilleur résultat | `WeeklyChallenge.apply_to`, `WeeklyRecord` (profil v3) |
-| Défi hebdomadaire : coop | l'hôte choisit DÉFI DE LA SEMAINE dans CHANGER DE CARTE ; la clé de semaine part avec l'ordre de chargement, chaque machine recalcule le même défi ; chacun sa récompense dans son profil ; au retour au salon, le défi gardé passe à la semaine en cours | `Net.lobby_challenge`, `HubPlayLobby` |
+| Défi hebdomadaire : coop | l'hôte choisit DÉFI DE LA SEMAINE dans CHANGER DE CARTE ; la clé de semaine part avec l'ordre de chargement, chaque machine recalcule le même défi ; chacun sa récompense dans son profil ; au retour au salon, le défi gardé passe à la semaine en cours | `Net.lobby_challenge`, `Hub2LobbyView` |
 
 ## 7. Questions ouvertes
 

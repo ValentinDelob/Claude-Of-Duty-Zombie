@@ -162,8 +162,8 @@ déconnecte.
    et courant repartent de zéro au prochain chargement (les signaux branchés
    par la partie sur les autoloads partent avec ses nœuds).
 3. Le menu (`MainMenu._ready`, état `LOBBY` et session en ligne) ouvre
-   directement le hub sur l'onglet PARTIE, qui affiche le salon
-   (`HubPlayLobby`, hôte ou invité) avec le résumé de la partie. La carte du
+   directement le hub sur le RÉCAPITULATIF de la partie, puis CONTINUER
+   mène à JOUER, qui affiche le salon (`Hub2LobbyView`, hôte ou invité). La carte du
    salon est gardée (`Net.lobby_map`) : rien n'est réannoncé ; une carte
    perso choisie à nouveau est reprise du cache de chaque invité (empreinte
    inchangée : aucun renvoi).
@@ -229,67 +229,54 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
 
 ## Menus, options et touches
 
-- **Hub du scientifique** (`scripts/ui/hub/`, plan **docs/HUB_PLAN.md**,
-  maquettes `docs/hub_mockup/`) : menu titre réduit (`main_screen.gd` :
+- **Hub de Dr Brown** (`scripts/ui/hub2/`, plan **docs/HUB_PLAN.md §9**,
+  maquettes validées `docs/hub_v2/`) : menu titre réduit (`main_screen.gd` :
   JOUER, ÉDITEUR DE CARTES, OPTIONS, CRÉDITS, QUITTER) ; JOUER ouvre
-  `HubScreen` (`MainMenu.SCREENS.hub`, `MenuScreen` plein cadre : le
-  `MainMenu` masque alors son voile, sa surimpression de caméra et son
-  post-traitement, `full_frame`, et lui passe `set_hint` → `show_hint`).
-  Cadre : `HubTopBar` (niveau, XP, touche du menu), `HubTabBar` (8 onglets
-  LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, CODEX, PARTIE ; Q / E,
-  Page préc. / suiv., LB / RB, clic ; pastilles), `HubPrompts` (invites du
-  dernier périphérique, `Settings.input_device_changed`, cliquables ; aide à
-  droite), `HubMenu` (Échap / Start : REPRENDRE, OPTIONS, DOSSIER DE COMBAT,
-  ÉCRAN TITRE, QUITTER LE JEU), fond `HubScreen.backdrop`. Retour (Échap, B,
-  clic droit) : `HubPanel.back()` puis menu du hub. **Panneaux** : un
-  `HubPanel` par onglet, tous construits à l'ouverture et gardés en vie ;
-  `HubScreen.PANELS` (identifiant → script ; absent : `HubPlaceholderPanel`
-  « à venir ») ou `HubScreen.register_panel` ; API dans `hub_panel.gd`
-  (`build`, `refresh`, `first_focus`, `prompts`, `back`, `handle_input`,
-  `shown` / `hidden`, `badge` ; `hub.profile`, `save_profile`,
-  `select_tab`, `set_hint`, `menu`). LABO : `HubLabPanel` (lecture seule du
-  profil ; contrats par `HubContractsView`, tolérant à l'absence du lot A ;
-  dernière partie : `Router.last_match`, rempli par `Game._show_match_end`).
-  **PARTIE** (lot E) : `HubPlayPanel` (`play_panel.gd`) — vues SOLO
-  (cartes du jeu et perso, aperçu : `HubPlayView.map_facts` — vagues,
-  porte d'évacuation, échantillons —, armes de départ, contrats « sur cette
-  carte », LANCER : `MainMenu.launch` puis `Router.start_solo`), COOP
-  (héberger : `Net.host` ; rejoindre : `Net.join` ; erreurs sur place :
-  `HubScreen.show_net_error`) et SALON (`HubPlayLobby`, `play_lobby.gd` :
-  joueurs, niveau, armes de départ, état AU SALON / EN RETOUR… / carte,
-  DÉMARRER, CHANGER DE CARTE, QUITTER LE SALON en deux appuis). La vue suit
-  le réseau (`HubPlayPanel.sync` : session ouverte et état `LOBBY` → salon) ;
-  le panneau reste en vie d'un onglet à l'autre (le salon reste ouvert).
-  **Fiche de salon** : `Net.players[pid]` porte `lvl`, `start` (profil local
-  de chacun, `Net.set_lobby_card` / `_srv_set_lobby_card`, bornés par
-  `Net.clean_card`) et `away` (`LobbyReturn` → `Net.srv_mark_away`). Plus
-  d'écrans MULTIJOUEUR, HÉBERGER, REJOINDRE, CONNEXION, SALON ni de choix de
-  carte à part (`MainMenu.SCREENS`). **Retour au hub** : `Router.hub_tab`
-  (« lab » après une partie solo ou un départ en solo, « play » en
-  multijoueur ou après une session perdue), lu par `MainMenu._ready`.
-  Widgets : `HubStyle`
-  (palette, polices, `px` / `fs`, dessin des boîtes et barres), `HubBox`,
-  `HubButton`, `HubTag`, `HubBar`, `HubRow`, `HubKey`, `HubIcon` (pixel art
-  de la maquette). **TAILLE DES MENUS** : `Settings.menu_ui_scale` (80 à
-  130 %, pas de 5 %, `[interface] menu_ui_scale`, OPTIONS > JEU >
-  INTERFACE) ; tout le hub passe par `HubStyle.px` / `fs` et se reconstruit
-  au changement (`HubScreen.rebuild`) ; contenus des panneaux dans des
-  `ScrollContainer`. Tests : `tests/test_hub_screen.gd`, scénario `hub_nav`
-  (captures de développement ; `HUB_SHOT_RES=1920x1080` pour la taille).
-  **CONTRATS / ÉCHANGES** (lot D) : `HubContractsPanel`
-  (`contracts_panel.gd`, cartes `HubContractCard`, boutons qui se plient
-  `HubFitButton`), `HubExchangesPanel` (`exchanges_panel.gd`), colonne
-  RÉSERVE `HubSamplesColumn` (mots des échantillons accordés), fenêtre
-  « contrat remis » / « échange conclu » `HubRewardPopup` (posée sur
-  l'hôte). Lecture des contrats : `HubContractsView` (`HubData`, jour UTC
-  remplaçable par `day_override` pour les tests). À l'ouverture du hub
-  (`HubScreen.enter`) : `HubContractsView.open_hub` (purge, premier
-  remplissage, `take_expired` → `HubScreen.expired_notice`, signalé une fois
-  au LABO), une écriture si quelque chose change. Chaque action (accepter,
-  abandonner en deux appuis, remettre, échanger en deux appuis) = règles du
-  lot A puis une seule `hub.save_profile()`. `HubScreen.enter({profile_path})`
-  choisit le fichier ; un profil fourni sans fichier (tests) n'est jamais
-  écrit. Tests : `tests/test_hub_contracts.gd`.
+  `Hub2Screen` (`MainMenu.SCREENS.hub`, `MenuScreen` plein cadre : le
+  `MainMenu` masque sa surimpression de caméra et son post-traitement,
+  `full_frame`, garde son voile de gauche, `backdrop_shade`, et lui passe
+  `set_hint` → `show_hint`). Cadre : `Hub2TopBar` (niveau, XP, onglets
+  LABO · ARSENAL · INVENTAIRE · CODEX, pastilles, bouton JOUER),
+  `Hub2Breadcrumb` (« ‹ LABO / CONTRATS »), `Hub2Prompts` (invites du
+  dernier périphérique, cliquables, aide), `Hub2Veil` (voile du fond 3D),
+  `Hub2Menu` (B / Échap au LABO, START dans le menu : REPRENDRE, OPTIONS,
+  DOSSIER DE COMBAT, ÉCRAN TITRE en deux appuis en coop, QUITTER LE JEU).
+  **Écrans** : un `Hub2Panel` par maquette (`Hub2Screen.SCREENS` :
+  `lab`, `contracts` et `exchanges` (sous-écrans du LABO), `arsenal`,
+  `inventory`, `codex`, `play`, `recap`), construits au premier affichage et
+  gardés en vie ; `Hub2Screen.register_panel` (tests). Navigation :
+  LB / RB, Q / E, Page préc. / suiv., clic ; JOUER : START, P ; retour
+  (B, Échap, clic droit) : `Hub2Panel.back()`, sinon sous-écran → parent,
+  onglet → LABO, JOUER → écran d'avant, LABO → menu du hub. Liens : fenêtre
+  de remise → `Hub2ArsenalPanel.show_item(uid)` ; INVENTAIRE (A sur un
+  échantillon) → `Hub2ContractsPanel.select_item` / `Hub2ExchangesPanel.select_item`.
+  **JOUER** : `Hub2PlayPanel` — vues SOLO (cartes `HubMaps`, défi de la
+  semaine, armes de départ, LANCER : `MainMenu.launch` puis
+  `Router.start_solo`), COOP (HÉBERGER : `Net.host` ; REJOINDRE « IP:port » :
+  `Net.join` ; erreurs sur place : `show_error`) et SALON (`Hub2LobbyView` :
+  cartes des joueurs — niveau, ping, armes de départ, PRÊT —, carte de
+  l'hôte, CHANGER DE CARTE, LANCER, QUITTER LE SALON en deux appuis). La vue
+  suit le réseau (session ouverte et état `LOBBY` → salon) ; le panneau reste
+  en vie d'un onglet à l'autre (le salon reste ouvert). **Fiche de salon** :
+  `Net.players[pid]` porte `lvl`, `start` (profil local de chacun,
+  `Net.set_lobby_card` / `_srv_set_lobby_card`, bornés par `Net.clean_card`),
+  `away` (`LobbyReturn` → `Net.srv_mark_away`) et `ping`. **Retour d'une
+  partie** (`MainMenu._open_hub_after_match`, `Router.hub_tab` : « lab » ou
+  « play ») : RÉCAPITULATIF (`Hub2RecapPanel`, `Router.last_match` pas encore
+  vu) puis LABO, ou JOUER si le salon est ouvert ; session perdue : message
+  puis hub ; erreur réseau : sur place dans JOUER (vue COOP). Contrats :
+  `HubContractsView` (`scripts/game/hub/`, `HubData`, jour UTC remplaçable par
+  `day_override`) ; à l'ouverture (`Hub2Screen.enter`) :
+  `HubContractsView.open_hub` (purge, premier remplissage, expirés signalés
+  une fois au LABO), une écriture si quelque chose change ; chaque action =
+  règles puis une seule `hub.save_profile()` ; un profil fourni sans fichier
+  (tests) n'est jamais écrit. **TAILLE DES MENUS** :
+  `Settings.menu_ui_scale` (80 à 130 %, pas de 5 %, `[interface]
+  menu_ui_scale`, OPTIONS > JEU > INTERFACE) ; tout le hub passe par
+  `Hub2Style.px` / `fs` et se reconstruit au changement
+  (`Hub2Screen.rebuild`). Tests : `tests/test_hub2*.gd`, `test_hub_gear.gd`,
+  scénarios `hub_look` (captures informatives), `hub2_recap_flow`,
+  `menu_navigation`, `map_select`, `mp_hub2_lobby_*`.
 - **Hôtes d'écrans** : `MenuHost` (`scripts/ui/menu_host.gd`) est l'interface
   que voient les écrans `MenuScreen` (`show_screen`, `go_back`, `set_hint`,
   `current`). Deux hôtes : `MainMenu` (menu principal, fond 3D, transitions) et
@@ -1792,9 +1779,9 @@ s'y brancher). Purement local : chaque joueur a son profil.
 
 **Hub, contrats et catalogue d'échanges** : **docs/HUB_PLAN.md** (écrans,
 navigation, modèle de données, rotation des contrats, lots
-d'implémentation), maquettes `docs/hub_mockup/index.html`. Données et règles
-codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
-à E).
+d'implémentation), maquettes `docs/hub_v2/`. Données et règles sans
+interface dans `scripts/game/hub/` ; écrans : le hub (`scripts/ui/hub2/`,
+« Menus, options et touches » ci-dessus).
 
 - `HubData` : lit `assets/data/hub/contracts.json` et `exchanges.json`
   (exportés : `include_filter` « assets/data/* », vérifié par
@@ -1830,7 +1817,7 @@ codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
   un contrat nouvellement couvert affiche une fois `goal_message` sous le
   compteur d'échantillons du HUD (deux lignes, 7 s, file d'attente) ; un
   contrat déjà couvert par le profil seul au départ n'est jamais annoncé.
-  Tests : `tests/test_hub_play.gd`, scénario `hub_play`.
+  Tests : `tests/test_contracts.gd` (`test_annonce_une_fois_par_contrat`).
 - Tests : `tests/test_hub_data.gd`, `test_contracts.gd`,
   `test_exchanges.gd`, `test_profile.gd` (v1 → v2), scénario `xp_match`
   (tableau tourné une fois).
@@ -1870,8 +1857,10 @@ codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
   rapport `MatchResult.challenge_text`). Clé envoyée par l'hôte avec
   l'ordre de chargement (`Net.start_match(carte, clé)`,
   `Net.current_challenge`) ; défi du salon `Net.lobby_challenge`. Hub :
-  `HubPlayWeekly` (onglet PARTIE et salon). Tests : `tests/test_weekly.gd`,
-  `tests/test_hub_play.gd`, scénario `weekly_challenge`.
+  carte du défi de JOUER et première ligne de CHANGER DE CARTE au salon
+  (`Hub2PlayData.weekly_card`, `HubMaps.WEEKLY_ROW`). Tests :
+  `tests/test_weekly.gd`, `tests/test_hub2_play.gd`, scénario
+  `weekly_challenge`.
 - **XP de partie** (barème, coop, calibrage et méthode pour un nouveau mob :
   **docs/XP_RULES.md**) : `XpRules` (pur : barème par type d'ennemi, bonus
   de manche, manches, vagues, évacuation ; relevé sérialisable), `XpSystem`
@@ -1881,9 +1870,10 @@ codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
   et compteur au HUD ; `srv_close_all` à la fin -> `MatchResult.xp_ledgers`),
   `MatchXp.apply(relevé)` : seule voie d'entrée au profil, une fois par
   partie (`Game._show_match_end`, ou `Game.keep_match_xp` au départ en cours
-  de partie), quelle que soit l'issue. Écran de fin : `Hud._show_xp_report`
-  (détail, niveau avant / après, barre). Progression du profil : écran
-  DOSSIER DE COMBAT du menu (en attendant le hub). `XpCalibration` :
+  de partie), quelle que soit l'issue. Détail, niveau avant / après et
+  passages de niveau : RÉCAPITULATIF du hub au retour (`Hub2RecapModel` lit
+  `Router.last_match`) ; l'écran de fin en partie ne montre que l'issue, la
+  manche et les scores. Niveau et XP : barre du haut du hub. `XpCalibration` :
   simulation des temps de jeu par niveau. Le dossier de combat
   (`CareerStats`) reste à part. Tests : `tests/test_profile.gd`,
   `tests/test_xp_rules.gd`, scénario `xp_match`, `sh tools/mp_test.sh xp`.

@@ -27,16 +27,12 @@ func enter(_args := {}) -> void:
 	focus_later(_first)
 
 
-## JOUER : le hub (docs/HUB_PLAN.md, D2), onglet LABO. Solo et coop se
-## lancent depuis son onglet PARTIE (HubPlayPanel : cartes, héberger,
+## JOUER : le hub (Hub2Screen, docs/HUB_PLAN.md §9), écran LABO. Solo et
+## coop se lancent depuis son écran JOUER (Hub2PlayPanel : cartes, héberger,
 ## rejoindre, salon).
 func _play() -> void:
 	if not _leaving:
-		if Settings.use_hub_v2():
-			# Hub v2 (provisoire, docs/HUB_PLAN.md §9).
-			menu.show_screen("hub2", {"screen": "lab"})
-		else:
-			menu.show_screen("hub", {"tab": "lab"})
+		menu.show_screen("hub", {"screen": "lab"})
 
 
 ## ÉDITEUR DE CARTES : scène de l'éditeur (docs/MAP_AUTHORING.md).

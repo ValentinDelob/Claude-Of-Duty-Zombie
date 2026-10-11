@@ -216,7 +216,7 @@ func _open_recap(last: Dictionary) -> Hub2Screen:
 	hub.size = Vector2(1280, 720)
 	_host.add_child(hub)
 	_host.current = hub
-	_host.current_name = "hub2"
+	_host.current_name = "hub"
 	var pr := PlayerProfile.new()
 	pr.xp = (last.result as MatchResult).profile_xp
 	hub.enter({"screen": "recap", "profile": pr})

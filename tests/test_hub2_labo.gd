@@ -88,7 +88,7 @@ func _open(screen: String, pr: PlayerProfile) -> Hub2Screen:
 	hub.size = Vector2(1280, 720)
 	h.add_child(hub)
 	h.current = hub
-	h.current_name = "hub2"
+	h.current_name = "hub"
 	hub.enter({"screen": screen, "profile": pr})
 	await wait_frames(3)
 	return hub
@@ -245,6 +245,52 @@ func test_temporary_accept_abandon_deliver() -> void:
 	assert_eq(hub.profile.sample_count("dog_fur"), 0)
 	assert_eq(hub.profile.contracts.done_count("t_fur"), 1)
 	cp.popup.close()
+
+
+## Liens entre écrans : VOIR DANS L'ARSENAL (fenêtre de remise) ouvre
+## l'ARSENAL sur l'objet reçu ; A sur un échantillon de l'INVENTAIRE ouvre
+## le contrat qui le demande (sinon l'échange), carte choisie.
+func test_cross_screen_links() -> void:
+	var pr := _profile()
+	pr.add_samples("dog_fang", 1)
+	pr.add_samples("brancard_strap", 1)
+	var hub := await _open("contracts", pr)
+	var cp: Hub2ContractsPanel = hub.panels.contracts
+	cp.accept("t_fangs")
+	cp.accept("t_fur")
+	# INVENTAIRE -> CONTRATS : le contrat qui demande des crocs.
+	hub.open("inventory")
+	await wait_frames(1)
+	var inv: Hub2InventoryPanel = hub.panels.inventory
+	inv.open_request("dog_fang")
+	await wait_frames(2)
+	assert_eq(hub.current_id, "contracts", "A sur les crocs : CONTRATS")
+	assert_eq(hub.get_viewport().gui_get_focus_owner(), cp.temp_cards["t_fangs"], "contrat des crocs choisi")
+	# INVENTAIRE -> ÉCHANGES : aucun contrat ne demande la sangle.
+	hub.open("inventory")
+	await wait_frames(1)
+	inv.open_request("brancard_strap")
+	await wait_frames(2)
+	assert_eq(hub.current_id, "exchanges", "A sur la sangle : ÉCHANGES")
+	var xp_: Hub2ExchangesPanel = hub.panels.exchanges
+	assert_eq(hub.get_viewport().gui_get_focus_owner(), xp_.cards["x_sling"], "échange de la sangle choisi")
+	assert_false(xp_.select_item("pas_un_echange"), "échange inconnu : rien")
+	# Remise d'un contrat qui donne une arme, puis VOIR DANS L'ARSENAL.
+	hub.open("contracts")
+	await wait_frames(1)
+	hub.profile.add_samples("dog_fur", 2)
+	hub.save_profile()
+	cp.temp_cards["t_fur"].pressed.emit()
+	assert_true(cp.popup_open() and cp.popup.primary_button != null, "fenêtre de remise avec VOIR DANS L'ARSENAL")
+	var uid := cp.popup.target_uid
+	assert_true(hub.profile.get_weapon(uid) != null, "arme reçue dans l'arsenal")
+	cp.popup.primary_button.pressed.emit()
+	await wait_frames(2)
+	assert_eq(hub.current_id, "arsenal", "VOIR DANS L'ARSENAL : ARSENAL")
+	var ap: Hub2ArsenalPanel = hub.panels.arsenal
+	assert_eq(ap.tab, Hub2ArsenalPanel.WEAPONS)
+	assert_eq(ap.selected_weapon().uid, uid, "arme reçue choisie")
+	assert_eq(hub.get_viewport().gui_get_focus_owner(), ap.selected_card(), "focus sur sa carte")
 
 
 func test_tile_tooltip_on_focus() -> void:
