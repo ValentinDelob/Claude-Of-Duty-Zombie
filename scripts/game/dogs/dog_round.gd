@@ -3,8 +3,9 @@ extends Node
 ## Vagues spéciales « meute » : chiens errants contaminés (chemin réseau :
 ## /root/Game/Rounds/Dogs).
 ##
-## Serveur : manches de chiens = vagues spéciales du schéma de la carte
-## (WaveRules, MapDef.waves : par défaut toutes les 5 manches), fait
+## Serveur : manches de chiens = vagues spéciales du schéma de la carte de
+## type « meute » (WaveRules.special_type_at, MapDef.waves : rotation des
+## types autorisés ; par défaut manches 5, 15, 25...), fait
 ## apparaître les chiens un par un près des joueurs (2 vivants par joueur),
 ## tapis hors de leur vue de préférence, leur attribue une proie, applique la
 ## giclée de sang contaminé à leur mort et retient la position du dernier
@@ -33,7 +34,7 @@ var rounds: RoundManager
 ## réactiver ou forcer la manche suivante (debug_force_next).
 var enabled := not Autotest.active
 ## Prochaine manche de chiens (schéma de la carte, srv_plan).
-var next_dog_round := WaveRules.next_after(WaveRules.DEFAULT, WaveRules.SPECIAL, 0)
+var next_dog_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.MEUTE, 0)
 ## Manches de chiens déjà terminées (level.dog_round_count - 1).
 var dog_rounds_done := 0
 ## Serveur : manche de chiens en cours.
@@ -90,10 +91,14 @@ func _waves() -> Dictionary:
 	return game.map_def.waves if game and game.map_def else WaveRules.DEFAULT
 
 
+func _has_boss() -> bool:
+	return game != null and game.map_def != null and game.map_def.boss != ""
+
+
 ## Serveur : première manche de chiens d'après le schéma de la carte
 ## (RoundManager.start_game).
 func srv_plan() -> void:
-	next_dog_round = WaveRules.next_after(_waves(), WaveRules.SPECIAL, 0)
+	next_dog_round = WaveRules.next_special_of(_waves(), WaveRules.MEUTE, 0, _has_boss())
 
 
 ## Tests : la prochaine manche sera une manche de chiens.
@@ -136,7 +141,7 @@ func srv_end(n: int) -> void:
 		# Manche interrompue (tests) : l'ambiance s'arrête aussitôt.
 		_cl_dog_round.rpc(false)
 	dog_rounds_done += 1
-	next_dog_round = WaveRules.next_after(_waves(), WaveRules.SPECIAL, n)
+	next_dog_round = WaveRules.next_special_of(_waves(), WaveRules.MEUTE, n, _has_boss())
 	print("[Dogs] fin de la manche de chiens ; prochaine : manche %d" % next_dog_round)
 	dog_round_cleared.emit(n)
 
@@ -204,6 +209,7 @@ func _spawn_dog(valid: Array) -> bool:
 
 
 ## Point d'apparition d'un chien (BO1 : 400 à 1000 unités du joueur visé, dans
+## [min_d, max_d] ; le Brancardier s'en sert aussi avec ses distances,
 ## une zone ouverte, jamais deux fois de suite au même endroit). Les points
 ## candidats (sol dégagé tout autour) viennent de la carte (MapLayout). Le
 ## chien doit pouvoir rejoindre le joueur : sur une carte en maillage, une
@@ -218,7 +224,7 @@ const PATH_TRIES := 24
 const FALLBACK_TRIES := 6
 const VISIBLE_KEEP := 6
 
-func pick_spawn_point(near: Vector3) -> Variant:
+func pick_spawn_point(near: Vector3, min_d := DogRules.SPAWN_MIN_DIST, max_d := DogRules.SPAWN_MAX_DIST) -> Variant:
 	var layout := game.layout
 	var pts := layout.open_floor_points().duplicate()
 	if pts.is_empty():
@@ -239,7 +245,7 @@ func pick_spawn_point(near: Vector3) -> Variant:
 		if pos == _last_spawn or not layout.is_walkable_at(pos):
 			continue
 		var d := Vector2(pos.x - near.x, pos.z - near.z).length()
-		if d >= DogRules.SPAWN_MIN_DIST and d <= DogRules.SPAWN_MAX_DIST:
+		if d >= min_d and d <= max_d:
 			if _seen_by(watchers, pos):
 				if visible.size() < VISIBLE_KEEP:
 					visible.append(pos)
@@ -252,7 +258,7 @@ func pick_spawn_point(near: Vector3) -> Variant:
 			if tries >= PATH_TRIES:
 				break
 		elif d >= 4.0:
-			fallbacks.append([absf(d - clampf(d, DogRules.SPAWN_MIN_DIST, DogRules.SPAWN_MAX_DIST)), pos])
+			fallbacks.append([absf(d - clampf(d, min_d, max_d)), pos])
 	for pos: Vector3 in visible:
 		if not game.nav.find_path(pos, near).is_empty():
 			_last_spawn = pos

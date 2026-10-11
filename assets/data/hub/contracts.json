@@ -125,6 +125,47 @@
 			"ends": "2026-11-30",
 			"repeatable": false,
 			"weight": 3
+		},
+		{
+			"id": "orderly_straps",
+			"title": {"fr": "Sangles de contention", "en": "Restraint Straps"},
+			"text": {
+				"fr": "Ce colosse qui charge avec un brancard sur le dos… c'était un brancardier de l'hôpital. Ses sangles de cuir ont trempé dans tout ce qui coulait là-bas. Rapportez-en.",
+				"en": "That hulk charging around with a stretcher on his back… he was a hospital orderly. His leather straps soaked up everything that leaked in there. Bring me some."
+			},
+			"thanks": {
+				"fr": "Vous êtes encore entier ? Il ne vous a pas aplati contre un mur ? Remarquable.",
+				"en": "Still in one piece? He didn't flatten you against a wall? Remarkable."
+			},
+			"samples": {"brancard_strap": 3},
+			"xp": 1650,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+			"min_level": 5
+		},
+		{
+			"id": "patient_records",
+			"title": {"fr": "Dossiers des patients", "en": "Patient Records"},
+			"text": {
+				"fr": "Les bracelets d'identification portent un numéro de dossier. Avec assez de numéros, je saurai quels patients ont été soignés en premier… et avec quoi.",
+				"en": "Those ID bracelets carry a file number. With enough numbers, I'll know which patients were treated first… and with what."
+			},
+			"samples": {"brancard_bracelet": 4},
+			"xp": 2100,
+			"reward": {"kind": "part", "quality": "superior"},
+			"min_level": 5
+		},
+		{
+			"id": "field_stretcher",
+			"title": {"fr": "Brancard de campagne", "en": "Field Stretcher"},
+			"text": {
+				"fr": "Je monte un brancard pour sortir mes échantillons du labo. Il me faut des sangles solides et des bracelets pour étiqueter. Oui, je recycle. Non, ce n'est pas dégoûtant.",
+				"en": "I'm building a stretcher to move my samples out of the lab. I need sturdy straps and bracelets for labels. Yes, I recycle. No, it isn't disgusting."
+			},
+			"samples": {"brancard_strap": 3, "brancard_bracelet": 3},
+			"xp": 1950,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
+			"min_level": 6,
+			"after": ["orderly_straps"]
 		}
 	]
 }

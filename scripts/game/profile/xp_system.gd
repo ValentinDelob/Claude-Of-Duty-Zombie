@@ -59,6 +59,8 @@ func ledger(pid: int) -> Dictionary:
 static func enemy_type_of(z: Zombie) -> String:
 	if z == null:
 		return XpRules.WALKER
+	if z is Brancardier:
+		return XpRules.BRANCARDIER
 	return XpRules.enemy_type(z is Hellhound, z.is_crawler(), z.speed_class)
 
 

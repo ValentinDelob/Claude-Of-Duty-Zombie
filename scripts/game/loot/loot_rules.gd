@@ -48,6 +48,8 @@ const SAMPLE_CHANCE := 0.2
 const SAMPLES := {
 	"dogs": [["dog_fang", "CROC", "FANG"], ["dog_fur", "TOUFFE DE POILS", "TUFT OF FUR"],
 		["dog_collar", "COLLIER", "COLLAR"]],
+	"brancardier": [["brancard_strap", "SANGLE DE CUIR", "LEATHER STRAP"],
+		["brancard_bracelet", "BRACELET D'IDENTIFICATION", "ID BRACELET"]],
 }
 ## Noms des modificateurs affichés [FR, EN].
 const MOD_NAMES := {
@@ -155,7 +157,7 @@ static func part_drops(rng: RandomNumberGenerator, chance := -1.0) -> bool:
 
 
 ## Échantillons tombés pour un joueur, pour un zombie tué d'une vague du
-## type `kind` ("dogs") : identifiants (0 à 3).
+## type `kind` ("dogs", "brancardier") : identifiants (0 à 3).
 static func roll_samples(kind: String, rng: RandomNumberGenerator, chance := -1.0) -> PackedStringArray:
 	var out := PackedStringArray()
 	var c := SAMPLE_CHANCE if chance < 0.0 else chance

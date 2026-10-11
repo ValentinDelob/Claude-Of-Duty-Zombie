@@ -14,6 +14,8 @@ extends RefCounted
 ## * cadence d'élimination : KILL_PACE s par zombie et par joueur (approche,
 ##   tir, rechargement, déplacement ; les PV montent avec la manche mais les
 ##   armes du joueur aussi) ; chiens : DOG_PACE s chacun, plus l'annonce ;
+##   Brancardier : BRANCARDIER_PACE s, plus l'annonce et l'escorte ; vagues
+##   spéciales en rotation (WaveRules : meute, Brancardier, meute...) ;
 ## * chaque manche coûte en plus ROUND_OVERHEAD s (entracte de 10 s, trajet
 ##   jusqu'aux premiers zombies) ; l'évacuation EVAC_TIME s ; chaque partie
 ##   MATCH_OVERHEAD s (chargement, écran de fin, hub) ;
@@ -27,6 +29,8 @@ extends RefCounted
 
 const KILL_PACE := 3.0
 const DOG_PACE := 4.0
+## Brancardier : secondes pour abattre le sien (charges esquivées, étourdi).
+const BRANCARDIER_PACE := 25.0
 const ROUND_OVERHEAD := 25.0
 const EVAC_TIME := 30.0
 const MATCH_OVERHEAD := 90.0
@@ -57,7 +61,17 @@ static func simulate_match(evac: int, players := 1) -> Dictionary:
 	var dog_rounds := 0
 	for r in range(1, evac + 1):
 		var kind := WaveRules.wave_kind(WaveRules.DEFAULT, r, false)
-		if kind == WaveRules.SPECIAL:
+		if kind == WaveRules.SPECIAL and WaveRules.special_type_at(WaveRules.DEFAULT, r) == WaveRules.BRANCARDIER:
+			# Vague du Brancardier (rotation par défaut) : chacun abat son
+			# Brancardier et sa part de l'escorte.
+			var escorts := BrancardRules.escorts(players)
+			for i in roundi(float(BrancardRules.count(players)) / players):
+				XpRules.add_kill(l, XpRules.BRANCARDIER, r)
+			for i in roundi(float(escorts) / players):
+				XpRules.add_kill(l, XpRules.WALKER, r)
+			sec += BrancardRules.START_DELAY + BRANCARDIER_PACE + float(escorts) / players * KILL_PACE + ROUND_OVERHEAD
+			XpRules.add_wave(l, kind, r)
+		elif kind == WaveRules.SPECIAL:
 			dog_rounds += 1
 			var dogs := DogRules.dog_count(players, dog_rounds)
 			# Meute partagée : chaque joueur en abat sa part.

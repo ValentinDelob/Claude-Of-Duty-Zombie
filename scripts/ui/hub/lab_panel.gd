@@ -24,6 +24,7 @@ const CONTRACTS_H := 352.0
 ## [titre du groupe FR, EN, source FR, EN].
 const GROUPS := {
 	"dogs": ["MEUTE ERRANTE (CHIENS)", "STRAY PACK (DOGS)", "par chien tué", "per dog killed"],
+	"brancardier": ["BRANCARDIER", "STRETCHER-BEARER", "par zombie de sa vague", "per zombie of its wave"],
 }
 ## Sortes à découvrir montrées en « ??? » (ennemis à venir, GAME_CONCEPT §4.17).
 const UNKNOWN_TEASERS := 2

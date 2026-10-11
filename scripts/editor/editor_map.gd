@@ -164,7 +164,14 @@ extends RefCounted
 ##      enregistrement (MapCubeSnap.backup) et erreurs NOUVELLES du validateur
 ##      signalées (cube_check) ; la carte s'ouvre quand même, rien n'est retiré.
 ##      En jeu : conversion en mémoire seulement.
-const FORMAT := 20
+##  21  plusieurs types de vagues spéciales (GAME_CONCEPT.md §4.4 : plusieurs
+##      mini-boss par carte, pour varier) : « carte.vagues.types_speciaux » =
+##      liste des types autorisés (WaveRules.SPECIAL_TYPES : « meute »,
+##      « brancardier »), qui tournent dans cet ordre (WaveRules.special_type_at).
+##      Absente : tous les types (jamais écrite à sa valeur par défaut,
+##      set_special_types). Aucune conversion : une carte au format 20 ou moins
+##      se lit telle quelle (tous les types, en rotation).
+const FORMAT := 21
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 ## Écart par défaut entre deux niveaux (m) : nouveau niveau, ancien étage sans « sol ».
@@ -338,21 +345,35 @@ static func set_waves(c: Dictionary, kind: String, first: int, gap: int) -> void
 	var s := waves_of(c)
 	if s.has(kind):
 		s[kind] = {"premiere": clampi(first, 0, WaveRules.ROUND_MAX), "intervalle": clampi(gap, 0, WaveRules.ROUND_MAX)}
+	_write_waves(c, s)
+
+
+## Format 21 : types de vagues spéciales autorisés (WaveRules.SPECIAL_TYPES ;
+## vide : tous). Un type absent de la liste n'apparaît jamais sur la carte ;
+## les autres tournent (WaveRules.special_type_at).
+static func set_special_types(c: Dictionary, types: Array) -> void:
+	var s := waves_of(c)
+	s[WaveRules.TYPES_KEY] = WaveRules.parse_types(types)
+	_write_waves(c, s)
+
+
+## Écrit le schéma `s` (forme lue par WaveRules.parse) : clé retirée au défaut,
+## liste des types omise quand ce sont tous les types.
+static func _write_waves(c: Dictionary, s: Dictionary) -> void:
 	if WaveRules.is_default(s):
 		c.erase("vagues")
-	else:
-		c["vagues"] = s
+		return
+	var out := s.duplicate(true)
+	if out.get(WaveRules.TYPES_KEY, []) == WaveRules.SPECIAL_TYPES:
+		out.erase(WaveRules.TYPES_KEY)
+	c["vagues"] = out
 
 
 ## Schéma illisible ou par défaut retiré ; sinon réécrit proprement.
 static func tidy_waves(c: Dictionary) -> void:
 	if not c.has("vagues"):
 		return
-	var s := waves_of(c)
-	if WaveRules.is_default(s):
-		c.erase("vagues")
-	else:
-		c["vagues"] = s
+	_write_waves(c, waves_of(c))
 
 
 ## Altitudes distinctes (à ALT_EQ près) de `alts`, triées.
@@ -1111,6 +1132,8 @@ func _migrate(from: int) -> void:
 	# plafonds qu'ils ont écrits).
 	if from < 20 and _cube:
 		cube_changes = snap_architecture()
+	# Format 20 -> 21 : rien à convertir (sans « types_speciaux » : tous les
+	# types de vagues spéciales, en rotation).
 
 
 ## Format 20 : toute l'architecture arrondie au cube de 5 cm (MapCubeSnap,

@@ -105,6 +105,13 @@ var revive_target: ReviveTarget
 var _flinch := Vector2.ZERO
 var _lunge_vel := Vector3.ZERO
 var _lunge_left := 0.0
+## Projection subie (charge du Brancardier) : vitesse horizontale imposée et
+## temps restant (knockback).
+var _knock_vel := Vector3.ZERO
+var _knock_left := 0.0
+var _knock_time := 0.0
+## Projections reçues (tests).
+var knockbacks := 0
 ## Allongé / en plein plongeon.
 var prone := false
 var diving := false
@@ -510,6 +517,13 @@ func _move(delta: float) -> void:
 			velocity.x *= 0.2
 			velocity.z *= 0.2
 
+	# Projection (charge du Brancardier) : poussée imposée qui s'éteint.
+	if _knock_left > 0.0:
+		_knock_left -= delta
+		var k := clampf(_knock_left / maxf(_knock_time, 0.01), 0.0, 1.0)
+		velocity.x = _knock_vel.x * (0.35 + 0.65 * k)
+		velocity.z = _knock_vel.z * (0.35 + 0.65 * k)
+
 	var fall_speed := -velocity.y
 	move_and_slide()
 	if is_on_floor() and not _was_on_floor and fall_speed > 2.0:
@@ -587,6 +601,42 @@ func start_lunge(dir: Vector3, dist: float, duration: float) -> void:
 
 func is_lunging() -> bool:
 	return _lunge_left > 0.0
+
+
+## Serveur : projette ce joueur (charge du Brancardier, BrancardRules.KNOCK_*)
+## à la vitesse `vel` pendant `time` s. Le client est maître de sa position :
+## la poussée est appliquée par sa machine ; le saut de position qui suit est
+## permis (net_allow_warp).
+func srv_knockback(vel: Vector3, time: float) -> void:
+	net_allow_warp()
+	if is_local:
+		knockback(vel, time)
+	elif is_inside_tree() and multiplayer.has_multiplayer_peer():
+		_cl_knockback.rpc_id(peer_id, vel, time)
+
+
+## Serveur -> joueur concerné. « any_peer » : l'autorité du nœud est le
+## client, l'expéditeur est vérifié à la main (serveur seulement).
+@rpc("any_peer", "call_remote", "reliable")
+func _cl_knockback(vel: Vector3, time: float) -> void:
+	if multiplayer.get_remote_sender_id() != 1 or not is_local or not NetGuard.finite_vec(vel):
+		return
+	knockback(vel.limit_length(20.0), clampf(time, 0.0, 1.0))
+
+
+## Joueur local : projection (poussée horizontale qui s'éteint, petit saut,
+## secousse de la vue). Rien à terre ni en plein plongeon.
+func knockback(vel: Vector3, time: float) -> void:
+	if downed or diving:
+		return
+	knockbacks += 1
+	_knock_vel = Vector3(vel.x, 0.0, vel.z)
+	_knock_time = maxf(time, 0.01)
+	_knock_left = _knock_time
+	_lunge_left = 0.0
+	velocity.y = maxf(velocity.y, vel.y)
+	add_flinch(Vector2(randf_range(-0.06, 0.06), 0.12))
+	Audio.play_3d("brancard_hit", global_position + Vector3.UP * 1.0, 0.0, 0.08, 3)
 
 
 func eye_position() -> Vector3:

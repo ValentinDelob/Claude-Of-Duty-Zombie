@@ -1139,7 +1139,8 @@ static func _check_sky(c: Check, v: Variant, what: String) -> void:
 
 
 ## Format 18 : « vagues » = {speciale, boss : {premiere, intervalle}}, entiers
-## de 0 à WaveRules.ROUND_MAX, rien d'autre.
+## de 0 à WaveRules.ROUND_MAX ; format 21 : « types_speciaux », liste de types
+## connus (WaveRules.SPECIAL_TYPES) ; rien d'autre.
 static func _check_waves(c: Check, v: Variant, what: String) -> void:
 	if not v is Dictionary:
 		c.bad("%s : objet {speciale, boss} attendu" % what, "%s: object {speciale, boss} expected" % what)
@@ -1147,10 +1148,21 @@ static func _check_waves(c: Check, v: Variant, what: String) -> void:
 	var kinds := {}
 	for k in WaveRules.KINDS:
 		kinds[k] = 1
+	# Format 21 : types de vagues spéciales autorisés (liste d'identifiants connus).
+	kinds[WaveRules.TYPES_KEY] = 1
 	if not _keys(c, v, kinds, what):
 		return
 	for k in v:
 		var e: Variant = v[k]
+		if k == WaveRules.TYPES_KEY:
+			var ok: bool = e is Array and (e as Array).size() <= WaveRules.SPECIAL_TYPES.size()
+			if ok:
+				for t in e:
+					ok = ok and t is String and WaveRules.SPECIAL_TYPES.has(t)
+			if not ok:
+				c.bad("%s : %s : liste de types connus attendue (%s)" % [what, k, ", ".join(WaveRules.SPECIAL_TYPES)],
+					"%s: %s: list of known types expected (%s)" % [what, k, ", ".join(WaveRules.SPECIAL_TYPES)])
+			continue
 		if not e is Dictionary:
 			c.bad("%s : %s : objet {premiere, intervalle} attendu" % [what, k], "%s: %s: object {premiere, intervalle} expected" % [what, k])
 			continue
