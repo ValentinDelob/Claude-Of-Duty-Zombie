@@ -121,7 +121,7 @@ func _ready() -> void:
 			show_screen("hub", {"tab": tab})
 		else:
 			show_screen("main")
-		show_message(Lang.t("PARTIE TERMINÉE", "GAME OVER"), Router.pending_message)
+		show_message(Lang.t("PARTIE INTERROMPUE", "GAME INTERRUPTED"), Router.pending_message)
 		Router.pending_message = ""
 	elif tab != "":
 		# Fin d'une partie : retour au hub (solo : LABO et « dernière partie »).

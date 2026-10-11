@@ -103,7 +103,7 @@ func run() -> void:
 	at.check(ed.collab.role == MapCollab.Role.GUEST and ed.collab.get_parent() == ed and ed.collab.peers.size() == 2, "toujours invité de la même session")
 	at.check(not ed.doc.find("pendant_test").is_empty() and not ed.doc.find("avant_test").is_empty() and ed.doc.pieces.size() == 5, "même carte, changements gardés")
 	at.check(ed.collab.pending.is_empty() and ed.collab.history.undo_count(ed.collab.my_id) == 1, "changement fait en partie confirmé par l'hôte, annulable")
-	at.check(ed.status.text.contains("Partie terminée") or ed.status.text.contains("Game over"), "barre d'état : « %s »" % ed.status.text)
+	at.check(ed.status.text.contains("La horde l'emporte") or ed.status.text.contains("The horde wins"), "barre d'état : « %s »" % ed.status.text)
 	at.check(Net.mode == Net.Mode.NONE and CollabPlaytest.current == null and Router.return_scene == "", "partie de test refermée proprement")
 	MpHelpers.signal_peer("retour")
 	if not await until(func(): return not ed.doc.find("apres_test").is_empty(), 20.0, "changement de l'hôte reçu après le retour"):

@@ -457,6 +457,57 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   réplique (personnage muet) ; taquineries (`VoxSystem.tease_categories`)
   seulement envers un coéquipier d'un autre personnage et si la catégorie
   existe. Tests : `tests/test_characters.gd`.
+- **Identité des menus** (GAME_CONCEPT.md §6, docs/ART_DIRECTION.md
+  « Menus ») : `UiStyle` (`scripts/ui/ui_style.gd` : polices système
+  « body », « impact », « title », « mono » — plus de pochoir — et palette
+  du laboratoire en alerte `BONE`, `DIM`, `GOLD`, `ACCENT` jaune des bandes
+  de danger, `MINT` des moniteurs, `ALERT`), `MenuStyle`
+  (`scripts/ui/menu_style.gd` : `title()` en police en cubes via
+  `HudStyle.cube_label`, `button()`, `section()` menthe, `line_edit()`,
+  `draw_highlight()` barre de sélection en paliers, `draw_marker()` cube à
+  la place du chevron). Les lignes d'options (`MenuOptionRow`) et de touches
+  (`MenuBindRow`) dessinent jauges en cubes et flèches en pixels.
+- **Nom du jeu** : `GameName.NAME` (`scripts/ui/game_name.gd`), seul endroit
+  du code ; `tests/test_menu_style.gd` vérifie que
+  `application/config/name` de project.godot le suit. Le lisent : le logo,
+  les crédits, le journal de démarrage (`[Boot] <nom> v<build>`, cherché par
+  `tools/release.sh` et `tools/promote.sh`) et le rapport de plantage. Pour
+  renommer : `GameName.NAME`, project.godot, export_presets.cfg, launcher/,
+  les deux scripts de sortie.
+- **Écran titre** (`main_screen.gd`) : logo `MenuLogo`
+  (`scripts/ui/menu_logo.gd`) dessiné cube par cube avec les glyphes de
+  `CubeFont` (`draw_cube`, liseré noir, ombre franche), mise en page
+  automatique du nom (`_layout` : un mot, deux mots, ou premier / milieu en
+  petit / dernier), balayage lumineux et cube qui grésille de temps en temps.
+  Surimpression « caméra de surveillance » (`MenuHud`), voile à gauche et
+  post-traitement plein écran (`menu_post.gdshader`) inchangés.
+- **Fond 3D du menu** (`MenuBackdrop`, `scripts/ui/menu_backdrop.gd`) :
+  couloir de l'aile du laboratoire, la nuit, en alerte, tout sur la grille de
+  5 cm : boîtes regroupées par matériau (`WorldLook.surface` : `tiles`,
+  `wall_lab`, `ceiling`, `steel`, `door`...), décor cubique de l'éditeur
+  (`assets/models/props/voxel/*.glb`, matériau « voxel » de
+  `MeshMapBuilder.material_for`, quarts de tour), néons (stable, grésillant,
+  morts), gyrophare orange au-dessus de la porte du laboratoire et lueur
+  d'alarme qui pulse, hublots menthe, poussière `VoxelFx`, contour noir
+  `ScreenOutline`. Un zombie cubique (`ZombieModel.build`, pose de marche
+  par os) traverse le couloir transversal après une coupure de courant
+  (signal `presence` : râle `menu_presence`, parasites) ; `force_figure()`
+  le pose debout au milieu du couloir (tests, lancement d'une partie),
+  `blackout()` coupe néons et écrans (l'alarme continue). Le hub reprend ce
+  fond, assombri.
+- **Crédits** (`credits_screen.gd`) : générique `LINES` [genre, fr, en],
+  « {GAME} » remplacé par le nom du jeu ; à tenir exact (sons, voix,
+  modèles, polices : docs/ASSETS.md).
+- **Étiquettes 3D** (`Tag3D`, `scripts/game/hud/tag3d.gd`) : toute
+  `Label3D` qui entre dans l'arbre reçoit la police en cubes (`Router`
+  branche `Tag3D.on_node_added` sur `SceneTree.node_added`) : taille relevée
+  de `SIZE_GAIN`, filtrage avec mipmaps, contour fin pour les caractères de
+  repli ; une fois par étiquette (méta `tag3d`), méta `tag3d_keep` pour
+  garder une étiquette telle quelle. Nom au-dessus des coéquipiers et
+  « ✚ À TERRE » (`Player`), butin (`LootDrop`), panneaux du piège électrique
+  et du poste central.
+- Captures de contrôle : `tests/autotest/ui_look.gd` (@rendu : menu titre,
+  zombie qui passe, crédits, options, ciel de jour et de nuit, étiquettes 3D).
 
 ## Rendu et performances
 
@@ -529,6 +580,16 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   bloom large sur les sources, brume volumétrique fine, `FilmPost` (CanvasLayer 5,
   sous le HUD) pour le grain (option `Settings.film_grain`), le vignettage et
   l'aberration.
+
+- **Ciel des cartes** (pièces sans plafond, `carte.ciel`) :
+  `WorldLook.apply_sky` pose un `Sky` dont le matériau est
+  `cube_sky.gdshader` (`mode` 0 jour / 1 nuit, `brightness` = luminosité de
+  la carte, couleurs du jour `WorldLook.DAY_TOP` / `DAY_HORIZON` en sRGB) :
+  dégradé en bandes, nuages en cubes sur une grille carrée (plafond de
+  nuages en perspective), étoiles en cases carrées d'une grille des six
+  faces d'un cube, lune en pixel art. Rien ne dépend du temps (radiance
+  calculée une fois) ; lumière ambiante et reflets inchangés. « Noir » :
+  fond uni, pas de `Sky`.
 
 - Coûts GPU mesurés par `perf_costs` (GTX 1070, 1080p, MEDIUM), avant -> après la
   passe « perf: optimize rendering after the visual rework ». La seconde
@@ -1288,6 +1349,17 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   maillages créés au premier affichage. Matériau : `weapon.gdshader` en
   mode `voxel` (couleur de face telle quelle, rugosité / métal par matière
   `WeaponModels.MATERIALS`). L'arme est dessinée avec son propre champ de vision
+  chiens) reste un panneau doux (`Fx.soft_dot_texture`) ; la traçante reste
+  un pavé lumineux étiré. Le décor du menu (`MenuBackdrop`) est devenu
+  entièrement cubique (couloir du laboratoire, poussière en cubes de
+  2,5 cm ; voir « Menus, options et touches »).
+- **Modèles et vue FPS** : `WeaponMesh` (primitives arrondies : profils
+  extrudés chanfreinés, révolutions, capsules) fusionnées en UN maillage par
+  matériau et par pièce mobile (`mag`, `slide`, `pump`, `barrels`, `cyl`,
+  `rear`) ; géométrie des armes et des mains (`ViewHands`, pièces partagées
+  placées par transformations) calculée en tâche de fond au chargement
+  (`WeaponModels.precompute_async`, appelée par `Warmup`), maillages créés au
+  premier affichage. L'arme est dessinée avec son propre champ de vision
   (`ViewModel.VIEW_FOV`, 51,3° = cg_fov 65 de BO1 ; 72° en visée) : le shader
   multiplie x, y du clip par `vm_fov_scale` (global de shader) ; les effets
   partent du point apparent (`ViewModel.apparent`). L'axe optique ne bouge

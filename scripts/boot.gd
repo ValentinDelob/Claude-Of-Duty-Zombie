@@ -3,7 +3,7 @@ extends Node
 ## (Les scénarios d'autotest prennent la main eux-mêmes ensuite.)
 
 func _ready() -> void:
-	print("[Boot] Claude of Duty Zombie v%s — Godot %s" % [
+	print("[Boot] %s v%s — Godot %s" % [GameName.NAME,
 		ProjectSettings.get_setting("application/config/version"),
 		Engine.get_version_info().string])
 	get_tree().change_scene_to_file.call_deferred(Router.MENU_SCENE)

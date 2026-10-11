@@ -549,7 +549,14 @@ de 2,5 cm** (§ 4.19).
 - ✅ **Textures de toutes les surfaces en pixel art**, un pixel = un cube de
   5 cm, dans l'univers hôpital / laboratoire / bunker (textures importées
   d'une carte réduites au même grain).
-- ❓ Lumières, post-traitement (brume, lueur) et ciel.
+- ✅ **Ciel des cartes cubique** (fait) : dégradé en bandes, nuages en
+  cubes le jour, étoiles en pixels carrés et lune en pixel art la nuit
+  (`cube_sky.gdshader`, mêmes options : noir, jour, nuit, luminosité).
+- ✅ **Menus et étiquettes 3D en harmonie** (fait) : police en cubes pour les
+  titres, le logo et toutes les `Label3D` ; fond du menu titre cubique
+  (couloir du laboratoire, zombie cubique qui passe) ; docs/ART_DIRECTION.md
+  « Menus », « Ciel », « Étiquettes 3D ».
+- ❓ Lumières, post-traitement (brume, lueur).
 
 ## 5. Mécaniques prototypées (code actuel)
 
@@ -580,7 +587,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Éditeur de cartes, bouton TESTER | 🧪 | **Garder** ; ajouter la **porte d'évacuation** obligatoire et le **schéma des vagues spéciales et de boss** |
 | Modèles, textures et décors réalistes (zombies, armes, cartes, `docs/ART_DIRECTION.md`) | 🧪 | **Refaire** en style cubique (§4.19) |
 | HUD façon BO1 (compteur de manche à la craie et rouge sang, couleurs des joueurs, « GAME OVER », écran de chargement) | ✔️ | **Remplacé** par un HUD propre au jeu : police et chiffres en cubes, palette « laboratoire en alerte », « LA HORDE L'EMPORTE » (§6, `docs/ART_DIRECTION.md`) ; disposition des éléments inchangée |
-| Ritournelles imitant BO1 (annonce des chiens avec voix d'annonceur, début et fin de manche, jingle de la boîte) | ✔️ | **Recomposées** : alerte de confinement, sas et bips de moniteurs, carillon, barillet (`docs/ASSETS.md`) ; menu et peluche leurre à suivre (§6) |
+| Ritournelles imitant BO1 (annonce des chiens avec voix d'annonceur, début et fin de manche, jingle de la boîte) | ✔️ | **Recomposées** : alerte de confinement, sas et bips de moniteurs, carillon, barillet, thème du menu et lancement d'une partie (`docs/ASSETS.md`) ; peluche leurre à suivre (§6) |
 | Lanceur et mises à jour | 🧪 | **Garder** |
 | Journal des plantages | 🧪 | **Garder** |
 
@@ -591,7 +598,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 
 | Élément | État |
 |---|---|
-| **Nom du jeu** « Claude of Duty Zombie » (titre de la fenêtre, logo, crédits, salon, lanceur, exécutable) | ⏳ attend le nom définitif (§7) ; à changer partout d'un coup |
+| **Nom du jeu** « Claude of Duty Zombie » (titre de la fenêtre, logo, crédits, salon, lanceur, exécutable) | ⏳ attend le nom définitif (§7) ; à changer partout d'un coup. Dans le jeu, une seule constante : `GameName.NAME` (logo, crédits, journal de démarrage, rapport de plantage ; un test vérifie que project.godot la suit) ; restent project.godot, export_presets.cfg, le lanceur et les contrôles de `tools/release.sh` / `tools/promote.sh` (docs/ARCHITECTURE.md « Nom du jeu ») ; le logo se met en page seul pour un nom d'un, deux ou plusieurs mots |
 | **Carte KINO** (Kino der Toten à l'échelle 1) | ✔️ retirée du jeu (`Settings.RETIRED_MAPS`) ; les anciennes notes de version du lanceur la citent encore (📜) |
 | **Lore** Institut Aether, aethérium (calque de l'Élément 115) | ✔️ remplacé par le lore du scientifique (§3) ; « Feux follets (115) » de l'éditeur renommés « Feux follets » (lueurs toxiques) ; ⏳ encore dans des répliques des personnages (`assets/voices/arakawa.json`, `berg.json`, `weissmann.json` : « aethérium »), qui partiront avec les 7 personnages |
 | **Équipe de quatre archétypes** (Marine, Russe, Japonais, savant allemand), les 7 personnages et leurs voix | ✔️ modèles et tenues vus par les autres remplacés par le joueur de baseball (§3), choix du personnage retiré des options ; ⏳ voix (répliques du joueur de baseball à écrire), tenues des mains FPS (refonte des armes et des mains) et crédits qui les citent encore |
@@ -599,36 +606,31 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | **Pack-a-Punch**, **boîte mystère**, **machines d'atouts**, **bonus au sol** (Max Ammo, Insta-Kill, Nuke, Carpenter, Fire Sale, Death Machine), **armes murales et tableaux à la craie** | ✔️ supprimés ou adaptés (§5) ; noms internes `pap`, `MysteryBox`, `pap_zap_*` gardés (jamais affichés) ; note de l'éditeur sur les objets retirés : « machine d'amélioration » |
 | **Compteur de manche à la craie / rouge sang** (bâtons 1 à 5, chiffres peints, transitions blanc <-> rouge) | ✔️ remplacé par des chiffres en cubes menthe et des transitions propres (cubes qui tombent en place, veille, alerte orange des vagues spéciales) |
 | **HUD calqué sur BO1** (couleurs des joueurs blanc / bleu / jaune / vert, invites « [Coût : 500] », titres blanc craie liserés de rouge) | ✔️ palette « laboratoire en alerte », police en cubes pour les grands titres, joueurs ambre / cyan / rose / vert anis, invites « · 950 ferraille » (disposition des éléments inchangée) |
-| **Écran de fin** « GAME OVER » / « Vous avez survécu N manches » | ✔️ « LA HORDE L'EMPORTE » / « THE HORDE WINS » ou « ÉVACUATION RÉUSSIE », manche atteinte et durée ; le menu titre affiche encore « GAME OVER » en anglais après une partie (⏳ `scripts/ui/`, en refonte) |
+| **Écran de fin** « GAME OVER » / « Vous avez survécu N manches » | ✔️ « LA HORDE L'EMPORTE » / « THE HORDE WINS » ou « ÉVACUATION RÉUSSIE », manche atteinte et durée ; session perdue : « PARTIE INTERROMPUE » / « GAME INTERRUPTED » au menu ; résumé de TESTER dans l'éditeur : « La horde l'emporte — ... » |
 | **Écran de chargement** (nom de la carte au pochoir rouge sang) | ✔️ fond bleu-noir, nom en cubes, rangée de cubes qui s'allument |
-| **Sons imitant BO1** : annonce des chiens (cuivres, tonnerre, **voix démoniaque d'annonceur**), début et fin de manche (cuivres, glas, boîte à musique), jingle de la boîte mystère, musique des chiens | ✔️ recomposés : alerte de confinement, sas et bips de moniteurs, carillon de fin, barillet de la caisse (docs/ASSETS.md) ; ⏳ `menu_theme` / `menu_start` (avec le menu titre) et `monkey_music` (air du singe-tambour encore joué par la peluche leurre, à recomposer avec l'objet leurre) |
-| **Menu titre « style BO1 »** (logo au pochoir, rouge sang, chœur) et **options** (« comme BO1 », « comme dans Black Ops ») | ⏳ `scripts/ui/` est refait par un autre lot : textes et style à reprendre (liste ci-dessous) |
-| **Crédits** (« chiens de l'enfer / hellhounds », « annonces / announcer », personnages Callahan..., « aucune image externe », « polices système ») | ⏳ `scripts/ui/screens/credits_screen.gd`, à réécrire avec le nom du jeu et le personnage |
+| **Sons imitant BO1** : annonce des chiens (cuivres, tonnerre, **voix démoniaque d'annonceur**), début et fin de manche (cuivres, glas, boîte à musique), jingle de la boîte mystère, musique des chiens | ✔️ recomposés : alerte de confinement, sas et bips de moniteurs, carillon de fin, barillet de la caisse, thème du menu (néons, moniteurs, synthé, sirène lointaine) et lancement (sas, bips d'alarme) (docs/ASSETS.md) ; ⏳ `monkey_music` (air du singe-tambour encore joué par la peluche leurre, à recomposer avec l'objet leurre) |
+| **Menu titre « style BO1 »** (logo au pochoir, rouge sang, chœur) et **options** (« comme BO1 », « comme dans Black Ops ») | ✔️ style propre au jeu : palette du laboratoire en alerte (jaune des bandes de danger, menthe des moniteurs), titres et logo en police en cubes, plus de police pochoir ni de rouge sang, fond 3D cubique (couloir du laboratoire, zombie cubique qui passe) ; options sans référence à BO1 ni à Black Ops (docs/ART_DIRECTION.md « Menus ») |
+| **Crédits** (« chiens de l'enfer / hellhounds », « annonces / announcer », personnages Callahan..., « aucune image externe », « polices système ») | ✔️ exacts : chiens errants contaminés, alertes, les 7 personnages et leurs outils de voix (Chatterbox, Kokoro, Qwen3-TTS, Seed-VC), modèles en cubes faits avec Blender (voxel_lib), police en cubes et polices système non fournies ; nom du jeu lu dans `GameName` ; ⏳ personnage unique à venir |
 | **Éditeur de cartes** : avertissements « BO1 : ... », « INDICATEURS (BO1) », « BO1 Kino : deux grandes boucles », info-bulles | ✔️ « conseillé : ... », sans référence à BO1 |
 | **Armes réelles** sous leurs noms de fabricants | ✔️ renommées (noms originaux FR / EN, identifiants internes gardés, jamais affichés) et silhouettes refaites en cubes : `docs/WEAPONS.md` |
 | **Direction artistique** « fidèle à BO1 » (`docs/ART_DIRECTION.md`) | ✔️ style cubique (§4.19) ; les sections BO1 restantes sont marquées « Historique » (📜) |
 | Notes de version du lanceur (`changelogs/changelogs.json` : KINO, Pack-a-Punch, Juggernog...) | 📜 historique des versions déjà publiées ; ⏳ à remettre à zéro avec le nouveau nom avant la sortie ; les prochaines notes ne citent plus BO1 |
 | Documents de développement (README, docs/) | 📜 références techniques à BO1 (règles de vagues, mesures) gardées, internes |
 
-À reprendre dans `scripts/ui/` (lot du menu titre et du hub) :
-- `main_menu.gd` : `Lang.t("PARTIE TERMINÉE", "GAME OVER")` -> par exemple
-  « LA HORDE L'EMPORTE » / « THE HORDE WINS » ;
-- `menu_logo.gd`, `credits_screen.gd` : « CLAUDE OF DUTY ZOMBIE » (nom du
-  jeu ; l'ancien écran du salon a été remplacé par l'onglet PARTIE du hub) ;
-- `ui_style.gd`, `menu_style.gd`, `menu_logo.gd`, `menu_backdrop.gd` : police
-  pochoir « Stencil » et rouge sang (`BLOOD`, `BLOOD_BRIGHT`) ; `HudStyle` et
-  `CubeFont` peuvent servir de base (police en cubes, palette du
-  laboratoire) ;
-- `options_screen.gd` : « 100 % : comme BO1 » (sensibilité en visée),
-  « comme dans Black Ops » (gamma, grain) ; commentaires « façon Black Ops »
-  de `main_screen.gd`, `options_screen.gd` ;
-- `credits_screen.gd` : « chiens de l'enfer » / « hellhounds » -> chiens
-  errants contaminés ; « annonces » / « announcer » -> alertes ; personnages
-  Callahan, Orlov, Arakawa, Weissmann ; graphismes (« aucune image
-  externe » est faux : particules Kenney CC0, modèles libres de droits
-  permis) ; polices (police en cubes procédurale) ;
-- sons du menu (`tools/gen_audio_menu.gd` : chœur, boîte à musique
-  désaccordée) à recomposer avec le nouveau menu.
+Ce qui restait dans `scripts/ui/` (lot du menu titre, 11/10/2026) : ✔️ fait.
+- `main_menu.gd` : « PARTIE TERMINÉE / GAME OVER » (session perdue) ->
+  « PARTIE INTERROMPUE » / « GAME INTERRUPTED » ✔️ ;
+- `menu_logo.gd`, `credits_screen.gd` : nom du jeu lu dans `GameName.NAME`
+  (seul endroit du code), logo en lettres de cubes ✔️ — ⏳ le nom lui-même
+  attend la décision de l'utilisateur ;
+- `ui_style.gd`, `menu_style.gd`, `menu_logo.gd`, `menu_backdrop.gd` : plus
+  de police pochoir ni de rouge sang (`BLOOD`, `BLOOD_BRIGHT` supprimés),
+  palette et police en cubes du HUD et du hub ✔️ ;
+- `options_screen.gd` : plus de « comme BO1 » ni de « comme dans Black Ops »
+  ✔️ ;
+- `credits_screen.gd` : textes exacts ✔️ (voir la ligne « Crédits ») ;
+- sons du menu (`tools/gen_audio_menu.gd`) : `menu_theme` et `menu_start`
+  recomposés ✔️.
 
 Les mécaniques (vagues, points, portes, barricades) ne sont pas protégées et
 peuvent rester. Un avis en propriété intellectuelle est recommandé avant une

@@ -44,8 +44,9 @@ dépôt.
   référence : rendu des planches de validation par coque inversée ; en jeu,
   passe en espace écran `ScreenOutline` (voir « Contour noir en jeu » plus
   bas ; option OPTIONS > VIDÉO > CONTOUR, activée par défaut).
-- ❓ Lumières, post-traitement et ciel restent à décider (§ 4.19) ; l'étalonnage
-  ci-dessous est celui du code actuel.
+- Ciel des cartes cubique (fait : voir « Ciel » plus bas) ; ❓ lumières et
+  post-traitement restent à décider (§ 4.19) ; l'étalonnage ci-dessous est
+  celui du code actuel.
 
 ## Chaîne de production cubique (tools/blender/voxel/voxel_lib.py)
 
@@ -545,11 +546,58 @@ en cubes, en harmonie avec le style cubique (§ 4.19).
 ### Écarts restants
 - Pas d'icônes de réanimation au-dessus des coéquipiers à terre dans le
   monde (hors périmètre du HUD 2D).
-- Menus (`scripts/ui/`, en refonte) : logo au pochoir « CLAUDE OF DUTY
-  ZOMBIE », police Stencil et rouge sang (`UiStyle.BLOOD`), message « GAME
-  OVER » du menu : à aligner sur cette identité avec la refonte du menu titre.
 - Panneaux d'inventaire et de station : police « title » (Bahnschrift)
   conservée pour ne pas changer leur disposition validée.
+
+## Menus (scripts/ui/), même identité que le HUD et le hub
+
+Le menu « style BO1 » (logo au pochoir usé et ensanglanté, police Stencil,
+rouge sang, traits de pinceau, bunker réaliste avec volutes, décalques de
+sang et cadavre, chœur et boîte à musique) a été **remplacé** le 11/10/2026
+(GAME_CONCEPT.md § 6) :
+
+- **Palette** du laboratoire en alerte, commune au hub (`HubStyle`) et au
+  HUD : blanc os des textes, **jaune des bandes de danger** pour la
+  sélection (barre, jauges, flèches actives, champ de saisie), **menthe**
+  des moniteurs pour les intitulés de section et les rôles du générique,
+  rouge-orange d'alarme réservé aux alertes (`UiStyle.ACCENT`, `MINT`,
+  `ALERT`).
+- **Polices** : grands titres d'écran en police en cubes (`CubeFont`, comme
+  les titres du HUD) ; boutons et libellés en Impact / Bahnschrift (comme
+  le hub) ; plus aucune police pochoir.
+- **Sélection** : bande sombre, bloc jaune à gauche, filet jaune qui
+  s'éteint **par paliers** (pas de dégradé lisse), petit **cube** en relief
+  à la place du chevron ; jauges en cubes en relief ; flèches en marches de
+  pixels.
+- **Logo** : le nom du jeu (`GameName`, provisoire) en lettres de cubes
+  5 x 7, chaque cube en relief avec liseré noir et ombre franche : premier
+  mot blanc os, mots du milieu jaune, dernier mot vert toxique des
+  moniteurs. Un balayage lumineux le parcourt de temps en temps.
+- **Fond 3D** : le couloir de l'aile du laboratoire, la nuit, en alerte,
+  entièrement cubique (grille de 5 cm, textures pixel art, décor cubique de
+  l'éditeur, zombie cubique qui traverse au fond, néons, gyrophare orange,
+  hublots menthe, contour noir). La surimpression « caméra de
+  surveillance » du laboratoire (coins, REC, horodatage) est gardée.
+- **Sons** : thème et lancement recomposés (docs/ASSETS.md).
+
+## Ciel (cartes à pièces sans plafond)
+
+- Pas de dégradé lisse ni de disque rond : **bandes de couleur** de
+  l'horizon au zénith, **nuages en cubes** le jour (grille carrée sur un
+  plafond de nuages vu en perspective, bords ombrés, les plus lointains se
+  fondent par paliers), **étoiles en pixels carrés** la nuit (trois éclats,
+  quelques étoiles teintées), **lune en pixel art** (disque de cases,
+  cratères, croissant en marches).
+- Mêmes réglages qu'avant : sans fond (noir), jour, nuit étoilée,
+  luminosité ; couleurs du jour couvertes et délavées (`WorldLook.DAY_*`).
+
+## Étiquettes 3D
+
+- Toutes les `Label3D` du jeu (nom au-dessus des coéquipiers, « ✚ À
+  TERRE », butin au sol, panneaux du piège électrique et du poste central)
+  sont en **police en cubes** (`Tag3D`), un peu plus grandes que l'ancienne
+  police système pour rester lisibles de loin ; la croix médicale est un
+  glyphe en cubes.
 
 ## Historique : rendu réaliste BO1
 

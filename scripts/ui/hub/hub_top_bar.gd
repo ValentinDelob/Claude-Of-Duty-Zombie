@@ -2,8 +2,8 @@ class_name HubTopBar
 extends Control
 ## Barre du haut du hub (classe .top de la maquette, 52 px + 2 px de liseré) :
 ## pavé du niveau, nom du joueur et niveau, barre d'XP en cubes (XP dans le
-## niveau / XP du niveau ; niveau maximum signalé), titre LABORATOIRE au
-## pochoir, à droite la touche du menu du hub (Échap ou Start), cliquable.
+## niveau / XP du niveau ; niveau maximum signalé), titre LABORATOIRE en
+## rouge d'alarme, à droite la touche du menu du hub (Échap ou Start), cliquable.
 
 const HEIGHT := 52.0
 
@@ -79,9 +79,9 @@ func _draw() -> void:
 			HORIZONTAL_ALIGNMENT_LEFT, -1, ss, HubStyle.PLASTER)
 	var who_end := maxf(x + nw + HubStyle.px(8) + HubStyle.text_width(lvl_t, fu, ss),
 			bar.end.x + HubStyle.px(8) + HubStyle.text_width(xt, fu, ss))
-	# Titre au pochoir.
+	# Titre (police des titres, rouge d'alarme).
 	var bs := HubStyle.fs(20)
-	var fb := HubStyle.font("stencil", HubStyle.em(0.06, bs))
+	var fb := HubStyle.font("title", HubStyle.em(0.06, bs))
 	HubStyle.draw_text(self, fb, Vector2(who_end + HubStyle.px(14) + HubStyle.px(18), HubStyle.baseline(fb, bs, 0, inner_h)),
 			Lang.t("LABORATOIRE", "LABORATORY"), bs, HubStyle.RED_HI, true)
 	# À droite : touche du menu + « Menu ».

@@ -3,7 +3,7 @@ extends RefCounted
 ## Style du hub (docs/HUB_PLAN.md §4.4, maquette docs/hub_mockup/index.html) :
 ## palette du décor (DECOR_PALETTE), panneaux à bords droits et contour noir de
 ## 2 px, ombres pleines décalées (sans flou), barres en cubes, polices des
-## menus (UiStyle : Bahnschrift, Impact, Stencil, Consolas).
+## menus (UiStyle : Bahnschrift, Impact, Consolas).
 ##
 ## TAILLE DES MENUS (Settings.menu_ui_scale, D15) : même technique que
 ## l'éditeur de cartes (EditorUi) — le code écrit toujours ses valeurs « à
@@ -87,7 +87,7 @@ static func pxv(x: float, y: float) -> Vector2:
 static var _fonts: Dictionary = {}
 
 
-## Police `kind` (« ui », « bold », « semi », « impact », « stencil », « mono »)
+## Police `kind` (« ui », « bold », « semi », « impact », « title », « mono »)
 ## avec un espacement des lettres de `spacing` px (letter-spacing de la
 ## maquette, déjà à la taille finale).
 static func font(kind := "ui", spacing := 0) -> Font:
@@ -96,7 +96,7 @@ static func font(kind := "ui", spacing := 0) -> Font:
 		return _fonts[key]
 	var base: Font
 	match kind:
-		"impact", "stencil", "mono":
+		"impact", "title", "mono":
 			base = UiStyle.font(kind)
 		"bold", "semi":
 			var sf := SystemFont.new()

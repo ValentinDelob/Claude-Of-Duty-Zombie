@@ -247,8 +247,8 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
   (titres, danger, comme le sang des menus actuels), `tile_green` /
   `enamel_green` (le labo, bonus), `rust` (bordures secondaires).
 - Couleurs de rareté : celles du jeu (`GameWeapon.RARITY_COLORS`).
-- Polices : celles des menus (`UiStyle` : Bahnschrift, Impact, Stencil pour
-  les grands titres, Consolas pour les nombres).
+- Polices : celles des menus (`UiStyle` : Bahnschrift, Impact pour les grands
+  titres — l'ancien pochoir « Stencil » est retiré —, Consolas pour les nombres).
 
 ## 5. Modèle de données des contrats
 

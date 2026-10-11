@@ -4,6 +4,10 @@ extends SceneTree
 ##   godot --headless --path . -s res://tools/gen_audio_menu.gd [-- nom1 nom2 ...]
 ## Sans argument : régénère tout. La boucle « menu_theme » doit être importée
 ## en boucle (edit/loop_mode=2 dans menu_theme.wav.import).
+##
+## Identité sonore propre au jeu (docs/ASSETS.md) : un laboratoire en alerte,
+## la nuit (néons qui bourdonnent, ventilation, moniteurs, sirène lointaine,
+## nappes de synthé) ; ni cuivres, ni chœur, ni boîte à musique, ni glas.
 
 const OUT := "res://assets/audio/"
 
@@ -69,33 +73,6 @@ func _clank(f: float, decay: float, noise_amt := 0.6) -> PackedFloat32Array:
 	return b
 
 
-## Cloche / glas (partiels inharmoniques).
-func _bell(seconds: float, f: float) -> PackedFloat32Array:
-	var b := s.buf(seconds)
-	for pr in [[1.0, 1.0], [2.0, 0.6], [2.76, 0.45], [5.4, 0.25], [8.9, 0.12]]:
-		s.mix(b, s.env_exp(s.tone(seconds, f * pr[0]), 0.002, seconds / (pr[0] * 0.6)), 0.0, pr[1] * 0.3)
-	return b
-
-
-## Voix de chœur lointaine (voyelle « ooh / aah »), vibrato lent.
-func _voice(seconds: float, f: float, vowel: Array) -> PackedFloat32Array:
-	var n := int(seconds * Synth.RATE)
-	var src := PackedFloat32Array()
-	src.resize(n)
-	var phase := 0.0
-	var vib_rate := s.rng.randf_range(4.2, 5.4)
-	for i in n:
-		var t := float(i) / Synth.RATE
-		var ff := f * (1.0 + 0.006 * sin(TAU * vib_rate * t) + s.rng.randf_range(-0.002, 0.002))
-		phase += ff / Synth.RATE
-		src[i] = 2.0 * fmod(phase, 1.0) - 1.0
-	var b := s.buf(seconds)
-	s.mix(b, s.bandpass(src.duplicate(), vowel[0], 5.0), 0.0, 1.0)
-	s.mix(b, s.bandpass(src, vowel[1], 6.0), 0.0, 0.5)
-	s.mix(b, s.bandpass(s.noise(seconds), vowel[1], 3.0), 0.0, 0.05)
-	return b
-
-
 ## Respiration : souffle filtré qui monte (inspiration) ou descend (expiration).
 func _breath(seconds: float, inhale: bool) -> PackedFloat32Array:
 	var b := s.noise(seconds)
@@ -110,28 +87,37 @@ func _breath(seconds: float, inhale: bool) -> PackedFloat32Array:
 	return b
 
 
-## Battement de cœur étouffé (« lub-dub »).
-func _heartbeat() -> PackedFloat32Array:
-	var b := s.buf(0.7)
-	s.mix(b, s.env_exp(s.sweep(0.3, 62.0, 38.0), 0.006, 0.07), 0.0, 1.0)
-	s.mix(b, s.env_exp(s.sweep(0.3, 55.0, 34.0), 0.006, 0.06), 0.24, 0.7)
-	return s.lowpass(b, 220.0)
+## Bip de moniteur : sinus pur, attaque nette, extinction courte.
+func _beep(f: float, seconds: float) -> PackedFloat32Array:
+	var b := s.tone(seconds + 0.05, f)
+	s.mix(b, s.tone(seconds + 0.05, f * 2.0), 0.0, 0.12)
+	return s.env_adsr(b, 0.004, 0.02, 0.8, 0.03)
 
 
-## Grincement de métal (porte, tôle) : dent de scie lente passée dans des résonances.
-func _creak(seconds: float, f0: float, f1: float) -> PackedFloat32Array:
-	var src := s.sweep(seconds, f0, f1, "saw")
-	# Frottement irrégulier : modulation d'amplitude en saccades.
-	var n := src.size()
-	var g := 0.0
+## Note pincée de synthé (onde carrée adoucie, filtre qui se referme).
+func _pluck(f: float, seconds: float) -> PackedFloat32Array:
+	var b := s.tone(seconds, f, "square")
+	s.mix(b, s.tone(seconds, f * 1.004, "saw"), 0.0, 0.5)
+	b = s.lowpass_sweep(b, 2400.0, 380.0)
+	return s.env_exp(b, 0.004, seconds * 0.28)
+
+
+## Sirène lointaine à deux tons (montée, palier, descente), étouffée.
+func _siren(seconds: float, f_low: float, f_high: float) -> PackedFloat32Array:
+	var n := int(seconds * Synth.RATE)
+	var b := PackedFloat32Array()
+	b.resize(n)
+	var phase := 0.0
 	for i in n:
-		if i % 400 == 0:
-			g = s.rng.randf_range(0.2, 1.0)
-		src[i] *= g
-	var b := s.bandpass(src.duplicate(), 900.0, 7.0)
-	s.mix(b, s.bandpass(src.duplicate(), 1750.0, 9.0), 0.0, 0.6)
-	s.mix(b, s.bandpass(src, 3100.0, 10.0), 0.0, 0.3)
-	return s.env_adsr(b, seconds * 0.2, 0.2, 0.7, seconds * 0.4)
+		var t := float(i) / Synth.RATE
+		# Va-et-vient lent entre les deux tons (cycle de 2,6 s).
+		var k := 0.5 - 0.5 * cos(TAU * t / 2.6)
+		var f := lerpf(f_low, f_high, k)
+		phase += f / Synth.RATE
+		var p := fmod(phase, 1.0)
+		b[i] = (4.0 * absf(p - 0.5) - 1.0) * 0.8 + sin(p * TAU) * 0.2
+	b = s.lowpass(b, 1500.0)
+	return s.env_adsr(b, seconds * 0.3, 0.2, 0.9, seconds * 0.35)
 
 
 ## Bouclage sans couture : la queue qui dépasse `dur` est repliée sur le début.
@@ -153,69 +139,76 @@ func _normalize(b: PackedFloat32Array, peak: float) -> PackedFloat32Array:
 
 # ---------------------------------------------------------------- musique
 
-## Thème du menu, boucle de 40 s : bourdon grave, nappe mineure qui enfle,
-## chœur lointain, motif de boîte à musique désaccordée, battements de cœur,
-## métal qui grince, respirations, glas lointain.
+## Thème du menu, boucle de 40 s à 96 bpm (64 temps) : le couloir du
+## laboratoire, la nuit, en alerte. Bourdonnement des néons et ventilation,
+## nappe de synthé suspendue qui change d'accord à mi-boucle, motif de
+## synthé pincé en 7 croches (boiteux, inquiet), bips de moniteur réguliers,
+## pulsation grave, crépitements de compteur Geiger, sirène très lointaine.
 func gen_menu_theme() -> void:
 	var dur := 40.0
-	var total := dur + 6.0  # queue repliée sur le début
+	var beat := dur / 64.0
+	var total := dur + 5.0  # queue repliée sur le début
 	var b := s.buf(total)
-	# Bourdon : ré grave + quinte, scies désaccordées très filtrées, respiration lente du filtre.
-	var drone := s.buf(total)
-	for f in [36.71, 36.9, 55.0, 73.42]:
-		s.mix(drone, s.tone(total, f, "saw"), 0.0, 0.22 if f < 60.0 else 0.1)
-	drone = s.lowpass(drone, 160.0)
-	for i in drone.size():
-		var t := float(i) / Synth.RATE
-		drone[i] *= 0.75 + 0.25 * sin(TAU * t / dur * 2.0)
-	s.mix(b, drone, 0.0, 0.9)
-	s.mix(b, s.lowpass(s.brown_noise(total), 90.0), 0.0, 0.35)
-	# Nappe : accord ré mineur (+ sol dièse dissonant) qui enfle deux fois.
+	# Néons : 50 Hz et harmoniques, grésillement filtré ; ventilation.
+	var hum := s.buf(total)
+	for h in [[50.0, 0.5], [100.0, 0.35], [150.0, 0.18], [250.0, 0.06]]:
+		s.mix(hum, s.tone(total, h[0]), 0.0, h[1])
+	s.mix(hum, s.bandpass(s.tone(total, 100.0, "square"), 1800.0, 2.0), 0.0, 0.05)
+	s.mix(b, hum, 0.0, 0.16)
+	s.mix(b, s.lowpass(s.brown_noise(total), 260.0), 0.0, 0.3)
+	s.mix(b, s.bandpass(s.noise(total), 900.0, 0.7), 0.0, 0.025)
+	# Nappe : deux accords suspendus (la sus2 puis fa add9), scies désaccordées,
+	# filtre qui s'ouvre et se referme lentement.
+	var chords := [[110.0, 164.81, 246.94, 329.63], [87.31, 130.81, 196.0, 293.66]]
 	for k in 2:
-		var pad := s.buf(18.0)
-		for f in [146.83, 174.61, 220.0, 207.65]:
-			for det in [-0.003, 0.004]:
-				s.mix(pad, s.tone(18.0, f * (1.0 + det), "saw"), 0.0, 0.05)
-		pad = s.lowpass_sweep(pad, 250.0, 900.0)
-		pad = s.env_adsr(pad, 7.0, 2.0, 0.6, 7.0)
-		s.mix(b, pad, 2.0 + k * 20.0, 0.55)
-	# Chœur lointain (voix ooh), une fois par boucle.
-	var choir := s.buf(14.0)
-	var vowels := [[400.0, 800.0], [350.0, 700.0], [450.0, 850.0], [380.0, 760.0]]
-	var notes := [293.66, 349.23, 440.0, 415.3]
-	for i in notes.size():
-		s.mix(choir, _voice(14.0, notes[i] * (1.0 if i < 3 else 0.5), vowels[i]), 0.0, 0.3)
-	choir = s.env_adsr(choir, 5.0, 2.0, 0.7, 6.0)
-	s.mix(b, s.lowpass(choir, 1800.0), 17.0, 0.5)
-	# Motif de boîte à musique désaccordée (ré - fa - mi - la), deux fois.
-	var motif := [[587.33, 0.0], [698.46, 0.9], [659.26, 1.8], [440.0, 3.2], [466.16, 4.6]]
-	for rep in [7.0, 29.0]:
-		for m in motif:
-			var f: float = m[0] * (1.0 + s.rng.randf_range(-0.012, 0.012))
-			var note := s.env_exp(s.tone(2.5, f, "tri"), 0.003, 0.7)
-			s.mix(note, s.env_exp(s.tone(2.5, f * 2.01), 0.003, 0.25), 0.0, 0.25)
-			s.mix(note, s.env_exp(s.tone(2.5, f * 3.98), 0.002, 0.1), 0.0, 0.1)
-			s.mix(b, note, rep + m[1], 0.14 if rep < 20.0 else 0.1)
-	# Battements de cœur dans la seconde moitié.
-	var hb := _heartbeat()
-	var at := 21.0
-	while at < 34.0:
-		s.mix(b, hb, at, 0.5)
-		at += 1.15
-	# Métal qui grince, chocs lointains.
-	s.mix(b, _creak(2.6, 210.0, 150.0), 4.5, 0.12)
-	s.mix(b, _creak(1.8, 320.0, 240.0), 25.5, 0.1)
-	s.mix(b, _creak(3.2, 180.0, 120.0), 36.0, 0.1)
-	s.mix(b, s.lowpass(_clank(140.0, 0.9, 0.8), 1800.0), 13.3, 0.35)
-	s.mix(b, s.lowpass(_clank(95.0, 1.2, 0.9), 1400.0), 33.8, 0.3)
-	# Respirations toutes proches (très bas).
-	for pair in [[11.0, 1.6], [37.5, 1.4]]:
-		s.mix(b, _breath(1.3, true), pair[0], 0.05)
-		s.mix(b, _breath(1.9, false), pair[0] + pair[1], 0.06)
-	# Glas lointain.
-	s.mix(b, s.lowpass(_bell(6.0, 98.0), 1200.0), 0.5, 0.35)
-	s.mix(b, s.lowpass(_bell(6.0, 92.5), 1200.0), 20.5, 0.3)
-	b = s.reverb(b, 0.95, 0.45, 2.0)
+		var pad := s.buf(24.0)
+		for f: float in chords[k]:
+			for det in [-0.004, 0.003]:
+				s.mix(pad, s.tone(24.0, f * (1.0 + det), "saw"), 0.0, 0.045)
+		pad = s.lowpass_sweep(pad, 300.0, 1100.0)
+		pad = s.env_adsr(pad, 6.0, 2.0, 0.75, 8.0)
+		s.mix(b, pad, k * 20.0, 0.5)
+	# Motif pincé : 7 croches par mesure (mi, si, ré, fa dièse, sol, ré, si),
+	# deux fois 8 mesures dans la boucle, la deuxième fois une quarte plus bas.
+	var motif := [329.63, 493.88, 587.33, 739.99, 783.99, 587.33, 493.88]
+	var step := beat * 0.5
+	var t := 0.0
+	var i := 0
+	while t < dur - 0.01:
+		var f: float = motif[i % motif.size()] * (1.0 if t < dur * 0.5 else 0.75)
+		var accent := 1.0 if i % motif.size() == 0 else 0.6
+		# Entrée progressive : le motif ne joue que dans les mesures 3 à 7 de
+		# chaque moitié (respiration du thème).
+		var bar := int(t / (beat * 4.0)) % 8
+		if bar >= 2 and bar <= 6:
+			s.mix(b, _pluck(f, 0.6), t, 0.09 * accent)
+		t += step
+		i += 1
+	# Bips de moniteur : un toutes les deux mesures, doublé de temps en temps.
+	var bt := beat * 2.0
+	var n := 0
+	while bt < dur:
+		s.mix(b, _beep(1046.5, 0.09), bt, 0.07)
+		if n % 4 == 3:
+			s.mix(b, _beep(1046.5, 0.09), bt + beat * 0.5, 0.05)
+		bt += beat * 8.0
+		n += 1
+	# Pulsation grave sur chaque temps fort (sinus qui tombe).
+	var pt := 0.0
+	while pt < dur:
+		s.mix(b, s.env_exp(s.sweep(0.5, 62.0, 40.0), 0.004, 0.12), pt, 0.35)
+		pt += beat * 4.0
+	# Compteur Geiger : clics épars, regroupés par bouffées.
+	for burst: float in [6.5, 17.2, 31.0, 36.4]:
+		var c := burst
+		for k in s.rng.randi_range(5, 11):
+			s.mix(b, s.env_exp(s.highpass(s.noise(0.01), 2500.0), 0.0002, 0.0015), c, 0.25)
+			c += s.rng.randf_range(0.03, 0.25)
+	# Sirène très lointaine (étouffée par les murs), une fois par boucle.
+	s.mix(b, s.lowpass(_siren(9.0, 560.0, 760.0), 900.0), 22.0, 0.07)
+	# Métal qui travaille, loin.
+	s.mix(b, s.lowpass(_clank(140.0, 0.9, 0.8), 1600.0), 13.3, 0.22)
+	b = s.reverb(b, 0.92, 0.38, 2.0)
 	b = _fold_loop(b, dur)
 	_save("menu_theme", _normalize(b, 0.8), true)
 
@@ -258,24 +251,34 @@ func gen_menu_whoosh() -> void:
 	_save("menu_whoosh", s.finish(s.reverb(b, 0.7, 0.3, 0.6), 0.45))
 
 
-## Lancement d'une partie : porte blindée qui claque, chœur qui hurle et
-## se coupe, grondement.
+## Lancement d'une partie : le sas du laboratoire s'ouvre (souffle
+## pneumatique, verrou qui claque), montée de synthé, trois bips d'alarme
+## qui montent, grondement grave qui retombe.
 func gen_menu_start() -> void:
-	var b := s.env_exp(s.sweep(2.5, 70.0, 26.0), 0.003, 0.9)
-	s.mix(b, _clank(110.0, 1.2, 1.0), 0.0, 1.0)
-	s.mix(b, _clank(260.0, 0.5, 0.6), 0.02, 0.5)
-	s.mix(b, s.env_exp(s.lowpass(s.noise(1.5), 500.0), 0.002, 0.35), 0.0, 0.9)
-	var swell := s.buf(2.6)
-	for f in [146.83, 155.56, 220.0, 311.13]:
-		s.mix(swell, _growl(2.6, f, f * 1.06, [700.0, 1150.0], 0.1), 0.0, 0.2)
-	swell = s.env_adsr(swell, 1.9, 0.2, 1.0, 0.25)
-	s.mix(b, s.lowpass(swell, 3000.0), 0.4, 0.55)
-	s.mix(b, s.env_exp(s.sweep(3.0, 45.0, 30.0), 1.0, 1.2), 0.9, 0.7)
-	b = s.drive(b, 1.6)
-	_save("menu_start", s.finish(s.reverb(b, 0.95, 0.4, 2.5), 0.9, 0.2))
+	var b := s.buf(3.4)
+	# Verrou et sas : choc métallique, souffle pneumatique qui s'éteint.
+	s.mix(b, _clank(110.0, 1.0, 1.0), 0.0, 0.9)
+	s.mix(b, _clank(260.0, 0.4, 0.6), 0.03, 0.4)
+	var hiss := s.env_adsr(s.bandpass(s.noise(1.4), 3200.0, 0.9), 0.01, 0.15, 0.6, 0.9)
+	s.mix(b, s.lowpass_sweep(hiss, 9000.0, 1800.0), 0.05, 0.4)
+	# Montée : scies qui glissent d'une quinte, filtre qui s'ouvre.
+	var rise := s.buf(1.6)
+	for f in [110.0, 164.81, 220.0]:
+		s.mix(rise, s.sweep(1.6, f, f * 1.5, "saw"), 0.0, 0.12)
+	rise = s.lowpass_sweep(rise, 300.0, 3200.0)
+	rise = s.env_adsr(rise, 1.3, 0.05, 1.0, 0.2)
+	s.mix(b, rise, 0.25, 0.5)
+	# Trois bips d'alarme qui montent (sas ouvert).
+	for k in 3:
+		s.mix(b, _beep([880.0, 1046.5, 1318.5][k], 0.12), 1.55 + k * 0.17, 0.3)
+	# Grondement grave qui tombe.
+	s.mix(b, s.env_exp(s.sweep(2.5, 70.0, 28.0), 0.003, 0.9), 0.0, 0.8)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(1.5), 500.0), 0.002, 0.3), 0.0, 0.6)
+	b = s.drive(b, 1.4)
+	_save("menu_start", s.finish(s.reverb(b, 0.9, 0.35, 2.0), 0.9, 0.2))
 
 
-## Présence : râle lointain, étouffé, quand la silhouette apparaît au fond.
+## Présence : râle lointain, étouffé, quand le zombie passe au fond.
 func gen_menu_presence() -> void:
 	var b := _growl(2.4, 62.0, 48.0, [420.0, 780.0], 0.7)
 	b = s.lowpass(b, 900.0)

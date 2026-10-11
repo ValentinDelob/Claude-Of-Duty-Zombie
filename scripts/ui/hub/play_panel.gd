@@ -302,7 +302,7 @@ func _build_solo() -> void:
 	var info := HubBox.vbox(12)  # 8 px de la maquette + interligne des lignes riches
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(info)
-	map_title = HubStyle.label("", 30, HubStyle.RED_HI, "stencil", true, 0.05)
+	map_title = HubStyle.label("", 30, HubStyle.RED_HI, "title", true, 0.05)
 	map_title.add_theme_constant_override("shadow_offset_x", int(HubStyle.px(3)))
 	map_title.add_theme_constant_override("shadow_offset_y", int(HubStyle.px(3)))
 	map_title.clip_text = true
