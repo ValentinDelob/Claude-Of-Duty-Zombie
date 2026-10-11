@@ -301,7 +301,7 @@ def composite(beauty, glow, out, scale):
 
 def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    out_dir = args[args.index("--out") + 1]
+    out_dir = os.path.abspath(args[args.index("--out") + 1])
     quick = "--quick" in args
     only = args[args.index("--only") + 1] if "--only" in args else None
     os.makedirs(out_dir, exist_ok=True)
