@@ -2883,6 +2883,21 @@
     "en": "Gloves on",
     "fr": "Gants enfilés"
    }
+  },
+  "v0.2.1-snapshot.673": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "Fixed: after being revived you now get back up holding the weapon you had in hand, not your starting pistol.",
+     "fr": "Corrigé : après une réanimation, tu te relèves avec l'arme que tu avais en main, plus avec ton pistolet de départ."
+    }
+   ],
+   "title": {
+    "en": "Back on your feet",
+    "fr": "Remis sur pied"
+   }
   }
  }
 }
