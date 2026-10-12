@@ -62,6 +62,12 @@ PAL = {
     "rubber_black": ("rubber", (0.08, 0.08, 0.085)),
     "maroon": ("rubber", (0.30, 0.13, 0.10)),     # bakélite brun-rouge (MP40)
     "maroon_dark": ("rubber", (0.20, 0.08, 0.06)),
+    "red": ("rubber", (0.66, 0.10, 0.08)),          # repère rouge du sélecteur
+    "brown": ("rubber", (0.30, 0.21, 0.15)),        # plaquettes en polymère brun (PM-63)
+    "g11_body": ("rubber", (0.20, 0.22, 0.18)),     # polymère vert-noir (G11)
+    "g11_mag": ("rubber", (0.14, 0.15, 0.13)),
+    "lens": ("glass", (0.20, 0.40, 0.52)),          # objectif de lunette
+    "galil_wood": ("wood", (0.66, 0.46, 0.27)),     # bois clair (Galil)
     "tape": ("rubber", (0.56, 0.57, 0.54)),
     "blood": ("rubber", (0.36, 0.06, 0.05)),
 }
@@ -795,7 +801,1344 @@ def b_olympia():
     return it
 
 
-BUILDERS = {"m1911": b_m1911, "ak74u": b_ak74u, "ak47": b_ak47, "famas": b_famas, "mp40": b_mp40, "olympia": b_olympia}
+# ---------------------------------------------------------------------------
+# Fusil à pompe court sans crosse (id interne « stakeout ») : Ithaca 37
+# « Stakeout » réel (calibre 12, canon de 337 mm, poignée pistolet, 4 + 1
+# coups), 590 mm -> 47 cubes. Largeurs PAIRES : canon de 2 × 2 au-dessus du
+# tube magasin de 2 × 2, collier qui les relie, guidon-bille ; pompe en bois
+# rainuré autour du tube (pièce « pump ») ; boîtier bronzé de 4 cubes au dessus
+# strié, ÉJECTION PAR LE DESSOUS (signature de l'Ithaca 37 : aucune fenêtre
+# sur les flancs) ; pontet, sûreté transversale ; poignée pistolet en noyer
+# très inclinée, quadrillée, calotte d'acier.
+# ---------------------------------------------------------------------------
+
+def b_stakeout():
+    it = Item("stakeout", "shotgun", even=True)
+    F = it.fill
+    # Boîtier (k = -10 à 3), 5 rangées, dessus strié.
+    F(-2, 1, 0, 4, -10, 3, "blued")
+    for k in range(-9, 3, 2):
+        for i in (-1, 0):
+            it.paint(i, 4, k, "+y", "gun_black")
+    # Dessous : fenêtre d'éjection et de chargement (peinte, sombre).
+    for i in (-1, 0):
+        for k in range(-8, -2):
+            it.paint(i, 0, k, "-y", "bore", f=3.0)
+    # Sûreté transversale dans l'avant du pontet, arrêtoir de pompe à gauche.
+    it.paint(-2, 1, -1, "-x", "steel")
+    # Canon (rangées 3 et 4, k = -37 à -11), tube magasin dessous (rangées 1
+    # et 2, k = -33 à -11), bouchon et collier de canon.
+    F(-1, 0, 3, 4, -37, -11, "blued")
+    for i in (-1, 0):
+        for j in (3, 4):
+            it.paint(i, j, -37, "-z", "bore")
+    F(-1, 0, 1, 2, -33, -11, "gun_dark")
+    F(-1, 0, 1, 2, -34, -34, "steel")
+    F(-2, 1, 1, 4, -32, -32, "gun_black")
+    # Guidon-bille en laiton (ligne de mire au-dessus du boîtier, j = 6).
+    F(-1, 0, 5, 5, -36, -36, "brass")
+    # Pompe en bois rainuré autour du tube (pièce « pump »).
+    for k in range(-27, -14):
+        key = "walnut" if k % 2 else "walnut_dark"
+        F(-2, 1, 0, 2, k, k, key, g="pump")
+    # Pontet et détente.
+    F(-1, 0, -3, -1, -2, -2, "blued")
+    F(-1, 0, -3, -3, -1, 2, "blued")
+    F(-1, 0, -2, -1, 0, 0, "gun_black")
+    # Poignée pistolet en noyer inclinée d'environ 30° (deux cubes vers
+    # l'arrière toutes les trois rangées), 4 cubes d'épaisseur, quadrillée,
+    # calotte d'acier.
+    for r in range(10):
+        j = 2 - r
+        s = (r * 2) // 3
+        F(-2, 1, j, j, 4 + s, 7 + s, "walnut" if r < 9 else "steel")
+        if 2 <= r <= 7:
+            for i, d in ((1, "+x"), (-2, "-x")):
+                for kk in (5 + s, 6 + s):
+                    if (j + kk) % 2:
+                        it.paint(i, j, kk, d, "walnut", f=0.84)
+    F(-2, 1, 0, 4, 4, 4, "walnut")              # talon contre le boîtier
+    # Points remarquables (axe : x = 0 entre les colonnes -1 et 0).
+    line = 6
+    it.a("sight", 0, line, 3.5)
+    it.a("front", 0, line, -35.5)
+    it.a("muzzle", 0, 4.0, -37)
+    it.a("eject", 0.0, -0.5, -5)
+    it.a("grip", 0, -1, 6.0)
+    it.a("support", 0, 0, -21)
+    it.a("pivot_pump", 0, 1.5, -21)
+    it.a("pivot_mag", 0, 0, -5)
+    it.anchors["mag_dir"] = [0.0, -1.0, 0.0]
+    it.info["cube"] = FINE
+    it.info["grip_angle"] = -31.0
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/stakeout.md).
+    it.a("att_muzzle", 0, 4.0, -37)
+    it.a("att_optic", 0, 5, -4)
+    it.a("att_stock", 0, -2, 8)
+    it.a("att_rail", 0, 0, -21)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Fusil semi-automatique (id interne « m14 ») : M14 réel (7,62 × 51 mm,
+# chargeur de 20, canon de 559 mm), 1 118 mm -> 90 cubes. Largeurs PAIRES :
+# canon de 2 × 2 (axe y = 5) ; cache-flamme à cinq branches qui porte le
+# guidon entre deux oreilles ; cylindre de gaz et tenon de baïonnette sous le
+# canon ; crosse en noyer d'un seul tenant (fût, demi-poignée pistolet,
+# plaque de couche d'acier), garde-main supérieur ajouré ; boîtier parkérisé,
+# porte-culasse visible sur le dessus, levier de manœuvre en bosse sur le
+# flanc droit (pièce « slide »), hausse à œilleton et ses deux molettes ;
+# chargeur droit de 20 parkérisé ; anneaux de grenadière.
+# ---------------------------------------------------------------------------
+
+def b_m14():
+    it = Item("m14", "rifle", even=True)
+    F = it.fill
+    # Cache-flamme (k = -63 à -60) : tube 4 × 4 aux coins abattus autour de
+    # l'axe (rangées 3 à 6), fentes entre les branches.
+    for k in range(-63, -59):
+        for i in range(-2, 2):
+            for j in range(3, 7):
+                if i in (-2, 1) and j in (3, 6):
+                    continue
+                if k in (-62, -61) and i in (-2, 1) and j in (4, 5):
+                    continue  # fentes latérales du cache-flamme
+                it.put(i, j, k, "parker_dark")
+    for i in (-1, 0):
+        for j in (4, 5):
+            it.paint(i, j, -63, "-z", "bore")
+    # Guidon (lame de 2 cubes, sommet à j = 10) sur un socle posé sur le
+    # cache-flamme, entre deux oreilles plus hautes.
+    F(-2, 1, 7, 7, -62, -61, "parker_dark")
+    F(-1, 0, 8, 9, -62, -62, "parker_dark")
+    for i in (-2, 1):
+        F(i, i, 8, 10, -62, -61, "parker_dark")
+    # Canon (rangées 4 et 5) jusqu'au boîtier.
+    F(-1, 0, 4, 5, -59, -22, "parker_dark")
+    # Cylindre de gaz, bouchon, tenon de baïonnette.
+    F(-1, 0, 2, 3, -52, -47, "parker")
+    F(-1, 0, 2, 3, -53, -53, "steel")
+    F(-1, 0, 1, 1, -53, -51, "parker")
+    # Fût de la crosse sous le canon (k = -46 à -9), garde-main ajouré dessus.
+    F(-2, 1, 1, 3, -46, -9, "walnut")
+    for i in (-2, 1):
+        F(i, i, 4, 4, -46, -9, "walnut")          # flancs du fût contre le canon
+    F(-2, 1, 6, 6, -45, -22, "walnut_dark")
+    for k in range(-43, -24, 3):
+        for i, d in ((1, "+x"), (-2, "-x")):
+            it.paint(i, 6, k, d, "bore", f=3.0)
+    for i in (-2, 1):
+        F(i, i, 4, 5, -45, -22, "walnut_dark")     # flancs du garde-main
+    F(-1, 0, 0, 0, -41, -40, "steel")                # anneau de grenadière avant, sous le fût
+    # Boîtier parkérisé (k = -21 à 0, rangées 4 à 7), dessus ouvert : porte-
+    # culasse clair visible.
+    F(-2, 1, 4, 7, -21, 0, "parker")
+    for i in (-1, 0):
+        for k in range(-15, -7):
+            it.paint(i, 7, k, "+y", "steel_light")
+    # Levier de manœuvre (flanc droit, pièce « slide ») : bosse et poignée.
+    F(2, 2, 5, 6, -14, -11, "parker", g="slide")
+    F(3, 3, 6, 6, -13, -12, "parker", g="slide")
+    # Hausse à œilleton à l'arrière du boîtier, deux molettes.
+    F(-2, 1, 8, 8, -3, -1, "parker_dark")
+    for i in (-2, 1):
+        F(i, i, 9, 9, -2, -1, "parker_dark")
+    it.put(2, 8, -2, "steel")
+    it.put(-3, 8, -2, "steel")
+    # Chargeur droit de 20 (pièce « mag »), légèrement courbé, semelle.
+    for r in range(10):
+        s = -(r // 5)
+        F(-2, 1, -1 - r, -1 - r, -8 + s, -3 + s, "parker_dark", g="mag")
+        for i, d in ((1, "+x"), (-2, "-x")):
+            it.paint(i, -1 - r, -6 + s, d, "parker", g="mag")
+    F(-2, 1, -11, -11, -10, -4, "parker", g="mag")
+    # Crosse sous le boîtier, pontet et détente.
+    F(-2, 1, 0, 3, -8, 0, "walnut")
+    F(-1, 0, 4, 5, 1, 3, "parker")                    # talon du boîtier sur le poignet
+    F(-1, 0, -3, -1, -2, -2, "parker")
+    F(-1, 0, -3, -3, -1, 3, "parker")
+    F(-1, 0, -2, -1, 0, 0, "gun_black")
+    # Poignet, demi-poignée pistolet et talon de crosse (k = 1 à 25).
+    for k in range(1, 26):
+        top = 5                                       # busc droit, sous le boîtier
+        if k <= 2:
+            bot = 1
+        elif k <= 8:
+            bot = -2                                  # demi-poignée pistolet
+        else:
+            bot = -1 - round((k - 9) * 5 / 16.0)
+        F(-2, 1, bot, top, k, k, "walnut")
+    for k in range(4, 9):                             # quadrillage
+        for j in range(-2, 2):
+            for i, d in ((1, "+x"), (-2, "-x")):
+                if (j + k) % 2:
+                    it.paint(i, j, k, d, "walnut", f=0.84)
+    F(-2, 1, -6, 5, 26, 26, "parker")                 # plaque de couche
+    for k in (17, 18):                                # anneau de grenadière arrière,
+        bot = -1 - round((k - 9) * 5 / 16.0)         # collé sous la crosse
+        F(-1, 0, bot - 1, bot - 1, k, k, "steel")
+    # Points remarquables (axe : x = 0 entre les colonnes -1 et 0).
+    line = 10
+    it.a("sight", 0, line, -1.0)
+    it.a("front", 0, line, -61.5)
+    it.a("muzzle", 0, 5.0, -63)
+    it.a("eject", 0.0, 8.0, -11)
+    it.a("grip", 0, 0, 6.0)
+    it.info["grip_angle"] = -20.0
+    it.a("support", 0, 0, -30)
+    it.a("pivot_slide", 3, 6.5, -12.5)
+    it.info["slide_travel"] = 0.06
+    it.a("pivot_mag", 0, 0, -5.5)
+    d = (0.0, -11.0, -2.0)
+    n = math.sqrt(sum(x * x for x in d))
+    it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
+    it.info["mag_len"] = round(n * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/m14.md).
+    it.a("att_muzzle", 0, 5.0, -63)
+    it.a("att_optic", 0, 8, -12)
+    it.a("att_mag", 0, -1, -5.5)
+    it.a("att_stock", 0, 0, 26)
+    it.a("att_rail", 0, 0, -30)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Mitraillette compacte (id interne « mp5k ») : MP5K réel (9 × 19 mm,
+# chargeur courbe de 30, sans crosse), 325 mm -> 26 cubes. Boîtier embouti
+# noir de 3 cubes, tube d'armement arrondi sur le dessus avec le levier
+# d'armement à gauche (pièce « slide »), guidon dans un anneau à l'avant,
+# hausse à tambour à l'arrière ; canon court à ergots ; garde-main court
+# et POIGNÉE AVANT VERTICALE avec sa butée ; chargeur très courbé ; carcasse
+# et poignée en polymère, pontet ; bouchon arrière et anneau de sangle.
+# ---------------------------------------------------------------------------
+
+def b_mp5k():
+    it = Item("mp5k", "smg")
+    F = it.fill
+    # Boîtier (k = -12 à 9, rangées 0 à 3), tube d'armement arrondi dessus.
+    F(-1, 1, 0, 3, -12, 9, "gun_dark")
+    F(-1, 1, 4, 4, -12, 9, "gun_dark", f=1.12)
+    F(0, 0, 5, 5, -12, 9, "gun_dark", f=1.12)
+    # Fenêtre d'éjection (flanc droit), sélecteur (flanc gauche).
+    for k in range(-3, 1):
+        it.paint(1, 2, k, "+x", "bore", f=3.0)
+    it.paint(-1, 1, 3, "-x", "steel")
+    it.paint(-1, 1, 4, "-x", "red")
+    # Levier d'armement à gauche, à l'avant du tube (pièce « slide »).
+    F(-2, -2, 4, 4, -10, -10, "steel", g="slide")
+    F(-3, -3, 4, 4, -10, -10, "gun_black", g="slide")
+    # Canon court à ergots, écrou avant.
+    F(-1, 1, 1, 3, -13, -13, "gun_black")
+    for (i, j) in ((0, 1), (0, 2), (0, 3), (-1, 2), (1, 2)):
+        it.put(i, j, -14, "gun_dark")
+    it.put(0, 2, -15, "gun_dark")
+    it.paint(0, 2, -15, "-z", "bore")
+    # Guidon bas (sommet : j = 7) entre deux oreilles posées sur le tube.
+    F(0, 0, 6, 6, -12, -12, "gun_black")
+    for i in (-1, 1):
+        F(i, i, 5, 7, -12, -11, "gun_black")
+    # Hausse à tambour, basse, à l'arrière du tube : socle, deux oreilles, cran.
+    for i in (-1, 1):
+        F(i, i, 5, 6, 6, 7, "gun_black")
+    # Garde-main court en polymère sous le tube (k = -12 à -6).
+    F(-1, 1, -1, 0, -12, -6, "poly")
+    # Poignée avant verticale avec sa butée (k = -10 à -8).
+    F(-1, 1, -9, -2, -12, -10, "poly")
+    F(-1, 1, -3, -1, -13, -13, "poly")            # butée de main
+    for j in range(-8, -2, 2):
+        for i, d in ((1, "+x"), (-1, "-x")):
+            for k in (-12, -11, -10):
+                it.paint(i, j, k, d, "poly", f=0.8)  # stries
+    # Puits du chargeur et chargeur courbe de 30 (pièce « mag »).
+    F(-1, 1, -2, -1, -6, -2, "gun_dark")
+    for i in (-1, 0, 1):
+        for j in (-2, -1):
+            for k in (-5, -4, -3):
+                it.drop(i, j, k)
+    for r in range(12):
+        s = -(r // 4)
+        F(-1, 1, -1 - r, -1 - r, -5 + s, -3 + s, "parker", g="mag")
+        for i, d in ((1, "+x"), (-1, "-x")):
+            it.paint(i, -1 - r, -4 + s, d, "parker_dark", g="mag")   # nervure
+    F(-1, 1, -13, -13, -8, -5, "parker_dark", g="mag")
+    # Carcasse en polymère, pontet, détente, poignée inclinée.
+    F(-1, 1, -1, -1, -1, 8, "poly")
+    F(0, 0, -3, -2, -1, -1, "poly")
+    F(0, 0, -4, -4, -1, 1, "poly")
+    F(0, 0, -2, -2, 0, 0, "gun_black")
+    for r in range(9):
+        s = r // 4
+        F(-1, 1, -2 - r, -2 - r, 2 + s, 4 + s, "poly")
+        if r % 2:
+            for i, d in ((1, "+x"), (-1, "-x")):
+                it.paint(i, -2 - r, 3 + s, d, "poly", f=0.8)
+    # Bouchon arrière et anneau de sangle.
+    F(-1, 1, 0, 4, 10, 10, "gun_black")
+    F(0, 0, 1, 3, 11, 11, "steel")
+    # Points remarquables.
+    line = 7
+    it.a("sight", 0, line, 7.0)
+    it.a("front", 0, line, -11.5)
+    it.a("muzzle", 0, 2.5, -15)
+    it.a("eject", 1.5, 2.5, -1.5)
+    it.a("grip", 0, -1, 3.5)
+    it.info["grip_angle"] = -14.0
+    it.a("support", 0, -2, -11)
+    it.info["front_grip"] = True
+    it.a("pivot_slide", -3, 4.5, -9.5)
+    it.info["slide_travel"] = 0.04
+    it.a("pivot_mag", 0, 0, -3.5)
+    d = (0.0, -13.0, -3.0)
+    n = math.sqrt(sum(x * x for x in d))
+    it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
+    it.info["mag_len"] = round(n * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.25]
+    # Points d'attache des pièces visibles (docs/weapons/mp5k.md).
+    it.a("att_muzzle", 0, 2.5, -15)
+    it.a("att_optic", 0, 6, -2)
+    it.a("att_mag", 0, -1, -3.5)
+    it.a("att_stock", 0, 2, 11)
+    it.a("att_rail", 0, -9, -11)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Pistolet (id interne « cz75 ») : CZ 75 B réel (9 × 19 mm, chargeur de 16),
+# 206 × 138 mm -> 17 × 11 cubes. Signature : la glissière coulisse DANS la
+# carcasse (les rails de la carcasse montent sur les flancs jusqu'à mi-hauteur
+# de la glissière, sur toute sa longueur) ; cache-poussière jusqu'à la
+# bouche ; pontet arrondi ; chien à anneau ; longue queue de castor ;
+# plaquettes de noyer quadrillées ; finition noire.
+# ---------------------------------------------------------------------------
+
+def b_cz75():
+    it = Item("cz75", "pistol")
+    F = it.fill
+    # Glissière (pièce « slide ») : k = -11 à 4 ; rangée 2 pleine largeur,
+    # rangée 1 au centre seulement (les flancs sont dans la carcasse).
+    F(-1, 1, 2, 2, -11, 4, "gun_black", g="slide")
+    F(0, 0, 1, 1, -11, 4, "gun_black", g="slide")
+    F(-1, 1, 1, 1, -11, -10, "gun_black", g="slide")   # nez de la glissière
+    # Stries arrière, fenêtre d'éjection (flanc droit), bouche.
+    for k in (1, 3):
+        for i, d in ((1, "+x"), (-1, "-x")):
+            it.paint(i, 2, k, d, "gun_black", g="slide", f=0.6)
+    for k in (-4, -3, -2):
+        it.drop(1, 2, k, g="slide")
+        it.put(0, 2, k, "brass", g="slide")
+    it.paint(0, 1, -11, "-z", "bore", g="slide")
+    # Guidon et hausse (ligne de mire à j = 4).
+    it.put(0, 3, -10, "gun_black", g="slide")
+    for i in (-1, 1):
+        it.put(i, 3, 3, "gun_black", g="slide")
+    # Carcasse : rails sur les flancs (rangée 1), cache-poussière (rangée 0)
+    # jusqu'à un cube de la bouche, queue de castor.
+    for i in (-1, 1):
+        F(i, i, 1, 1, -9, 4, "gun_dark")
+    F(-1, 1, 0, 0, -10, 4, "gun_dark")
+    F(-1, 1, 0, 1, 5, 5, "gun_dark")
+    F(-1, 1, 0, 0, 6, 6, "gun_dark")                    # queue de castor
+    # Chien à anneau (cœur sombre) derrière la glissière, sous la hausse.
+    F(0, 0, 1, 2, 5, 5, "gun_black")
+    it.paint(0, 2, 5, "+x", "bore", f=3.0)
+    it.paint(0, 2, 5, "-x", "bore", f=3.0)
+    # Arrêtoir de culasse et sûreté (flanc gauche), peints.
+    for k in (-4, -3):
+        it.paint(-1, 1, k, "-x", "steel")
+    it.paint(-1, 1, 3, "-x", "steel")
+    # Pontet (raccordé au devant de la poignée) et détente.
+    F(0, 0, -3, -1, -5, -5, "gun_dark")
+    F(0, 0, -3, -3, -4, 0, "gun_dark")
+    it.put(0, -1, -2, "gun_black")
+    it.put(0, -2, -2, "gun_black")
+    # Poignée (k = 0 à 4, 7 rangées, inclinée) : dos et devant de la carcasse,
+    # plaquettes de noyer quadrillées sur les flancs, chargeur au cœur.
+    for r in range(7):
+        j = -1 - r
+        s = (r + 1) // 3
+        F(-1, 1, j, j, 0 + s, 0 + s, "gun_dark")        # devant de la carcasse
+        F(-1, 1, j, j, 4 + s, 4 + s, "gun_dark")        # dos de la carcasse
+        for i in (-1, 1):
+            for k in range(1 + s, 4 + s):
+                it.put(i, j, k, "walnut", f=0.88 if (j + k) % 2 else 1.06)
+        F(0, 0, j, j, 1 + s, 3 + s, "gun_dark", g="mag")
+    F(-1, 1, -8, -8, 3, 5, "gun_dark", g="mag")       # semelle du chargeur
+    for i, d in ((1, "+x"), (-1, "-x")):
+        it.paint(i, -2, 2, d, "steel_light")         # vis des plaquettes
+        it.paint(i, -6, 4, d, "steel_light")
+    # Points remarquables.
+    line = 4
+    it.a("sight", 0, line, 3.5)
+    it.a("front", 0, line, -9.5)
+    it.a("muzzle", 0, 1.5, -11)
+    it.a("eject", 1.0, 2.5, -3)
+    it.a("grip", 0, 0, 2.5)
+    it.a("support", 0, -2, 1)
+    it.a("pivot_slide", 0, 2.0, 0)
+    it.info["slide_travel"] = 0.03
+    it.a("pivot_mag", 0, 0, 2.0)
+    d = (0.0, -8.0, 2.0)
+    n = math.sqrt(sum(x * x for x in d))
+    it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
+    it.info["mag_len"] = round(n * FINE, 4)
+    it.info["grip_angle"] = -round(math.degrees(math.atan2(d[2], -d[1])), 1)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.4]
+    it.anchors["hold"] = [-0.06, 0.15, 0.35]
+    it.anchors["hold_rot"] = [0.0, 0.32, -0.08]
+    # Points d'attache des pièces visibles (docs/weapons/cz75.md).
+    it.a("att_muzzle", 0, 1.5, -11)
+    it.a("att_optic", 0, 3, 0)
+    it.a("att_mag", 0, -8, 4)
+    it.a("att_grip_l", -1.5, -4, 3)
+    it.a("att_grip_r", 1.5, -4, 3)
+    it.a("att_rail", 0, 0, -7)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Mitraillette-pistolet (id interne « pm63 ») : PM-63 RAK réel (9 × 18 mm,
+# chargeur de 25 dans la poignée), 583 mm crosse dépliée -> 48 cubes. Un
+# « gros pistolet » : GLISSIÈRE nue d'acier clair qui recule à chaque tir
+# (pièce « slide »), terminée par le BEC compensateur sous la bouche ;
+# carcasse noire ; poignée avant dépliée ; pontet arrondi ; chargeur long
+# qui dépasse de la poignée ; crosse en fil à deux bras et plaque de couche.
+# ---------------------------------------------------------------------------
+
+def b_pm63():
+    it = Item("pm63", "smg")
+    F = it.fill
+    # Glissière (k = -15 à 5, rangées 2 et 3) et bec compensateur devant.
+    F(-1, 1, 2, 3, -15, 5, "steel", g="slide")
+    F(-1, 1, 1, 1, -17, -15, "steel", g="slide")     # bec sous la bouche
+    for i in (-1, 1):
+        it.put(i, 2, -17, "steel", g="slide")        # rebords du bec
+    it.paint(0, 2, -15, "-z", "bore", g="slide")
+    for k in (2, 4):                                 # stries arrière
+        for i, d in ((1, "+x"), (-1, "-x")):
+            for j in (2, 3):
+                it.paint(i, j, k, d, "steel", g="slide", f=0.7)
+    for k in (-6, -5, -4):                           # fenêtre d'éjection
+        it.paint(1, 3, k, "+x", "bore", g="slide", f=3.0)
+    # Guidon et hausse sur la glissière (ligne de mire à j = 5).
+    it.put(0, 4, -14, "gun_black", g="slide")
+    for i in (-1, 1):
+        it.put(i, 4, 4, "gun_black", g="slide")
+    # Carcasse noire (k = -13 à 6, rangées 0 et 1).
+    F(-1, 1, 0, 1, -13, 6, "gun_black")
+    it.paint(-1, 1, 2, "-x", "steel")                # sélecteur
+    # Pontet arrondi et détente.
+    F(0, 0, -3, -1, -5, -5, "gun_black")
+    F(0, 0, -3, -3, -4, 0, "gun_black")
+    it.put(0, -1, -2, "gun_dark")
+    # Poignée (k = 0 à 3 en haut, inclinée), plaquettes en polymère brun,
+    # chargeur de 25 au cœur, qui dépasse de 3 rangées.
+    for r in range(8):
+        j = -1 - r
+        s = (r + 1) // 3
+        F(-1, 1, j, j, 0 + s, 0 + s, "gun_black")
+        F(-1, 1, j, j, 3 + s, 3 + s, "gun_black")
+        for i in (-1, 1):
+            F(i, i, j, j, 1 + s, 2 + s, "brown")
+        F(0, 0, j, j, 1 + s, 2 + s, "gun_dark", g="mag")
+    for r in range(8, 11):
+        j = -1 - r
+        F(-1, 1, j, j, 3, 5, "gun_dark", g="mag")
+    F(-1, 1, -12, -12, 3, 5, "gun_black", g="mag")
+    # Poignée avant dépliée sous l'avant de la carcasse.
+    F(-1, 1, -6, -1, -12, -10, "gun_black")
+    for j in (-2, -4):
+        for i, d in ((1, "+x"), (-1, "-x")):
+            for k in (-12, -11, -10):
+                it.paint(i, j, k, d, "brown")
+    # Crosse en fil dépliée : charnière, deux bras de 2 rangées qui
+    # descendent d'une rangée, plaque de couche.
+    F(-1, 1, 0, 2, 7, 7, "gun_black")
+    for k in range(8, 30):
+        dj = -1 if k > 18 else 0
+        for i in (-1, 1):
+            F(i, i, 0 + dj, 1 + dj, k, k, "gun_dark")
+    F(-1, 1, -7, 2, 30, 30, "gun_black")
+    # Points remarquables.
+    line = 5
+    it.a("sight", 0, line, 4.5)
+    it.a("front", 0, line, -13.5)
+    it.a("muzzle", 0, 2.5, -15)
+    it.a("eject", 1.0, 3.5, -5)
+    it.a("grip", 0, 0, 2.0)
+    it.a("support", 0, -1, -11)
+    it.info["front_grip"] = True
+    it.a("pivot_slide", 0, 3.0, 0)
+    it.info["slide_travel"] = 0.045
+    it.a("pivot_mag", 0, 0, 1.5)
+    d = (0.0, -11.0, 3.0)
+    n = math.sqrt(sum(x * x for x in d))
+    it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
+    it.info["mag_len"] = round(n * FINE, 4)
+    it.info["grip_angle"] = -round(math.degrees(math.atan2(d[2], -d[1])), 1)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/pm63.md).
+    it.a("att_muzzle", 0, 2.5, -15)
+    it.a("att_optic", 0, 4, -4)
+    it.a("att_mag", 0, -12, 4)
+    it.a("att_stock", 0, 1, 7)
+    it.a("att_rail", 0, -6, -11)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Mitraillette (id interne « mpl ») : Walther MPL réelle (9 × 19 mm, chargeur
+# droit de 32, canon long), 746 mm crosse dépliée -> 61 cubes. Boîtier
+# embouti haut : la culasse coulisse AU-DESSUS du canon, l'avant du boîtier
+# est ouvert dessous (on voit le canon) ; évidements sur les flancs ; levier
+# d'armement à gauche (pièce « slide ») ; guidon à oreilles et hausse sur le
+# dessus ; puits du chargeur devant le pontet, chargeur droit ; poignée en
+# polymère quadrillé ; crosse en tube coudé (bras haut et bas, plaque).
+# ---------------------------------------------------------------------------
+
+def b_mpl():
+    it = Item("mpl", "smg")
+    F = it.fill
+    # Boîtier : partie haute (rangées 2 à 4) de k = -21 à 7, partie basse
+    # (rangées 0 et 1) seulement de k = -12 à 7 : fenêtre sous l'avant.
+    F(-1, 1, 2, 4, -21, 7, "gun_dark")
+    F(-1, 1, 0, 1, -12, 7, "gun_dark")
+    F(-1, 1, 1, 1, -21, -21, "gun_dark")             # nez du boîtier
+    # Évidements emboutis sur les flancs (peints) et nervure du dessus.
+    for k0 in (-19, -15):
+        for k in range(k0, k0 + 3):
+            for i, d in ((1, "+x"), (-1, "-x")):
+                it.paint(i, 3, k, d, "bore", f=3.0)
+    for k in range(-20, 7, 2):
+        it.paint(0, 4, k, "+y", "gun_black")
+    # Canon long (axe à la rangée 1, section en croix) : visible dans la
+    # fenêtre et devant le boîtier, bague pleine à la bouche.
+    for k in range(-30, -12):
+        for (i, j) in ((0, 0), (0, 1), (0, 2), (-1, 1), (1, 1)):
+            it.put(i, j, k, "gun_black")
+    F(-1, 1, 0, 2, -30, -30, "gun_black")             # bague de bouche
+    it.paint(0, 1, -30, "-z", "bore")
+    # Fenêtre d'éjection (flanc droit), levier d'armement (flanc gauche).
+    for k in (-9, -8, -7):
+        it.paint(1, 3, k, "+x", "bore", f=3.0)
+    F(-2, -2, 3, 3, -18, -17, "steel", g="slide")
+    it.put(-3, 3, -18, "steel", g="slide")
+    # Guidon à oreilles et hausse (ligne de mire à j = 7).
+    F(-1, 1, 5, 5, -20, -19, "gun_black")
+    it.put(0, 6, -20, "gun_black")
+    for i in (-1, 1):
+        F(i, i, 6, 7, -20, -19, "gun_black")
+    F(-1, 1, 5, 5, 4, 6, "gun_black")
+    for i in (-1, 1):
+        F(i, i, 6, 6, 5, 6, "gun_black")
+    # Puits du chargeur devant le pontet, chargeur droit de 32 (pièce « mag »).
+    F(-1, 1, -5, -1, -9, -5, "gun_dark")
+    for i in (-1, 0, 1):
+        for j in range(-5, 0):
+            for k in (-8, -7, -6):
+                it.drop(i, j, k)
+    F(-1, 1, -17, -1, -8, -6, "gun_black", g="mag")
+    F(-1, 1, -18, -18, -9, -5, "gun_dark", g="mag")
+    it.paint(-1, -4, -5, "-x", "steel")                # bouton de déverrouillage
+    # Pontet, détente, poignée en polymère quadrillé.
+    F(0, 0, -3, -1, -4, -4, "gun_dark")
+    F(0, 0, -3, -3, -3, 0, "gun_dark")
+    it.put(0, -1, -2, "gun_black")
+    for r in range(9):
+        j = -1 - r
+        s = r // 4
+        F(-1, 1, j, j, 1 + s, 4 + s, "poly")
+        for i, d in ((1, "+x"), (-1, "-x")):
+            for k in (2 + s, 3 + s):
+                if (j + k) % 2:
+                    it.paint(i, j, k, d, "poly", f=0.75)
+    # Bouchon arrière, crosse en tube coudé dépliée : bras haut, bras bas qui
+    # descend, plaque de couche.
+    F(-1, 1, 0, 4, 8, 8, "gun_black")
+    for k in range(9, 31):
+        F(0, 0, 3, 4, k, k, "gun_dark")
+        jb = -round((k - 9) * 5 / 21.0)
+        F(0, 0, jb, jb + 1, k, k, "gun_dark")
+    F(-1, 1, -6, 4, 31, 31, "gun_black")
+    # Points remarquables.
+    line = 7
+    it.a("sight", 0, line, 5.5)
+    it.a("front", 0, line, -19.5)
+    it.a("muzzle", 0, 1.5, -30)
+    it.a("eject", 1.0, 3.5, -8)
+    it.a("grip", 0, 0, 2.5)
+    it.info["grip_angle"] = -round(math.degrees(math.atan2(2.0, 9.0)), 1)
+    it.a("support", 0, -5, -7)
+    it.a("pivot_slide", -3, 3.5, -17.5)
+    it.info["slide_travel"] = 0.05
+    it.a("pivot_mag", 0, 0, -7)
+    it.anchors["mag_dir"] = [0.0, -1.0, 0.0]
+    it.info["mag_len"] = round(18 * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.25]
+    # Points d'attache des pièces visibles (docs/weapons/mpl.md).
+    it.a("att_muzzle", 0, 1.5, -30)
+    it.a("att_optic", 0, 5, -6)
+    it.a("att_mag", 0, -5, -7)
+    it.a("att_stock", 0, 2, 8)
+    it.a("att_rail", 0, 0, -16)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Fusil d'assaut à rafales (id interne « m16 ») : M16A2 réel (5,56 × 45 mm,
+# rafales de 3, chargeur courbe de 30), 1 006 mm -> 81 cubes. Largeurs
+# PAIRES (axe y = 5 entre les colonnes -1 et 0). Cache-flamme « cage à
+# oiseau » ; GUIDON EN TOUR TRIANGULAIRE (base large sur le canon, sommet
+# étroit, oreilles de protection) ; garde-mains ronds nervurés (tube de 4 aux
+# coins abattus) et bague « delta » ; boîtier supérieur et inférieur en alu
+# anodisé gris très foncé ; POIGNÉE DE TRANSPORT avec la hausse à l'arrière ;
+# levier d'armement en T (pièce « slide »), assistance de fermeture,
+# déflecteur de douilles ; chargeur courbe gris ; poignée à ergot ; crosse
+# fixe DANS L'AXE du canon, plaque de couche.
+# ---------------------------------------------------------------------------
+
+def b_m16():
+    it = Item("m16", "rifle", even=True)
+    F = it.fill
+    W = (-2, 1)
+
+    def octo(j0, k0, k1, key, f=None, g="body"):
+        for i in range(-2, 2):
+            for j in range(j0, j0 + 4):
+                if i in W and j in (j0, j0 + 3):
+                    continue
+                for k in range(k0, k1 + 1):
+                    it.put(i, j, k, key, g=g, f=f)
+
+    # Cache-flamme cage à oiseau (k = -52 à -49) : fentes sur les flancs.
+    octo(3, -52, -49, "gun_black")
+    for k in (-51, -50):
+        for i in W:
+            for j in (4, 5):
+                it.drop(i, j, k)
+    for i in (-1, 0):
+        for j in (4, 5):
+            it.paint(i, j, -52, "-z", "bore")
+    # Canon (rangées 4 et 5) jusqu'au boîtier.
+    F(-1, 0, 4, 5, -48, -14, "gun_black")
+    # Guidon en tour triangulaire (k = -46 à -42) : base large sur le canon,
+    # sommet étroit ; lame de 2 cubes au sommet (j = 11) entre deux oreilles.
+    for j in range(6, 11):
+        n = (j - 6) // 2                       # se resserre en montant
+        F(-1, 0, j, j, -46 + n, -42 - n, "gun_black")
+    F(-1, 0, 11, 11, -44, -44, "gun_black")
+    for i in W:
+        F(i, i, 10, 12, -44, -44, "gun_black")  # oreilles au sommet de la tour
+    F(-1, 0, 2, 3, -45, -43, "gun_black")      # tenon de baïonnette
+    F(-1, 0, 1, 1, -44, -44, "steel")           # anneau de grenadière
+    # Garde-mains ronds nervurés (k = -37 à -16), bague « delta ».
+    for k in range(-37, -15):
+        octo(3, k, k, "poly", f=0.86 if k % 2 else 1.0)
+    F(-2, 1, 3, 6, -15, -14, "gun_dark")
+    # Boîtier supérieur (k = -13 à 1, rangées 4 à 7) et inférieur (rangées 0
+    # à 3), anodisés gris très foncé.
+    F(-2, 1, 4, 7, -13, 1, "gun_dark")
+    F(-2, 1, 0, 3, -12, 1, "gun_dark", f=0.92)
+    for k in range(-9, -4):                    # fenêtre d'éjection
+        it.paint(1, 5, k, "+x", "bore", f=3.0)
+    F(2, 2, 5, 6, -3, -2, "gun_dark")           # assistance de fermeture
+    F(2, 2, 7, 7, -5, -4, "gun_dark")           # déflecteur de douilles
+    it.paint(-2, 2, -1, "-x", "steel")          # sélecteur
+    it.paint(1, 2, -6, "+x", "steel")           # bouton du chargeur
+    # Poignée de transport : montants, pont, hausse à l'arrière (ligne de mire
+    # à j = 12 : deux oreilles, cran de 2 cubes au milieu).
+    F(-1, 0, 8, 9, -12, -11, "gun_dark")
+    F(-1, 0, 8, 10, -3, -1, "gun_dark")
+    F(-1, 0, 10, 10, -12, -4, "gun_dark")
+    for i in W:
+        F(i, i, 10, 11, -2, -1, "gun_dark")
+    it.put(2, 10, -2, "steel")                  # molette de dérive
+    # Levier d'armement en T à l'arrière du boîtier (pièce « slide »).
+    F(-3, 2, 7, 7, 2, 2, "gun_black", g="slide")
+    # Puits du chargeur et chargeur courbe de 30 (pièce « mag »), 2 × 5.
+    F(-2, 1, -1, -1, -12, -6, "gun_dark", f=0.92)
+    for i in (-1, 0):
+        for k in range(-11, -6):
+            it.drop(i, -1, k)
+    last = 0
+    for r in range(14):
+        s = -(r // 4)
+        F(-1, 0, -1 - r, -1 - r, -11 + s, -7 + s, "parker", g="mag")
+        last = s
+    F(-2, 1, -15, -15, -11 + last, -7 + last, "parker_dark", g="mag")
+    # Pontet, détente, poignée à ergot (2 cubes de large, inclinée).
+    F(-1, 0, -3, -1, -4, -4, "gun_dark")
+    F(-1, 0, -3, -3, -3, 1, "gun_dark")
+    F(-1, 0, -2, -1, -1, -1, "gun_black")
+    for r in range(9):
+        j = -1 - r
+        s = r // 3
+        F(-1, 0, j, j, 2 + s, 4 + s, "poly")
+        if r == 3:
+            F(-1, 0, j, j, 1 + s, 1 + s, "poly")   # ergot entre deux doigts
+    # Crosse fixe dans l'axe (dessus droit à j = 7), dessous qui descend,
+    # plaque de couche avec sa trappe.
+    for k in range(2, 28):
+        bot = 2 - round((k - 2) * 5 / 25.0)
+        F(-2, 1, bot, 7, k, k, "poly")
+    F(-2, 1, -3, 7, 28, 28, "poly", f=0.7)
+    it.paint(-1, 2, 28, "+z", "poly", f=0.5)
+    for k in (20, 21):                          # anneau de grenadière arrière,
+        bot = 2 - round((k - 2) * 5 / 25.0)     # collé sous la crosse
+        F(-1, 0, bot - 1, bot - 1, k, k, "steel")
+    # Points remarquables (axe : x = 0 entre les colonnes -1 et 0).
+    line = 12
+    it.a("sight", 0, line, -1.5)
+    it.a("front", 0, line, -43.5)
+    it.a("muzzle", 0, 5.0, -52)
+    it.a("eject", 2.0, 5.5, -7)
+    it.a("grip", 0, 0, 3.5)
+    it.info["grip_angle"] = -18.0
+    it.a("support", 0, 3, -26)
+    it.a("pivot_slide", 0, 7.5, 2.5)
+    it.info["slide_travel"] = 0.05
+    it.a("pivot_mag", 0, 0, -9)
+    d = (0.0, -15.0, float(last))
+    n = math.sqrt(sum(x * x for x in d))
+    it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
+    it.info["mag_len"] = round(n * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/m16.md).
+    it.a("att_muzzle", 0, 5.0, -52)
+    it.a("att_optic", 0, 11, -8)
+    it.a("att_mag", 0, -1, -9)
+    it.a("att_stock", 0, 2, 28)
+    it.a("att_rail", 0, 3, -26)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Fusil à pompe de combat (id interne « spas12 ») : Franchi SPAS-12 réel
+# (calibre 12, tube de 8, crosse en tôle repliable dépliée), 1 041 mm ->
+# 83 cubes. Largeurs PAIRES (axe y = 5). MANCHON AJOURÉ autour du canon (tube
+# de 4 aux coins abattus, percé sur les flancs et le dessus : on voit le
+# canon), guidon au bout du manchon ; tube magasin dessous et son bouchon ;
+# POMPE en polymère nervuré (pièce « pump ») ; boîtier noir haut, fenêtre
+# d'éjection et levier d'armement à droite ; grosse poignée pistolet ;
+# crosse en tôle : barre haute, plaque de couche et CROCHET d'avant-bras.
+# ---------------------------------------------------------------------------
+
+def b_spas12():
+    it = Item("spas12", "shotgun", even=True)
+    F = it.fill
+    W = (-2, 1)
+
+    def octo(j0, k0, k1, key, g="body"):
+        for i in range(-2, 2):
+            for j in range(j0, j0 + 4):
+                if i in W and j in (j0, j0 + 3):
+                    continue
+                for k in range(k0, k1 + 1):
+                    it.put(i, j, k, key, g=g)
+
+    # Canon (rangées 4 et 5) de la bouche au boîtier.
+    F(-1, 0, 4, 5, -55, -14, "gun_black")
+    for i in (-1, 0):
+        for j in (4, 5):
+            it.paint(i, j, -55, "-z", "bore")
+    # Manchon ajouré (k = -46 à -14) : trous sur les flancs et le dessus.
+    octo(3, -46, -14, "parker")
+    for k in range(-44, -15, 3):
+        for i in W:
+            for j in (4, 5):
+                it.drop(i, j, k)
+        if k % 2 == 0:
+            for i in (-1, 0):
+                it.drop(i, 6, k)
+    # Guidon au bout du manchon (ligne de mire à j = 8).
+    F(-1, 0, 7, 7, -45, -45, "gun_black")
+    # Tube magasin (rangées 1 et 2, k = -50 à -14) et bouchon.
+    F(-1, 0, 1, 2, -50, -14, "gun_dark")
+    F(-1, 0, 1, 2, -51, -51, "steel")
+    F(-2, 1, 1, 2, -48, -48, "gun_black")         # collier du tube
+    F(-1, 0, 3, 3, -48, -48, "gun_black")
+    # Pompe en polymère nervuré autour du tube (pièce « pump »).
+    for k in range(-34, -17):
+        F(-2, 1, 0, 3, k, k, "poly", g="pump", f=0.8 if k % 2 else 1.0)
+    # Boîtier noir (k = -13 à 3, rangées 0 à 6).
+    F(-2, 1, 0, 6, -13, 3, "gun_black")
+    for k in range(-10, -5):
+        it.paint(1, 4, k, "+x", "bore", f=3.0)     # fenêtre d'éjection
+    F(2, 2, 4, 4, -9, -8, "steel", g="slide")      # levier d'armement
+    for i in (-1, 0):                                # chargement par dessous
+        for k in range(-11, -6):
+            it.paint(i, 0, k, "-y", "bore", f=3.0)
+    it.paint(-2, 2, -2, "-x", "red")                 # sûreté
+    # Hausse à l'arrière du boîtier : deux oreilles, cran de 2 cubes.
+    for i in W:
+        F(i, i, 7, 7, 1, 2, "gun_black")
+    # Pontet, détente, grosse poignée pistolet en polymère.
+    F(-1, 0, -3, -1, -3, -3, "gun_black")
+    F(-1, 0, -3, -3, -2, 1, "gun_black")
+    F(-1, 0, -2, -1, -1, -1, "steel")
+    for r in range(10):
+        j = -1 - r
+        s = r // 4
+        F(-2, 1, j, j, 1 + s, 5 + s, "poly")
+        if r % 2:
+            for i, d in ((1, "+x"), (-2, "-x")):
+                for kk in (2 + s, 3 + s, 4 + s):
+                    it.paint(i, j, kk, d, "poly", f=0.75)
+    # Crosse en tôle dépliée : charnière, barre haute, plaque de couche et
+    # crochet d'avant-bras sous la plaque, pointe vers le haut.
+    F(-2, 1, 4, 6, 4, 5, "gun_black")
+    F(-1, 0, 5, 6, 6, 25, "gun_black")
+    F(-2, 1, -4, 6, 26, 27, "gun_black")
+    F(-1, 0, -4, -4, 20, 25, "gun_black")
+    F(-1, 0, -3, -2, 20, 20, "gun_black")
+    # Points remarquables (axe : x = 0 entre les colonnes -1 et 0).
+    line = 8
+    it.a("sight", 0, line, 2.0)
+    it.a("front", 0, line, -44.5)
+    it.a("muzzle", 0, 5.0, -55)
+    it.a("eject", 2.0, 4.5, -8)
+    it.a("grip", 0, 0, 3.0)
+    it.info["grip_angle"] = -18.0
+    it.a("support", 0, 0, -26)
+    it.a("pivot_pump", 0, 1.5, -26)
+    it.a("pivot_slide", 2, 4.5, -8.5)
+    it.a("pivot_mag", 0, 0, -9)
+    it.anchors["mag_dir"] = [0.0, -1.0, 0.0]
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/spas12.md).
+    it.a("att_muzzle", 0, 5.0, -55)
+    it.a("att_optic", 0, 7, -6)
+    it.a("att_stock", 0, 1, 27)
+    it.a("att_rail", 0, 0, -26)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Fusil de bataille (id interne « fnfal ») : FN FAL réel (7,62 × 51 mm,
+# semi-automatique, chargeur de 20, garnitures en polymère), 1 090 mm ->
+# 87 cubes. Largeurs PAIRES (axe y = 5). Long cache-flamme à fentes ; bloc
+# de guidon à oreilles et régulateur de gaz ; garde-main ajouré noir ;
+# boîtier parkérisé gris (supérieur et inférieur), POIGNÉE DE TRANSPORT
+# repliée sur le flanc gauche, levier d'armement à gauche (pièce « slide »),
+# hausse à œilleton sur le couvercle ; chargeur droit de 20 ; poignée
+# pistolet ; crosse fixe noire, plaque de couche.
+# ---------------------------------------------------------------------------
+
+def b_fnfal():
+    it = Item("fnfal", "rifle", even=True)
+    F = it.fill
+    W = (-2, 1)
+
+    def octo(j0, k0, k1, key):
+        for i in range(-2, 2):
+            for j in range(j0, j0 + 4):
+                if i in W and j in (j0, j0 + 3):
+                    continue
+                for k in range(k0, k1 + 1):
+                    it.put(i, j, k, key)
+
+    # Long cache-flamme à fentes (k = -57 à -53).
+    octo(3, -57, -53, "parker_dark")
+    for k in (-56, -55, -54):
+        for i in W:
+            for j in (4, 5):
+                it.drop(i, j, k)
+    for i in (-1, 0):
+        for j in (4, 5):
+            it.paint(i, j, -57, "-z", "bore")
+    # Bloc de guidon et de gaz (k = -52 à -49), oreilles, guidon (j = 9,
+    # ligne de mire à 10), régulateur de gaz à gauche.
+    F(-2, 1, 3, 6, -52, -49, "parker")
+    F(-1, 0, 7, 9, -50, -50, "parker_dark")
+    for i in W:
+        F(i, i, 7, 10, -51, -50, "parker")
+    F(-3, -3, 5, 5, -52, -51, "steel")
+    # Canon nu (rangées 4 et 5) jusqu'au garde-main, puis jusqu'au boîtier.
+    F(-1, 0, 4, 5, -48, -18, "parker_dark")
+    # Garde-main ajouré en polymère noir (k = -40 à -18).
+    octo(2, -40, -18, "poly")
+    F(-1, 0, 6, 6, -40, -18, "poly")
+    for k in range(-38, -19, 3):
+        for i, d in ((1, "+x"), (-2, "-x")):
+            it.paint(i, 4, k, d, "bore", f=3.0)
+    # Boîtier supérieur (rangées 3 à 7) et inférieur (rangées 0 à 2),
+    # parkérisés gris.
+    F(-2, 1, 3, 7, -17, 3, "parker")
+    F(-2, 1, 0, 2, -12, 3, "parker", f=0.9)
+    for k in range(-9, -4):
+        it.paint(1, 5, k, "+x", "bore", f=3.0)    # fenêtre d'éjection
+    # Poignée de transport repliée à plat sur le flanc gauche.
+    F(-3, -3, 6, 7, -13, -7, "parker_dark")
+    # Levier d'armement à gauche, à l'avant (pièce « slide »).
+    F(-3, -3, 4, 4, -16, -15, "steel", g="slide")
+    it.put(-4, 4, -16, "steel", g="slide")
+    # Hausse à œilleton sur le couvercle : socle, deux oreilles, cran de 2.
+    F(-2, 1, 8, 8, 0, 2, "parker_dark")
+    for i in W:
+        F(i, i, 9, 9, 1, 2, "parker_dark")
+    # Chargeur droit de 20 (pièce « mag »), à peine courbé, et levier de
+    # déverrouillage derrière.
+    F(-2, 1, -1, -1, -12, -6, "parker", f=0.9)
+    for i in (-1, 0):
+        for k in range(-11, -6):
+            it.drop(i, -1, k)
+    last = 0
+    for r in range(12):
+        s = -(r // 6)
+        F(-1, 0, -1 - r, -1 - r, -11 + s, -7 + s, "parker_dark", g="mag")
+        last = s
+    F(-2, 1, -13, -13, -11 + last, -7 + last, "gun_black", g="mag")
+    F(-1, 0, -2, -2, -6, -6, "steel")
+    # Pontet, détente, poignée pistolet noire.
+    F(-1, 0, -3, -1, -4, -4, "parker")
+    F(-1, 0, -3, -3, -3, 1, "parker")
+    F(-1, 0, -2, -1, -1, -1, "gun_black")
+    for r in range(9):
+        j = -1 - r
+        s = r // 3
+        F(-2, 1, j, j, 1 + s, 4 + s, "poly")
+        if r % 2:
+            for i, d in ((1, "+x"), (-2, "-x")):
+                it.paint(i, j, 2 + s, d, "poly", f=0.75)
+    # Crosse fixe noire : poignet fin derrière le boîtier (rangées 2 à 7),
+    # dessus qui descend de deux rangées, dessous qui plonge vers le talon.
+    for k in range(4, 29):
+        t = (k - 4) / 24.0
+        top = 7 - round(2 * t)
+        bot = 2 - round(7 * t)
+        F(-2, 1, bot, top, k, k, "poly")
+    F(-2, 1, -5, 5, 29, 29, "gun_black")            # plaque de couche
+    for k in (20, 21):                               # anneau de grenadière
+        bot = 2 - round(7 * (k - 4) / 24.0)
+        F(-1, 0, bot - 1, bot - 1, k, k, "steel")
+    # Points remarquables (axe : x = 0 entre les colonnes -1 et 0).
+    line = 10
+    it.a("sight", 0, line, 2.0)
+    it.a("front", 0, line, -49.5)
+    it.a("muzzle", 0, 5.0, -57)
+    it.a("eject", 2.0, 5.5, -7)
+    it.a("grip", 0, 0, 3.0)
+    it.info["grip_angle"] = -18.0
+    it.a("support", 0, 2, -29)
+    it.a("pivot_slide", -4, 4.5, -15.5)
+    it.info["slide_travel"] = 0.06
+    it.a("pivot_mag", 0, 0, -9)
+    d = (0.0, -13.0, float(last))
+    n = math.sqrt(sum(x * x for x in d))
+    it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
+    it.info["mag_len"] = round(n * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/fnfal.md).
+    it.a("att_muzzle", 0, 5.0, -57)
+    it.a("att_optic", 0, 8, -8)
+    it.a("att_mag", 0, -1, -9)
+    it.a("att_stock", 0, 0, 29)
+    it.a("att_rail", 0, 2, -29)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Mitraillette (id interne « spectre ») : SITES Spectre M4 réelle (Italie,
+# 9 × 19 mm, CHARGEUR DE 50 À QUATRE RANGÉES, crosse en fil qui se replie
+# par-dessus), 580 mm crosse dépliée -> 50 cubes. Boîtier gris très foncé ;
+# manchon de canon ajouré devant (on voit le canon dans les trous) ; guidon
+# à oreilles sur le manchon, hausse sur le boîtier ; bouton d'armement à
+# gauche (pièce « slide ») ; chargeur très épais et très long ; poignée en
+# polymère ; crosse en fil dépliée au ras du dessus et plaque de couche.
+# ---------------------------------------------------------------------------
+
+def b_spectre():
+    it = Item("spectre", "smg")
+    F = it.fill
+    # Boîtier (k = -8 à 9, rangées 0 à 4).
+    F(-1, 1, 0, 4, -8, 9, "gun_dark")
+    for k in range(-4, 0):
+        it.paint(1, 3, k, "+x", "bore", f=3.0)     # fenêtre d'éjection
+    it.paint(-1, 1, 3, "-x", "steel")              # sélecteur
+    # Manchon ajouré (k = -20 à -9, rangées 1 à 3) : trous sur les flancs et
+    # le dessus, canon visible dedans.
+    F(-1, 1, 1, 3, -20, -9, "gun_black")
+    for k in range(-19, -9, 2):
+        for i in (-1, 1):
+            it.drop(i, 2, k)
+        if k % 4 == 1:
+            it.drop(0, 3, k)
+    F(0, 0, 2, 2, -21, -9, "steel")                # canon
+    it.paint(0, 2, -21, "-z", "bore")
+    # Guidon à oreilles sur le manchon, hausse sur le boîtier (ligne à j = 6).
+    F(0, 0, 4, 5, -19, -19, "gun_black")
+    for i in (-1, 1):
+        F(i, i, 4, 5, -19, -18, "gun_black")      # oreilles basses
+    F(-1, 1, 5, 5, 6, 7, "gun_black")
+    # Bouton d'armement à gauche, sur le dessus (pièce « slide »).
+    F(-2, -2, 4, 4, -6, -5, "steel", g="slide")
+    # Puits et chargeur de 50 à quatre rangées (pièce « mag ») : 3 de large,
+    # 5 de profondeur, très long.
+    F(-1, 1, -2, -1, -8, -3, "gun_dark")
+    for i in (-1, 0, 1):
+        for j in (-2, -1):
+            for k in range(-7, -3):
+                it.drop(i, j, k)
+    F(-1, 1, -16, -1, -7, -4, "parker_dark", g="mag")
+    for j in range(-15, -2, 3):
+        for i, d in ((1, "+x"), (-1, "-x")):
+            for k in range(-7, -3):
+                it.paint(i, j, k, d, "gun_black", g="mag")   # nervures
+    F(-1, 1, -17, -17, -8, -3, "gun_black", g="mag")
+    # Pontet, détente, poignée en polymère inclinée.
+    F(0, 0, -3, -1, -2, -2, "gun_dark")
+    F(0, 0, -3, -3, -1, 2, "gun_dark")
+    F(0, 0, -2, -1, 0, 0, "gun_black")
+    for r in range(9):
+        j = -1 - r
+        s = r // 4
+        F(-1, 1, j, j, 3 + s, 5 + s, "poly")
+        if r % 2:
+            for i, d in ((1, "+x"), (-1, "-x")):
+                it.paint(i, j, 4 + s, d, "poly", f=0.75)
+    # Crosse en fil dépliée au ras du dessus : charnière, deux bras de 2
+    # rangées, plaque de couche.
+    F(-1, 1, 3, 4, 10, 10, "gun_black")
+    for i in (-1, 1):
+        F(i, i, 3, 4, 11, 28, "gun_dark")
+    F(-1, 1, -4, 4, 29, 29, "gun_black")
+    # Points remarquables.
+    line = 6
+    it.a("sight", 0, line, 7.5)
+    it.a("front", 0, line, -18.5)
+    it.a("muzzle", 0, 2.5, -21)
+    it.a("eject", 1.0, 3.5, -2)
+    it.a("grip", 0, 0, 4.0)
+    it.info["grip_angle"] = -14.0
+    it.a("support", 0, 1, -14)
+    it.a("pivot_slide", -2, 4.5, -5.5)
+    it.info["slide_travel"] = 0.04
+    it.a("pivot_mag", 0, 0, -5.5)
+    it.anchors["mag_dir"] = [0.0, -1.0, 0.0]
+    it.info["mag_len"] = round(17 * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.25]
+    # Points d'attache des pièces visibles (docs/weapons/spectre.md).
+    it.a("att_muzzle", 0, 2.5, -21)
+    it.a("att_optic", 0, 5, -2)
+    it.a("att_mag", 0, -17, -5.5)
+    it.a("att_stock", 0, 4, 10)
+    it.a("att_rail", 0, 1, -14)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Revolver (id interne « python ») : Colt Python réel (.357 Magnum, 6 coups,
+# canon de 6 pouces), 292 mm -> 26 cubes. Largeurs PAIRES (axe du canon
+# y = 4). Signatures : BANDE VENTILÉE sur le canon (rib posé sur des
+# piliers, jours entre eux) et TENON PLEIN sous le canon jusqu'à la bouche ;
+# barillet cannelé de 4 × 4 aux coins abattus (pièce « cyl », bascule à
+# gauche autour du pivot) ; carcasse bleu nuit ; chien à crête ; poignée en
+# noyer quadrillée très inclinée.
+# ---------------------------------------------------------------------------
+
+def b_python():
+    it = Item("python", "revolver", even=True)
+    F = it.fill
+    W = (-2, 1)
+    # Canon à tenon plein (rangées 3 et 4, la rangée basse plus sombre : le
+    # tenon jusqu'à la bouche).
+    F(-1, 0, 4, 4, -18, -6, "blued")
+    F(-1, 0, 3, 3, -18, -6, "blued", f=0.85)
+    for i in (-1, 0):
+        for j in (3, 4):
+            it.paint(i, j, -18, "-z", "bore")
+    # Bande ventilée posée sur le canon (rangée 5), fenêtres sombres sur les
+    # flancs un cube sur deux.
+    F(-1, 0, 5, 5, -18, 2, "blued")
+    for k in range(-17, -6, 2):
+        it.paint(-1, 5, k, "-x", "bore", f=3.0)
+        it.paint(0, 5, k, "+x", "bore", f=3.0)
+    # Guidon en rampe au bout de la bande (sommet : j = 7).
+    F(-1, 0, 6, 6, -18, -16, "blued")
+    it.paint(-1, 6, -17, "+y", "red")
+    it.paint(0, 6, -17, "+y", "red")
+    # Carcasse : avant (k = -5), pont supérieur, fond sous le barillet,
+    # bouclier arrière ; hausse à deux oreilles sur le pont.
+    F(-2, 1, 1, 5, -5, -5, "blued")
+    F(-1, 0, 5, 5, -4, 2, "blued")
+    F(-1, 0, 0, 0, -5, 2, "blued")
+    F(-2, 1, 0, 5, 1, 2, "blued")
+    for i in W:
+        F(i, i, 6, 6, 1, 2, "blued")
+    # Chien à crête derrière la hausse (sous la ligne de mire).
+    F(-1, 0, 3, 5, 3, 3, "gun_black")
+    F(-1, 0, 5, 5, 4, 4, "gun_black")
+    # Barillet cannelé (pièce « cyl ») : 4 × 4 aux coins abattus, k = -4 à 0.
+    for i in range(-2, 2):
+        for j in range(1, 5):
+            if i in W and j in (1, 4):
+                continue
+            F(i, i, j, j, -4, 0, "steel", g="cyl", f=0.75)
+    for i, d in ((1, "+x"), (-2, "-x")):
+        for k in range(-4, 1):
+            it.paint(i, 2, k, d, "blued", g="cyl")  # cannelure sur la longueur
+    for i in (-1, 0):
+        for k in range(-4, 1):
+            it.paint(i, 4, k, "+y", "blued", g="cyl")
+            it.paint(i, 1, k, "-y", "blued", g="cyl")
+    # Pontet arrondi, détente.
+    F(-1, 0, -2, -1, -4, -4, "blued")
+    F(-1, 0, -3, -3, -3, 0, "blued")
+    F(-1, 0, -2, -1, -2, -2, "gun_black")
+    # Poignée en noyer très inclinée (un cube vers l'arrière toutes les deux
+    # rangées et demie), quadrillée, culot d'acier.
+    for r in range(9):
+        j = -1 - r
+        s = (r * 2) // 5
+        F(-2, 1, j, j, 1 + s, 4 + s, "walnut" if r < 8 else "blued")
+        if 1 <= r <= 7:
+            for i, d in ((1, "+x"), (-2, "-x")):
+                for kk in (2 + s, 3 + s):
+                    if (j + kk) % 2:
+                        it.paint(i, j, kk, d, "walnut", f=0.84)
+    F(-1, 0, 0, 0, 3, 4, "blued")                     # tenon de poignée
+    # Points remarquables (axe : x = 0 entre les colonnes -1 et 0).
+    line = 7
+    it.a("sight", 0, line, 2.0)
+    it.a("front", 0, line, -16.5)
+    it.a("muzzle", 0, 4.0, -18)
+    it.a("eject", 0.0, 4.0, -2)
+    it.a("grip", 0, 0, 2.5)
+    it.info["grip_angle"] = -round(math.degrees(math.atan2(3.0, 8.0)), 1)
+    it.a("support", 0, -2, 1)
+    it.a("pivot_cyl", -2, 1, -2)
+    it.a("pivot_mag", 0, 3, 0)
+    it.anchors["mag_dir"] = [0.0, 0.0, 1.0]
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.4]
+    it.anchors["hold"] = [-0.06, 0.15, 0.33]
+    it.anchors["hold_rot"] = [0.0, 0.32, -0.08]
+    # Points d'attache des pièces visibles (docs/weapons/python.md).
+    it.a("att_muzzle", 0, 4.0, -18)
+    it.a("att_optic", 0, 6, -8)
+    it.a("att_grip_l", -2.5, -4, 4)
+    it.a("att_grip_r", 2.5, -4, 4)
+    it.a("att_rail", 0, 1, -12)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Fusil à munitions sans douille (id interne « g11 ») : HK G11 K2 réel
+# (4,73 × 33 mm, chargeur de 50 couché au-dessus du canon, rafale ultra-
+# rapide), 750 mm -> 59 cubes. Grand BOÎTIER FERMÉ en polymère vert-noir,
+# avant chanfreiné, petit canon qui sort en bas ; trappe du chargeur sur le
+# dessus avant (pièce « mag ») ; POIGNÉE DE TRANSPORT avec LUNETTE INTÉGRÉE
+# (objectif bleu, œilleton caoutchouc) ; grosse MOLETTE D'ARMEMENT ronde sur
+# le flanc gauche (pièce « slide ») ; poignée pistolet sous le milieu ;
+# plaque de couche en caoutchouc.
+# ---------------------------------------------------------------------------
+
+def b_g11():
+    it = Item("g11", "rifle")
+    F = it.fill
+    # Boîtier (5 de large, rangées 0 à 9), avant chanfreiné en escalier.
+    F(-2, 2, 0, 6, -35, 21, "g11_body")
+    F(-2, 2, 7, 7, -34, 21, "g11_body")
+    F(-2, 2, 8, 8, -33, 21, "g11_body")
+    F(-2, 2, 9, 9, -31, 21, "g11_body")
+    F(-2, 2, 0, 9, 22, 22, "rubber_black")        # plaque de couche
+    # Nervures et joints de coque sur les flancs.
+    for i, d in ((2, "+x"), (-2, "-x")):
+        for k in range(-30, 20):
+            it.paint(i, 6, k, d, "g11_body", f=0.78)
+        for k in (-20, -8, 12):
+            for j in range(1, 6):
+                it.paint(i, j, k, d, "g11_body", f=0.78)
+    # Petit canon qui sort en bas de l'avant.
+    for (i, j) in ((0, 1), (0, 2), (0, 3), (-1, 2), (1, 2)):
+        it.put(i, j, -36, "gun_black")
+    it.paint(0, 2, -36, "-z", "bore")
+    # Trappe du chargeur couché (pièce « mag ») sur le dessus avant.
+    F(-1, 1, 10, 10, -29, -9, "g11_mag", g="mag")
+    F(-1, 1, 10, 10, -30, -30, "gun_black", g="mag")
+    # Poignée de transport à lunette intégrée : deux montants, tube 3 × 3
+    # aux coins abattus, objectif bleu devant, œilleton caoutchouc derrière.
+    F(-1, 1, 10, 10, -6, -4, "g11_body")
+    F(-1, 1, 10, 10, 10, 12, "g11_body")
+    for k in range(-7, 15):
+        for (i, j) in ((0, 11), (0, 12), (0, 13), (-1, 12), (1, 12)):
+            it.put(i, j, k, "gun_black")
+        for i in (-1, 1):
+            for j in (11, 13):
+                it.put(i, j, k, "gun_black")
+    it.paint(0, 12, -7, "-z", "lens")
+    for (i, j) in ((0, 11), (0, 13), (-1, 12), (1, 12)):
+        it.paint(i, j, -7, "-z", "lens", f=0.7)
+    F(-1, 1, 11, 13, 15, 16, "rubber_black")       # œilleton
+    it.drop(0, 12, 16)
+    it.drop(0, 12, 15)
+    # Molette d'armement ronde sur le flanc gauche (pièce « slide »).
+    for j in range(1, 6):
+        for k in range(6, 11):
+            if (j in (1, 5)) and (k in (6, 10)):
+                continue                              # disque : coins abattus
+            it.put(-3, j, k, "gun_black", g="slide")
+    F(-4, -4, 2, 4, 7, 9, "gun_dark", g="slide")
+    it.put(-5, 3, 8, "steel", g="slide")          # poignée de la molette
+    # Sélecteur et détente.
+    it.paint(2, 3, 2, "+x", "steel")
+    F(0, 0, -3, -1, -4, -4, "g11_body")
+    F(0, 0, -3, -3, -3, 0, "g11_body")
+    F(0, 0, -2, -1, -2, -2, "gun_black")
+    # Poignée pistolet (3 de large, inclinée).
+    for r in range(9):
+        j = -1 - r
+        s = r // 3
+        F(-1, 1, j, j, 1 + s, 4 + s, "g11_body")
+        if r % 2:
+            for i, d in ((1, "+x"), (-1, "-x")):
+                it.paint(i, j, 2 + s, d, "g11_body", f=0.75)
+    # Points remarquables : la ligne de visée passe dans l'axe de la lunette.
+    line = 12.5
+    it.a("sight", 0, line, 15.0)
+    it.a("front", 0, line, -7.0)
+    it.a("muzzle", 0, 2.5, -36)
+    it.a("eject", 0.0, 0.0, 0)
+    it.a("grip", 0, 0, 2.5)
+    it.info["grip_angle"] = -18.0
+    it.a("support", 0, 0, -22)
+    it.a("pivot_slide", -4, 3.5, 8.5)  # molette : axe x, au centre du disque
+    it.info["slide_travel"] = 0.0
+    it.a("pivot_mag", 0, 10.5, -19)
+    it.anchors["mag_dir"] = [0.0, 0.6, -0.8]
+    it.info["mag_len"] = round(21 * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/g11.md).
+    it.a("att_muzzle", 0, 2.5, -36)
+    it.a("att_optic", 0, 14, 4)
+    it.a("att_mag", 0, 11, -19)
+    it.a("att_stock", 0, 4.5, 23)
+    it.a("att_rail", 0, 0, -22)
+    return it
+
+
+# ---------------------------------------------------------------------------
+# Fusil d'assaut (id interne « galil ») : IMI Galil ARM réel (5,56 × 45 mm,
+# chargeur courbe de 35, bipied, crosse tubulaire repliable dépliée),
+# 979 mm -> 79 cubes. Dérivé de la Kalachnikov : long cache-flamme, bloc de
+# guidon à tunnel, BIPIED replié sous le canon, GARDE-MAIN EN BOIS CLAIR
+# AJOURÉ, POIGNÉE DE TRANSPORT au-dessus du garde-main, boîtier bronzé,
+# LEVIER D'ARMEMENT RELEVÉ à droite (pièce « slide »), chargeur courbe de
+# 35, poignée noire, crosse tubulaire à deux tubes et plaque de couche.
+# ---------------------------------------------------------------------------
+
+def b_galil():
+    it = Item("galil", "rifle")
+    F = it.fill
+    cross = ((0, 0), (0, 1), (0, 2), (-1, 1), (1, 1))
+    # Boîtier (k = -11 à 7) et couvercle.
+    F(-1, 1, 0, 2, -11, 7, "blued")
+    F(-1, 1, 3, 3, -10, 7, "gun_black")
+    it.put(0, 3, 8, "gun_black")
+    for k in range(-4, -1):
+        it.paint(1, 2, k, "+x", "bore", f=3.0)     # fenêtre d'éjection
+    it.paint(-1, 1, 3, "-x", "steel")              # sélecteur
+    # Hausse à l'arrière du couvercle (ligne de mire à j = 5).
+    for i in (-1, 1):
+        F(i, i, 4, 4, 5, 6, "gun_black")
+    # Levier d'armement relevé à droite (pièce « slide »).
+    F(2, 2, 2, 3, -6, -6, "steel", g="slide")
+    it.put(2, 4, -6, "steel", g="slide")
+    # Garde-main en bois clair ajouré (k = -29 à -12), poignée de transport.
+    F(-1, 1, 0, 3, -29, -12, "galil_wood")
+    for k in range(-27, -13, 3):
+        for i, d in ((1, "+x"), (-1, "-x")):
+            it.paint(i, 2, k, d, "bore", f=3.0)    # fentes d'aération
+            it.paint(i, 1, k, d, "bore", f=3.0)
+    F(0, 0, 4, 5, -21, -21, "gun_black")
+    F(0, 0, 4, 5, -13, -13, "gun_black")
+    F(0, 0, 6, 6, -21, -13, "gun_black")
+    # Canon (section en croix) et bloc de gaz / guidon à tunnel.
+    for k in range(-46, -29):
+        for (i, j) in cross:
+            it.put(i, j, k, "gun_black")
+    F(-1, 1, 0, 3, -45, -43, "blued")
+    F(0, 0, 4, 4, -44, -44, "gun_black")
+    for i in (-1, 1):
+        F(i, i, 4, 5, -44, -44, "gun_black")
+    # Long cache-flamme à fentes.
+    for k in range(-52, -46):
+        for (i, j) in cross:
+            it.put(i, j, k, "gun_dark")
+    for k in (-51, -49):
+        for i in (-1, 1):
+            it.drop(i, 1, k)
+    it.paint(0, 1, -52, "-z", "bore")
+    # Bipied replié sous le canon (deux jambes, pivot sous le bloc de gaz).
+    F(-1, 1, -1, -1, -43, -43, "gun_black")
+    for i in (-1, 1):
+        F(i, i, -1, -1, -42, -30, "gun_dark")
+    # Chargeur courbe de 35 (pièce « mag »).
+    last = 0
+    for r in range(14):
+        s = -(r // 3)
+        F(-1, 1, -1 - r, -1 - r, -7 + s, -3 + s, "parker_dark", g="mag")
+        last = s
+    F(-1, 1, -15, -15, -7 + last, -3 + last, "gun_black", g="mag")
+    # Pontet, détente, poignée noire inclinée.
+    for j in (-1, -2):
+        it.put(0, j, -2, "gun_black")
+    for k in range(-2, 2):
+        it.put(0, -3, k, "gun_black")
+    it.put(0, -1, 0, "gun_black")
+    for r in range(8):
+        s = r // 3
+        F(-1, 1, -1 - r, -1 - r, 1 + s, 3 + s, "poly")
+    # Crosse tubulaire dépliée : charnière, tube haut, tube bas qui descend,
+    # plaque de couche.
+    F(-1, 1, 0, 3, 8, 9, "gun_black")
+    F(0, 0, 3, 3, 10, 30, "gun_dark")
+    prev = 0
+    for k in range(10, 31):
+        j = -round((k - 10) * 5 / 20.0)
+        for jj in range(j, prev + 1):
+            it.put(0, jj, k, "gun_dark")
+        prev = j
+    F(-1, 1, -6, 3, 31, 31, "rubber_black")
+    # Points remarquables.
+    line = 5
+    it.a("sight", 0, line, 6.0)
+    it.a("front", 0, line, -43.5)
+    it.a("muzzle", 0, 1.5, -52)
+    it.a("eject", 1.0, 2.5, -3)
+    it.a("grip", 0, 0, 2.5)
+    it.info["grip_angle"] = -18.0
+    it.a("support", 0, 0, -21)
+    it.a("pivot_slide", 2, 3.0, -5.5)
+    it.info["slide_travel"] = 0.06
+    it.a("pivot_mag", 0, 0, -4.5)
+    d = (0.0, -15.0, float(last))
+    n = math.sqrt(sum(x * x for x in d))
+    it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
+    it.info["mag_len"] = round(n * FINE, 4)
+    it.info["cube"] = FINE
+    it.anchors["ads"] = [0.0, 0.0, 0.3]
+    # Points d'attache des pièces visibles (docs/weapons/galil.md).
+    it.a("att_muzzle", 0, 1.5, -52)
+    it.a("att_optic", 0, 4, -2)
+    it.a("att_mag", 0, -1, -4.5)
+    it.a("att_stock", 0, 1.5, 8)
+    it.a("att_rail", 0, 0, -21)
+    return it
+
+
+BUILDERS = {"m1911": b_m1911, "ak74u": b_ak74u, "ak47": b_ak47, "famas": b_famas, "mp40": b_mp40, "olympia": b_olympia, "stakeout": b_stakeout, "m14": b_m14, "mp5k": b_mp5k, "cz75": b_cz75, "pm63": b_pm63, "mpl": b_mpl, "m16": b_m16, "spas12": b_spas12, "fnfal": b_fnfal, "spectre": b_spectre, "python": b_python, "g11": b_g11, "galil": b_galil}
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +2188,39 @@ def boxes(p, cube):
     return out
 
 
+def floating(it):
+    """Blocs détachés : pour chaque pièce, les cellules hors de sa plus grande
+    composante (voisinage par les faces). Une pièce doit être d'un seul
+    tenant (un anneau ou une vis qui « flotte » sous la crosse est un défaut)."""
+    out = {}
+    for g, p in it.pieces.items():
+        left = set(p.cells)
+        comps = []
+        while left:
+            stack = [left.pop()]
+            comp = set(stack)
+            while stack:
+                i, j, k = stack.pop()
+                for n in ((i + 1, j, k), (i - 1, j, k), (i, j + 1, k), (i, j - 1, k), (i, j, k + 1), (i, j, k - 1)):
+                    if n in left:
+                        left.discard(n)
+                        comp.add(n)
+                        stack.append(n)
+            comps.append(comp)
+        comps.sort(key=len, reverse=True)
+        lost = [c for comp in comps[1:] for c in comp]
+        if lost:
+            out[g] = sorted(lost)
+    return out
+
+
 def build(it):
+    bad = floating(it)
+    for g, cells in bad.items():
+        print("[weapons_fine] %s : %d cube(s) détaché(s) dans « %s » : %s" % (
+            it.id, len(cells), g, ", ".join(str(c) for c in cells[:8])))
+    if bad:
+        raise SystemExit("[weapons_fine] %s : blocs détachés, modèle refusé" % it.id)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     obs, tris, models = [], 0, {}
     for g, p in it.pieces.items():
