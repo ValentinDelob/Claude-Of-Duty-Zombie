@@ -130,7 +130,9 @@ func test_model_defeat_lists_losses() -> void:
 	assert_eq(m.title(), "LA HORDE L’EMPORTE")
 	assert_false(m.kept)
 	assert_eq(m.loot_title(), "BUTIN PERDU")
-	assert_eq(m.lost_text(), "3 armes, 9 échantillons")
+	assert_eq(m.lost_text(), "2 armes, 9 échantillons", "la version de l'arsenal construite (w4) n'est pas perdue")
+	for w in m.weapons:
+		assert_true(w.id != "stakeout", "arme construite jamais listée perdue")
 	assert_eq(m.outcome()[0], "PERDU")
 	assert_eq(m.gained, 6240, "l'XP est toujours gardée")
 

@@ -25,8 +25,10 @@ const SPAWN_TIME := 1.5
 ## Distance au joueur visé (400 à 1000 unités de BO1 ≈ 10 à 25 m).
 const SPAWN_MIN_DIST := 10.0
 const SPAWN_MAX_DIST := 25.0
-## Déplacement et morsure.
-const RUN_SPEED := 6.3
+## Déplacement et morsure. 💡 Course 5,5 m/s (retour du joueur : à 6,3, la
+## meute allait presque aussi vite que son sprint, 6,8) : plus rapide que sa
+## marche (4,4), mais un sprint la distance (GAME_CONCEPT §6 bis).
+const RUN_SPEED := 5.5
 const BITE_DAMAGE := 50
 ## Giclée de sang contaminé à la mort : petite brûlure autour du chien.
 const EXPLODE_RADIUS := 1.8

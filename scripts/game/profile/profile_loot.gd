@@ -129,14 +129,27 @@ static func _arsenal(pr: PlayerProfile, uid: String) -> OwnedWeapon:
 ## joueur par MatchResult.loot_lines). « neuve » : nouvel exemplaire de
 ## l'arsenal (butin, arme de base améliorée) ; faux : version de l'arsenal
 ## construite à la station et mise à jour (§4.11, récapitulatif du hub v2).
+## Butin NON gardé (défaite, défi, carte perso) : seules les armes RAMASSÉES
+## pendant la partie (is_found) sont listées. Une arme construite à la
+## station (version de l'arsenal ou arme de base, même améliorée en partie)
+## vient de l'arsenal, qui la garde : elle n'est jamais annoncée « perdue ».
 static func report(loot: Dictionary, kept: bool) -> Dictionary:
 	var ws := []
 	for w in loot.get("weapons", []):
+		if not w is Dictionary or (not kept and not is_found(w)):
+			continue
 		var uid := String(w.get("uid", ""))
 		ws.append([String(w.get("id", "")), GameWeapon.level_of(w), GameWeapon.rarity_of(w),
 			uid == "" or uid.begins_with("loot:") or uid.begins_with(BaseWeapons.UID_PREFIX)])
 	return {"kept": kept, "weapons": ws, "parts": (loot.get("parts", []) as Array).size(),
 		"samples": (loot.get("samples", {}) as Dictionary).duplicate()}
+
+
+## Arme ramassée pendant la partie (butin du sol, d'une vague, d'un coffre :
+## identifiant « loot:… », LootSystem), par opposition à un exemplaire
+## construit à la station depuis l'arsenal (§4.11) ?
+static func is_found(w: Dictionary) -> bool:
+	return String(w.get("uid", "")).begins_with("loot:")
 
 
 ## Même arme, même niveau, même rareté, mêmes pièces (identifiant, niveau,

@@ -1,0 +1,28 @@
+{
+  "title": {
+    "en": "Gameplay fixes: progressive runners, audible exhaustion, calmer pack",
+    "fr": "Corrections de jeu : coureurs progressifs, essoufflement audible, meute plus calme"
+  },
+  "items": [
+    {
+      "en": "After a lost match, the recap no longer lists the weapons you built at the station as lost: they come from your arsenal and stay there. Only weapons picked up during the match are lost.",
+      "fr": "Après une partie perdue, le récapitulatif n'annonce plus comme perdues les armes construites à la station : elles viennent de ton arsenal et y restent. Seules les armes ramassées pendant la partie sont perdues."
+    },
+    {
+      "en": "Zombies no longer all start running at once: from round 4, a growing share of them runs, and every zombie runs from round 8.",
+      "fr": "Les zombies ne se mettent plus tous à courir d'un coup : à partir de la manche 4, une part croissante court, et tous courent à partir de la manche 8."
+    },
+    {
+      "en": "You can now clearly hear your character pant when out of breath, even in the middle of a fight.",
+      "fr": "On entend maintenant clairement ton personnage haleter quand il est à bout de souffle, même en pleine fusillade."
+    },
+    {
+      "en": "The floating \"+XP\" marker on each kill is gone; the match XP counter stays.",
+      "fr": "Le « +XP » flottant à chaque élimination a disparu ; le compteur d'XP de la partie reste."
+    },
+    {
+      "en": "Wandering pack dogs are a bit slower: still faster than you walking, but a sprint now leaves them behind.",
+      "fr": "Les chiens de la meute errante sont un peu moins rapides : toujours plus vifs que toi à la marche, mais un sprint les distance."
+    }
+  ]
+}

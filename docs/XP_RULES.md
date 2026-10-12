@@ -241,9 +241,10 @@ corriger d'abord les hypothèses d'`XpCalibration`, puis le barème.
 
 ## 7. Affichage
 
-- **En jeu** : « +N XP » léger (bleu pâle, 18 px) sous le viseur à chaque
-  gain, les gains rapprochés s'additionnent (1,1 s) ; compteur discret
-  « XP DE PARTIE n » en haut à droite, au-dessus du compteur d'échantillons.
+- **En jeu** : compteur discret « XP DE PARTIE n » en haut à droite,
+  au-dessus du compteur d'échantillons. Plus de « +N XP » flottant sous le
+  viseur à chaque gain (retiré à la demande du joueur ; la ferraille garde
+  ses propres « +N »).
 - **Écran de fin** (évacuation ou défaite) : « XP GAGNÉE : +n », niveau avant
   et après (« NIVEAU 7 → 8 NIVEAU SUPÉRIEUR ! », niveau maximum signalé),
   barre et texte de progression vers le niveau suivant, détail (éliminations

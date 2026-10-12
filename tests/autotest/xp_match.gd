@@ -38,9 +38,8 @@ func run() -> void:
 	_kill(game, walker)
 	var ok: bool = await until(func(): return XpRules.total(xp.my_ledger) == XpRules.kill_xp(XpRules.WALKER, 1), 2.0, "XP du marcheur")
 	at.check(ok and int(xp.my_ledger.kills.get(XpRules.WALKER, 0)) == 1, "marcheur compté (%s)" % xp.my_ledger)
-	at.check(xp.pop_shown() == XpSystem.pop_text(4), "« +4 XP » sous le viseur : « %s »" % xp.pop_shown())
+	at.check(game.hud.find_child("XpPop", true, false) == null, "aucun « +N XP » flottant à l'élimination (retiré)")
 	at.check(xp.counter_shown() == XpSystem.counter_text(4), "compteur de partie : « %s »" % xp.counter_shown())
-	await at.screenshot("xp_pop")
 
 	# 2. Manche 10 : sprinteur, rampant et chien, bonus de manche.
 	game.rounds.debug_jump_to(10)
@@ -92,7 +91,7 @@ func run() -> void:
 	at.check(rc.gained == r.xp and rc.level_before == 1 and rc.level_after == 2 and rc.level_ups().size() == 1,
 			"récapitulatif : +%d XP, niveau %d -> %d" % [rc.gained, rc.level_before, rc.level_after])
 	at.check(not rc.rows.is_empty() and rc.rows[0].key == "kills" and sum == r.xp, "détail du récapitulatif : %s" % [rc.rows])
-	at.check(xp.counter_shown() == "" and xp.pop_shown() == "", "compteur de partie masqué à la fin")
+	at.check(xp.counter_shown() == "", "compteur de partie masqué à la fin")
 	# Une seule application : un départ ou une seconde fin ne rajoute rien.
 	game.keep_match_xp()
 	at.check(game._record_xp(r.xp_ledger).is_empty(), "seconde application refusée")

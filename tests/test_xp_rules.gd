@@ -167,7 +167,6 @@ func test_textes_fr_en() -> void:
 	assert_eq(r.xp_progress_text(), "50 / %s XP vers le niveau 5" % XpSystem.group(PlayerProfile.xp_to_next(4)))
 	assert_eq(XpSystem.counter_text(12450), "XP DE PARTIE 12 450")
 	assert_eq(XpSystem.counter_text(0), "")
-	assert_eq(XpSystem.pop_text(9), "+9 XP")
 	r.level_after = 6
 	assert_eq(r.xp_level_text(), "NIVEAU 3 → 6   +3 NIVEAUX !")
 	r.level_before = 50

@@ -326,6 +326,32 @@ func test_arsenal_version_is_updated() -> void:
 	assert_eq(pr.get_weapon(uid).parts.size(), 1)
 
 
+## Défaite : une arme construite à la station (version de l'arsenal, arme de
+## base, même améliorées en partie) n'est jamais annoncée perdue ; seules les
+## armes ramassées le sont, et l'arsenal reste intact.
+func test_defeat_report_skips_built_weapons() -> void:
+	var pr := PlayerProfile.new()
+	var uid := pr.add_weapon(OwnedWeapon.create("galil", 4, OwnedWeapon.Rarity.RARE))
+	var built := GameWeapon.from_owned(pr.get_weapon(uid))
+	LootRules.mount(built, {"id": "part_damage", "uid": "lootp:1", "level": 2, "mods": {"damage": 0.2}})
+	var base := GameWeapon.from_owned(BaseWeapons.make(WeaponDB.STARTING_WEAPON))
+	LootRules.mount(base, {"id": "part_damage", "uid": "lootp:2", "level": 1, "mods": {"damage": 0.1}})
+	var pd := PlayerData.new(1)
+	pd.weapons = [built, base]
+	pd.bag = [GameWeapon.make("m14", 40, OwnedWeapon.Rarity.UNIQUE, [], "loot:2")]
+	var carried := ProfileLoot.carried(pd, [], {})
+	var lost := ProfileLoot.report(carried, false)
+	assert_eq(lost.weapons.size(), 1, "seule l'arme ramassée est perdue")
+	assert_eq(lost.weapons[0][0], "m14")
+	var r := MatchResult.new()
+	r.loot = lost
+	assert_false(r.loot_text().contains(WeaponDB.display_name("galil")), r.loot_text())
+	assert_eq(ProfileLoot.report(carried, true).weapons.size(), 3, "évacuation : tout est rapporté")
+	assert_eq(pr.weapons.size(), 1, "rien retiré de l'arsenal")
+	assert_eq(pr.get_weapon(uid).level, 4)
+	assert_eq(pr.get_weapon(uid).parts.size(), 0, "amélioration de partie annulée, version intacte")
+
+
 func test_report_and_match_result_text() -> void:
 	var loot := ProfileLoot.carried(_pd(), [{"id": "p", "level": 1, "mods": {}}], {"dog_fang": 2})
 	var rep := ProfileLoot.report(loot, true)

@@ -218,6 +218,14 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   9, qui atteindrait des millions de PV).
 - En face, les **dégâts d'une arme augmentent de 10 % de son dégât de base par
   niveau** (§4.9).
+- 💡 **Vitesse des zombies, course progressive** (`RoundRules.run_share`,
+  `sprint_share`) : que des **marcheurs** aux manches 1 à 3 ; à partir de la
+  manche 4, une **part croissante** court : **20 %** (manche 4), **40 %**
+  (5), **60 %** (6), **80 %** (7), puis **tous** à partir de la manche **8**,
+  jamais avant. Les **sprinteurs** gardent le calendrier de BO1, dans la
+  part des coureurs : 14 % des zombies à la manche 5, 36 % à la 6, 58 % à la
+  7, 81 % à la 8, **tous** à partir de la 9. L'hôte tire la vitesse de
+  chaque zombie à son apparition (générateur de la partie).
 
 ### 4.4 Vagues spéciales et vagues de boss ✅
 - Chaque carte a des **vagues spéciales** (mini-boss) et des **vagues de boss**,
@@ -631,7 +639,7 @@ armes de niveau de base ≤ manche + 2) ; statistiques inchangées ;
   - manche survécue et vague spéciale ou de boss vaincue : à chaque joueur
     non mort ; évacuation réussie : +25 % de l'XP de la partie ;
   - l'XP est comptée par l'hôte pendant la partie, affichée discrètement
-    (« +N XP », compteur de partie), puis ajoutée **une fois** au profil à la
+    (compteur de partie, sans « +N XP » flottant à l'élimination), puis ajoutée **une fois** au profil à la
     fin, quelle que soit l'issue (ou si le joueur quitte) ; l'écran de fin
     montre le détail, le niveau avant / après et la progression ;
   - simulation de calibrage : niveau 10 en ≈ 2,5 h, 25 en ≈ 20 h, 50 en
@@ -897,7 +905,8 @@ corriger.
 | Ferraille par touche | **10** par touche de balle ou de couteau qui ne tue pas (tir de fusil à pompe : une touche par zombie) ; 0 pour une explosion, une brûlure, un piège ou le téléporteur ; au plus **10 touches payées par zombie**, tous joueurs confondus | `PointsRules.HIT`, `HIT_CAP` |
 | 💡 Ferraille de reconstruction | **10** par planche reposée (autant qu'une touche) au joueur qui la repose ; au plus **60 par joueur et par manche** (une fenêtre entière, un peu plus qu'une élimination ; BO1 plafonnait aussi la réparation par manche) : au-delà, la réparation reste possible mais ne rapporte plus rien | `PointsRules.REPAIR`, `REPAIR_CAP`, `Points.srv_repair` |
 | Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10, batte 15 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
-| Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
+| Course des zombies | marcheurs seuls aux manches 1 à 3 ; coureurs **20 / 40 / 60 / 80 %** aux manches 4 à 7, **tous** à partir de la **8** ; sprinteurs (calendrier de BO1) 14 / 36 / 58 / 81 % aux manches 5 à 8, tous à partir de la 9 ; vitesse tirée par l'hôte à l'apparition | `RoundRules.run_share`, `sprint_share` |
+| Essoufflement | silencieux au-dessus de 35 % ; souffles de **−12 dB** (au seuil) à **−2,4 dB** (énergie nulle) ; halètement à **0 dB** (niveau normalisé du son) tant que le joueur est épuisé, sur des voix propres jamais coupées par les tirs ; aucun autre son baissé ; la respiration de santé basse passe avant | `BreathFeedback` |
 | XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; Brancardier **60** (mini-boss) ; Infirmière hurlante **60** (mini-boss) ; Chirurgien **240** (boss) ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
 | XP hors élimination | manche survécue **3 × manche** ; vague spéciale vaincue **60**, vague de boss **240** (× bonus de manche) ; à chaque joueur non mort à la fin de la manche ; évacuation **+25 %** de l'XP de la partie | `XpRules` |
 | XP gardée | comptée par l'hôte pendant la partie, ajoutée une fois au profil à la fin (évacuation ou défaite) ou au départ d'un joueur en cours de partie (sans bonus) ; le niveau ne change pas pendant la partie | `XpSystem`, `MatchXp` |
@@ -923,6 +932,7 @@ corriger.
 | Pose du butin d'arme | à 1,5 m devant chaque joueur à la fin de la vague (2 armes : écartées), visible de tous, ramassable par son seul propriétaire | `LootSystem` |
 | Modificateurs d'une pièce trouvée | un premier modificateur toujours en bonus ; 35 % de chances d'un second (autre statistique), malus une fois sur deux ; valeurs de 5 à 25 % par pas de 1 % ; identifiant `part_<1er modificateur>` | `LootRules.roll_part` |
 | Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
+| 💡 Vitesse des chiens (meute errante) | course **5,5 m/s** (−13 % ; avant 6,3, presque le sprint du joueur) : plus rapide que la marche du joueur (4,4 m/s), nettement sous son sprint (6,8 m/s) ; bond de morsure 7,5 m/s inchangé ; Horde pressée du défi : +15 % (6,3 m/s) | `DogRules.RUN_SPEED` |
 | Échantillons des chiens | `dog_fang` (croc), `dog_fur` (touffe de poils), `dog_collar` (collier) | `LootRules.SAMPLES` |
 | Rotation des vagues spéciales | types permis par la carte (défaut : meute, Brancardier et Infirmière hurlante) à tour de rôle dans l'ordre meute, Brancardier, Infirmière : la k-ième vague spéciale du schéma est du type n° (k − 1) mod n (manches de boss exclues) ; sans boss : meute 5, 20, 35…, Brancardier 10, 25, 40…, Infirmière 15, 30, 45… ; avec le boss par défaut (15, 30, 45…) : meute 5, 25, 50…, Brancardier 10, 35, 55…, Infirmière 20, 40, 65… ; conséquence : sur une carte aux trois types, chaque type revient trois fois moins souvent (contrats des chiens ≈ 3 fois plus longs à remplir) ; une carte qui listait « meute » et « brancardier » garde ces deux types (pas d'Infirmière) ; pas de changement de format | `WaveRules.special_type_at`, format de carte 21 |
 | Brancardier : composition | **1 par joueur** (au plus 6, 4 vivants à la fois), apparition à 12–28 m, hors de vue de préférence, 4 s entre deux ; **escorte** de **5 zombies ordinaires par joueur** (au plus 20) après l'annonce de 6 s ; la vague finit quand Brancardiers et escorte sont tués | `BrancardRules` |
