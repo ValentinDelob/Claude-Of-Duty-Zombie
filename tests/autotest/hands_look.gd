@@ -13,7 +13,22 @@ var game: Game
 var p: Player
 var pd: PlayerData
 
-const IDS := ["m1911", "ak47", "mp40", "mp5k"]
+const IDS := ["m1911", "cz75", "python", "ak47", "mp40", "mp5k"]
+## Pistolets à la hanche : écart maximal (px) entre le réticule et l'axe du
+## canon à 10 m (ViewModel.PISTOL_HIP_CONVERGE).
+const HIP_TOL_PX := 4.0
+
+
+## Écart (px, écran) entre le centre et le point de l'axe du canon (ligne de
+## la bouche, -Z du modèle) situé à `depth` m devant l'œil, vu avec le champ
+## de vision de l'arme (ViewModel.apparent).
+func barrel_offset_px(v: ViewModel, depth: float) -> Vector2:
+	var mid: String = v.model_id
+	var m := v.model.transform * WeaponModels.anchor(mid, "muzzle")
+	var d := v.model.transform.basis * Vector3(0, 0, -1)
+	var t := (-depth - m.z) / d.z
+	var pt := v.to_global(ViewModel.apparent(m + d * t))
+	return p.camera.unproject_position(pt) - p.get_viewport().get_visible_rect().size * 0.5
 
 
 func equip(id: String) -> bool:
@@ -48,6 +63,14 @@ func run() -> void:
 		var v := p.weapons.view
 		at.check(v.hands != null and v.hands.hand_r != null and v.hands.hand_l != null, "%s : mains construites" % id)
 		await seconds(0.3)
+		# Hanche : l'axe du canon à 10 m de l'œil, tel qu'on le voit (champ de
+		# l'arme) ; pistolets : sur le réticule à quelques px près.
+		var off := barrel_offset_px(v, ViewModel.PISTOL_HIP_CONVERGE)
+		var mid0: String = WeaponDB.stats(id).model
+		if ViewHands.is_pistol_hold(mid0):
+			at.check(off.length() <= HIP_TOL_PX, "%s : canon sur le réticule à 10 m à la hanche (écart %.1f px)" % [id, off.length()])
+		else:
+			print("[hands_look] %s : axe du canon à 10 m, écart au réticule à la hanche (%.0f ; %.0f) px" % [id, off.x, off.y])
 		await at.screenshot("hip_" + id)
 		if OS.get_environment("HL_DEBUG") != "":
 			# Mise au point : sans la zone d'équipe, puis sans les avant-bras.

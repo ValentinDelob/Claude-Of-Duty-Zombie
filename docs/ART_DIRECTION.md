@@ -447,7 +447,8 @@ et exporte.
   `forearm_pistol` / `forearm_pistol_l`, avant-bras DROITS de 3 × 3 cubes
   (jamais en escalier : pièces rigides posées comme les autres) vers le bas
   et l'arrière (`ViewHands.PISTOL_ARM_R` / `_L`) ; cran et guidon dégagés
-  au-dessus des mains en visée. Fusils et mitraillettes gardent leurs
+  au-dessus des mains en visée ; à la hanche, l'axe du canon passe par le
+  réticule à 10 m (`ViewModel.hip_rot`). Fusils et mitraillettes gardent leurs
   poings et avant-bras. Vus de l'œil, les gants restent
   SOMBRES comme sur la planche : talon de la paume et haut de la manchette
   en cuir sombre (le cuir clair n'est que sur les faces qui serrent la

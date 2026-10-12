@@ -390,8 +390,40 @@ static func bend(p: Vector3, b: Vector3) -> Vector3:
 ## animation) pour l'avancement de visée lissé `ak` : ce que dessine update().
 static func rest_transform(mid: String, ak: float) -> Transform3D:
 	var base := rest_pose(mid, ak)
-	var rot := Vector3(float(base[1]), 0.0, 0.0) + (HIP_ROT + WeaponModels.anchor(mid, "hold_rot")) * hip_rot_k(mid, ak)
+	var rot := Vector3(float(base[1]), 0.0, 0.0) + hip_rot(mid) * hip_rot_k(mid, ak)
 	return Transform3D(Basis.from_euler(rot), base[0])
+
+
+## Pistolet à la hanche (ViewHands.is_pistol_hold) : l'axe du canon converge
+## sur le réticule (centre de l'écran) à cette distance (m), comme une tenue
+## de hanche classique.
+const PISTOL_HIP_CONVERGE := 10.0
+
+static var _hip_rot_cache: Dictionary = {}
+
+
+## Rotation de hanche (Euler, rad) du modèle `mid` : HIP_ROT + « hold_rot »
+## ; pistolets et revolvers : tangage et lacet CALCULÉS pour que l'axe du
+## canon (ligne de la bouche, -Z du modèle) passe par le centre de l'écran à
+## PISTOL_HIP_CONVERGE m (le roulis de « hold_rot » est gardé).
+static func hip_rot(mid: String) -> Vector3:
+	if _hip_rot_cache.has(mid):
+		return _hip_rot_cache[mid]
+	var rot := HIP_ROT + WeaponModels.anchor(mid, "hold_rot")
+	if ViewHands.is_pistol_hold(mid) and not WeaponModels.info(mid, "no_sights", false):
+		var pos := HIP_POS + WeaponModels.anchor(mid, "hold")
+		var muzzle := WeaponModels.anchor(mid, "muzzle")
+		var target := Vector3(0, 0, -PISTOL_HIP_CONVERGE)
+		# Quelques itérations : la bouche bouge avec la rotation.
+		for i in 6:
+			var m := pos + Basis.from_euler(rot) * muzzle
+			var d := (target - m).normalized()
+			# Basis.from_euler (YXZ) : -Z devient (-cos x sin y, sin x, -cos x cos y).
+			rot.x = asin(clampf(d.y, -1.0, 1.0))
+			rot.y = atan2(-d.x, -d.z)
+	if not ThreadGuard.worker():
+		_hip_rot_cache[mid] = rot
+	return rot
 
 
 ## Tir : recul du modèle (recul + montée du canon, ressorts), culasse qui
@@ -588,7 +620,7 @@ func update(delta: float, p: Player) -> void:
 	pos += Vector3(_sway.x, _sway.y, 0.0) * (1.0 - ak * 0.7)
 	pos.z += _kick * _kick_back * (1.0 - ak * 0.4)
 	var rot := Vector3(float(base[1]) + _kick_rot * _kick_climb * (1.0 - ak * 0.55), 0.0, _kick_roll * (1.0 - ak * 0.5))
-	rot += (HIP_ROT + WeaponModels.anchor(model_id, "hold_rot")) * hip_rot_k(model_id, ak) * (1.0 if shoulder else 1.0 - _sprint)
+	rot += hip_rot(model_id) * hip_rot_k(model_id, ak) * (1.0 if shoulder else 1.0 - _sprint)
 	rot += (SPRINT_SHOULDER_ROT if shoulder else SPRINT_ROT) * _sprint
 	rot += Vector3(sin(_bob * 2.0) * 0.03, cos(_bob) * 0.05, sin(_bob) * 0.06) * _sprint
 	rot.z += -_sway.x * 1.5 * (1.0 - ak)
