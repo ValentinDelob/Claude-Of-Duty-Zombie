@@ -544,13 +544,15 @@ static func dist_to_boxes(p: Vector3, boxes: Array) -> float:
 
 
 ## Sommets (repère du modèle) des maillages sous `n`.
-func _node_verts(n: Node3D, xf: Transform3D, out: PackedVector3Array) -> void:
+## `skip_team` : sans la zone d'équipe (bracelet du gant, au poignet : il ne
+## touche pas l'arme).
+func _node_verts(n: Node3D, xf: Transform3D, out: PackedVector3Array, skip_team := false) -> void:
 	var x := xf * n.transform
-	if n is MeshInstance3D:
+	if n is MeshInstance3D and not (skip_team and n.name == "team"):
 		out.append_array(x * _mesh_verts(n))
 	for c in n.get_children():
 		if c is Node3D:
-			_node_verts(c, x, out)
+			_node_verts(c, x, out, skip_team)
 
 
 ## Part des sommets de `verts` à moins de `tol` m d'une des boîtes.
@@ -565,10 +567,12 @@ static func contact_ratio(verts: PackedVector3Array, boxes: Array, tol: float) -
 	return float(near) / maxf(n, 1)
 
 
-## Contact d'une main (m) : sommets à moins d'une diagonale de cube de
-## 2,5 cm d'une pièce de l'arme (mains et armes en cubes : le coin extérieur
-## d'un cube posé contre la poignée en est à 2,5 × √2 cm).
-const HAND_CONTACT := 0.037
+## Contact d'une main (m) : sommets (bracelet du gant exclu) à moins de
+## 3,2 cm d'une pièce de l'arme. Mains en cubes de 1,25 cm (taille réelle) :
+## le dos de la main a 2 cubes d'épaisseur et le creux du poing fait 3,75 cm ;
+## autour d'une poignée de 2,5 cm d'une arme pas encore refaite, sa face
+## extérieure en est à 0,625 + 2,5 ≈ 3,1 cm.
+const HAND_CONTACT := 0.032
 
 
 func test_hands_hold_the_weapon() -> void:
@@ -579,9 +583,9 @@ func test_hands_hold_the_weapon() -> void:
 		var h := _vm.hands
 		# Main (poing ou berceau, sans l'avant-bras) de chaque côté.
 		var right := PackedVector3Array()
-		_node_verts(h.hand_r.get_child(0), h.transform * h.hand_r.transform, right)
+		_node_verts(h.hand_r.get_child(0), h.transform * h.hand_r.transform, right, true)
 		var left := PackedVector3Array()
-		_node_verts(h.hand_l.get_child(0), h.transform * h.hand_l.transform, left)
+		_node_verts(h.hand_l.get_child(0), h.transform * h.hand_l.transform, left, true)
 		var rr := contact_ratio(right, boxes, HAND_CONTACT)
 		# Main gauche sur un pistolet : sur la main droite (sa boîte englobante).
 		var lboxes := boxes.duplicate()

@@ -74,3 +74,15 @@ Scripts de rendu : `tools/blender/hub_renders/` (armes, ennemis, joueur),
 | `InventaireJeu.dc.html` | Inventaire de partie (touche I) : EN MAIN (3, touches 1-2-3), SAC À DOS (4), PIÈCES TROUVÉES, fiche avec comparaison à l'arme en main (+ vert / − rouge), recyclage (ferraille), « LA PARTIE CONTINUE » ; fond = la partie, assombrie |
 | `Evacuation.dc.html` | Vote d'évacuation : cadre compact à gauche, ÉVACUATION + temps + barre, une ligne par joueur avec son choix en face (CONTINUER jaune, ÉVACUER turquoise, EN ATTENTE gris = pas encore voté, non sélectionnable), deux choix F1 CONTINUER / F2 ÉVACUER (manette : croix gauche / droite), vote depuis n'importe où ; repère « ÉVACUATION · N m » au-dessus de la porte quand on a voté ÉVACUER |
 | `Station.dc.html` | Station de construction (validée le 2026-10-12) : en-tête titre + ferraille (sans bandeau « partie continue » ni bande d'état de construction), rail des niveaux comme l'Arsenal (5 colonnes, même niveau empilé, flèches ‹ ›), cartes avec prix en ferraille (rouge si insuffisant) et durée en manches, halo animé de la couleur de rareté derrière l'arme (aucun pour les communes ; rayons tournants en plus pour légendaire), fiche (stats en icônes, pièces, prix, manche où l'arme sera prête, CONSTRUIRE, « Il te restera… » ou raison du refus), bande MUNITIONS (R · RECHARGER), Échap FERMER ; le recyclage n'est plus à la station (inventaire, I) |
+
+## Ajouts sans maquette (dans le style ci-dessus)
+- **Fiche complète d'une arme** (2026-10-12, `Hub2WeaponDetails`) : sous les six
+  statistiques de l'ARSENAL, de l'inventaire de partie et de la station de
+  construction, titre « DÉTAILS ▾ » /
+  « MASQUER ▴ » (style des titres de section « PIÈCES · n / m »), puis les autres
+  statistiques dans la même grille 2 colonnes, libellé / valeur / modificateur
+  des six sans le carré d'icône (tir à la tête, mode de tir, recul, mise en joue,
+  réserve, pénétration, plombs, zone ; corps à corps : énergie, coups par
+  seconde, fente, cibles ; mobilité) et « Réf. … » (Barlow 13 px) si l'arme a une
+  référence réelle. D / clic du stick droit / clic sur le titre ; état retenu
+  pour la session ; la fiche défile si elle ne tient pas.

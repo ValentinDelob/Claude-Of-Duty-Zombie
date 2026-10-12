@@ -41,6 +41,46 @@ static func prompt_has(panel: StationPanel, t: String) -> bool:
 	return false
 
 
+## Fiche complète (DÉTAILS) de la fiche du MR-40 choisi : fermée au départ,
+## D l'ouvre (valeurs de l'arme construite, pièce de réserve comprise,
+## « Réf. MP40 »), R3 la ferme ; ni construction, ni recharge, ni filtre
+## déclenchés ; invite DÉTAILS / MASQUER.
+func _check_details(panel: StationPanel) -> void:
+	var d := panel.details
+	at.check(d != null and d.visible and not d.open and not d.body.visible, "fiche : DÉTAILS repliée")
+	at.check(prompt_has(panel, Lang.t("DÉTAILS", "DETAILS")), "invite DÉTAILS : %s" % " ".join(panel.prompts.describe()))
+	var points := pd.points
+	var f := panel.filter
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_D
+	key.keycode = KEY_D
+	key.pressed = true
+	Input.parse_input_event(key)
+	await frames(2)
+	var up := key.duplicate()
+	up.pressed = false
+	Input.parse_input_event(up)
+	await frames(2)
+	at.check(d.open and d.body.visible, "D : fiche complète ouverte")
+	var keys: Array = d.lines.map(func(l): return l.key)
+	at.check(keys == ["head_mult", "fire_mode", "recoil", "ads_time", "reserve", "penetration", "move_mult", "ref"],
+			"lignes du MR-40 : %s" % [keys])
+	var res: Array = d.lines.filter(func(l): return l.key == "reserve")
+	at.check(not res.is_empty() and String(res[0].value) == "288" and String(res[0].mod) == "",
+			"réserve de l'arme construite (192 + 50 %%) : %s" % [res])
+	at.check(d.note.visible and d.note.text == Lang.t("Réf. MP40", "Ref. MP40"), "référence réelle : %s" % d.note.text)
+	at.check(prompt_has(panel, Lang.t("MASQUER", "HIDE")), "invite MASQUER : %s" % " ".join(panel.prompts.describe()))
+	at.check(pd.points == points and st.builds.is_empty() and panel.filter == f and panel.visible,
+			"D : ni construction, ni recharge, ni filtre, panneau ouvert")
+	var r3 := InputEventJoypadButton.new()
+	r3.button_index = JOY_BUTTON_RIGHT_STICK
+	r3.pressed = true
+	Input.parse_input_event(r3)
+	await frames(2)
+	at.check(not d.open and not d.body.visible, "R3 : fiche complète repliée")
+	at.check(not Hub2WeaponDetails.is_open_for(StationPanel.DETAILS_SCREEN), "état retenu : fermée")
+
+
 func run() -> void:
 	timeout_sec = 120
 	# Profil : niveau 5 ; arsenal : MP40 niveau 3 rare avec une pièce, M14 niveau 9.
@@ -96,6 +136,7 @@ func run() -> void:
 	at.check(mp_card != null and String(mp_card.data.price) == Hub2Style.num(price) and mp_card.data.price_bad,
 			"prix du MP40 affiché, rouge sans ferraille : %s" % mp_card.data.price)
 	at.check(panel.note_label.text == Lang.t("IL MANQUE %s", "%s SHORT") % Hub2Style.num(price), "raison : %s" % panel.note_label.text)
+	await _check_details(panel)
 	await at.screenshot("panel")
 
 	# 2. Sans ferraille : refusé. Au-dessus du niveau : refusé par le serveur.

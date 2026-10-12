@@ -1,7 +1,9 @@
 class_name WeaponModels
 extends RefCounted
 ## Modèles CUBIQUES des armes et objets tenus (cubes de 2,5 cm, GAME_CONCEPT
-## §4.19), construits sous Blender par tools/blender/weapons/weapons_voxel.py :
+## §4.19 ; armes FINES refaites d'après une arme réelle : cubes de 1,25 cm,
+## tools/blender/weapons/weapons_fine.py, CUBE_FINE), construits sous Blender
+## par tools/blender/weapons/weapons_voxel.py :
 ##   * assets/models/weapons/voxel/<modèle>.glb : un nœud par PIÈCE MOBILE
 ##     « wpn__<modèle>__<groupe> » ("body" : carcasse ; "mag" chargeur,
 ##     "slide" culasse / glissière / verrou / levier d'armement, "pump" pompe,
@@ -22,7 +24,9 @@ extends RefCounted
 ## ses deux colonnes : repère du poing de ViewHands), "support" (main
 ## d'appui : dessous du garde-main, haut de la poignée avant...), "eject",
 ## pivots des pièces mobiles "pivot_<groupe>", "mag_dir" (sortie du
-## chargeur), "hold" / "hold_rot" (tenue à la hanche).
+## chargeur), "hold" / "hold_rot" (tenue à la hanche ; armes à feu :
+## seul le roulis de "hold_rot" sert, tangage et lacet sont
+## calculés pour viser le réticule, ViewModel.hip_rot).
 ##
 ## Les maillages des .glb sont lus une fois (fil principal), puis découpés
 ## pour la joue de visée (vue FPS) et partagés par toutes les instances.
@@ -31,6 +35,11 @@ const DIR := "res://assets/models/weapons/voxel/"
 const SPEC_PATH := DIR + "weapons_voxel.json"
 ## Côté d'un cube des objets tenus (m).
 const CUBE := 0.025
+## Côté d'un cube des armes FINES (refonte du 2026-10-12 : armes refaites
+## d'après une arme réelle, tools/blender/weapons/weapons_fine.py ; exception
+## validée à la règle des deux échelles, GAME_CONCEPT §4.19). Lu dans l'info
+## « cube » du modèle (cube()). Les mains restent en cubes de CUBE.
+const CUBE_FINE := 0.0125
 
 ## Matières des modèles cubiques : [rugosité, métal]. La couleur vient de
 ## la face (COLOR_0) ; « glow » : faces lumineuses (alpha 0).
@@ -58,7 +67,7 @@ const SPECS := {
 	"m1911": "pistol", "cz75": "pistol", "python": "revolver",
 	"mp40": "smg", "mp5k": "smg", "pm63": "smg", "mpl": "smg", "spectre": "smg", "ak74u": "smg",
 	"m14": "rifle", "m16": "rifle", "fnfal": "rifle", "g11": "rifle", "galil": "rifle", "famas": "rifle",
-	"commando": "rifle", "aug": "rifle",
+	"commando": "rifle", "aug": "rifle", "ak47": "rifle",
 	"rpk": "lmg", "hk21": "lmg",
 	"olympia": "shotgun", "stakeout": "shotgun", "spas12": "shotgun", "hs10": "shotgun",
 	"l96a1": "sniper", "dragunov": "sniper",
@@ -411,6 +420,19 @@ static func anchor(model_id: String, point: String) -> Vector3:
 ## Donnée scalaire d'un modèle (angle de la poignée...).
 static func info(model_id: String, key: String, default: Variant = 0.0) -> Variant:
 	return spec(model_id).get("info", {}).get(key, default)
+
+
+## Côté d'un cube du modèle (m) : info « cube » des armes fines (CUBE_FINE),
+## CUBE sinon (modèle inconnu compris).
+static func cube(model_id: String) -> float:
+	if not _data().has(model_id):
+		return CUBE
+	return float(info(model_id, "cube", CUBE))
+
+
+## Arme fine (cubes de CUBE_FINE, weapons_fine.py) ?
+static func is_fine(model_id: String) -> bool:
+	return is_equal_approx(cube(model_id), CUBE_FINE)
 
 
 ## Triangles d'un modèle (budget, docs/WEAPONS.md).

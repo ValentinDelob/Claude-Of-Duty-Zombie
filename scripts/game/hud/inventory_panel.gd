@@ -10,9 +10,12 @@ extends Control
 ## SAC À DOS (4 cases, NEUF sur une arme ramassée pas encore vue), PIÈCES
 ## TROUVÉES (pièces de la partie), fiche de 360 px à droite (rareté ·
 ## famille, nom, NIV., « Comparé à X (en main) » pour une arme du sac, six
-## statistiques comme l'ARSENAL du hub avec l'écart à l'arme comparée, pièces
+## statistiques comme l'ARSENAL du hub avec l'écart à l'arme comparée, fiche
+## complète repliable « DÉTAILS ▾ » (Hub2WeaponDetails, même écart ; état
+## retenu pour la session ; la fiche défile, aussi au stick droit), pièces
 ## n / m, valeur de recyclage), barre d'invites (A ÉQUIPER / ÉCHANGER,
-## X RECYCLER, Y PIÈCES, I FERMER ; touches du périphérique utilisé).
+## X RECYCLER, Y PIÈCES, D / R3 DÉTAILS, I FERMER ; touches du périphérique
+## utilisé).
 ##
 ## La fiche montre la case qui a le focus (clavier, manette, clic), sinon la
 ## case choisie, sinon l'arme tenue. Choisir une case d'une rangée puis une
@@ -38,6 +41,8 @@ const NOTICE_SEC := 2.5
 ## Largeur d'une case du sac (px de la maquette) sous laquelle le sac passe
 ## sur deux colonnes (194 px à 100 %).
 const BAG_MIN_SLOT_W := 170.0
+## Écran de la fiche complète (état ouvert / fermé retenu pour la session).
+const DETAILS_SCREEN := "inventory"
 
 var game: Game
 var hand_buttons: Array[InventorySlot] = []
@@ -71,6 +76,9 @@ var _left_scroll: ScrollContainer
 var aside_box: Hub2Box
 var _detail_head: InventoryDraw.DetailHead
 var _stats: Array[Hub2ArsenalStat] = []
+## Fiche complète repliable (DÉTAILS) sous les six statistiques.
+var details: Hub2WeaponDetails
+var _aside_scroll: ScrollContainer
 var _parts_title: Hub2Text
 var _part_rows: VBoxContainer
 var _recycle_box: Hub2Box
@@ -166,6 +174,7 @@ func _build() -> void:
 	av.add_theme_constant_override("separation", 0)
 	aside.add_child(av)
 	var asc := Hub2ItemsUi.scroller()
+	_aside_scroll = asc
 	asc.follow_focus = false
 	asc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	av.add_child(asc)
@@ -177,16 +186,24 @@ func _build() -> void:
 	inner.add_child(_detail_head)
 	var stats_box := _section_box()
 	inner.add_child(stats_box)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", int(Hub2Style.px(12)))
+	stats_box.add_child(sv)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", int(Hub2Style.px(14)))
 	grid.add_theme_constant_override("v_separation", int(Hub2Style.px(12)))
-	stats_box.add_child(grid)
+	sv.add_child(grid)
 	for i in Hub2ArsenalView.STATS.size():
 		var st := Hub2ArsenalStat.new()
 		st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(st)
 		_stats.append(st)
+	# Fiche complète repliable (DÉTAILS ▾ : D / R3, clic), même grille.
+	details = Hub2WeaponDetails.new()
+	details.setup(DETAILS_SCREEN, 14, 12)
+	details.toggled.connect(func(_o): if visible: refresh())
+	sv.add_child(details)
 	var parts_box := _section_box()
 	inner.add_child(parts_box)
 	var pv := VBoxContainer.new()
@@ -596,6 +613,8 @@ func _on_prompt(id: String) -> void:
 			recycle_selected()
 		Hub2Input.FILTER:
 			toggle_parts_focus()
+		Hub2Input.DETAILS:
+			toggle_details()
 		"close":
 			close()
 
@@ -607,8 +626,8 @@ func _on_recycle_click(event: InputEvent) -> void:
 		accept_event()
 
 
-## X / Suppr : recycler ; Y / Tab : pièces (la touche d'inventaire, elle,
-## est lue par Hud._input).
+## X / Suppr : recycler ; Y / Tab : pièces ; D / R3 : fiche complète (la
+## touche d'inventaire, elle, est lue par Hud._input).
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
@@ -619,10 +638,26 @@ func _input(event: InputEvent) -> void:
 	elif (jb and jb.pressed and jb.button_index == JOY_BUTTON_Y) or Hub2Input.is_key(event, KEY_TAB):
 		toggle_parts_focus()
 		get_viewport().set_input_as_handled()
+	elif Hub2Input.is_details(event) and not event.is_action_pressed("inventory"):
+		# D / R3 : fiche complète (sauf si le joueur y a mis l'inventaire,
+		# qui doit pouvoir fermer le panneau : Hud._input).
+		toggle_details()
+		get_viewport().set_input_as_handled()
+
+
+## DÉTAILS ▾ / MASQUER ▴ de la fiche (D, R3, invite, clic sur le titre).
+func toggle_details() -> void:
+	if details and details.visible:
+		details.toggle()
 
 
 func _process(delta: float) -> void:
-	if not visible or _notice == "":
+	if not visible:
+		return
+	# Fiche plus haute que le panneau (fiche complète ouverte) : elle défile
+	# au stick droit, comme à la molette (le joueur ne vise plus).
+	Hub2ItemsUi.pad_scroll(_aside_scroll, delta)
+	if _notice == "":
 		return
 	_notice_t -= delta
 	if _notice_t <= 0.0:
@@ -762,6 +797,20 @@ static func compare_lines(w: Dictionary, vs: Dictionary) -> Array:
 	return out
 
 
+## Fiche complète (DÉTAILS) de `w`, même règle que compare_lines : valeurs
+## effectives (niveau et pièces compris), écart à `vs` (arme en main
+## comparée, {} : aucun) pour chaque ligne chiffrée que les deux armes ont ;
+## recul et mise en joue : plus petit = mieux. Pure (tests).
+static func compare_detail_lines(w: Dictionary, vs: Dictionary) -> Array:
+	var id := String(w.get("id", ""))
+	if w.is_empty() or not WeaponDB.exists(id):
+		return []
+	var sw := GameWeapon.stats(w)
+	var vid := String(vs.get("id", ""))
+	var sv: Dictionary = GameWeapon.stats(vs) if not vs.is_empty() and WeaponDB.exists(vid) else {}
+	return Hub2ArsenalView.detail_lines_of(id, sw, sw, sv, vid)
+
+
 func _refresh_detail(pd: PlayerData, insp: Array, cmp: int) -> void:
 	var w: Dictionary = BuildRules.weapon_at(pd, insp[0], insp[1]) if not insp.is_empty() else {}
 	var vs: Dictionary = pd.weapons[cmp] if cmp >= 0 and cmp < pd.weapons.size() else {}
@@ -769,6 +818,7 @@ func _refresh_detail(pd: PlayerData, insp: Array, cmp: int) -> void:
 		_detail_head.set_data(Hub2Style.text_a(0.3), "", "—", "", Hub2Style.text_a(0.7), [])
 		for st in _stats:
 			st.line = {}
+		details.set_lines([])
 		_parts_title.text = ""
 		_set_part_rows([])
 		recycle_label.text = ""
@@ -786,6 +836,7 @@ func _refresh_detail(pd: PlayerData, insp: Array, cmp: int) -> void:
 	var lines := compare_lines(w, vs)
 	for i in _stats.size():
 		_stats[i].line = lines[i] if i < lines.size() else {}
+	details.set_lines(compare_detail_lines(w, vs))
 	var ps: Array = w.get("parts", [])
 	var n: int = OwnedWeapon.SLOTS[clampi(r, 0, OwnedWeapon.SLOTS.size() - 1)]
 	_parts_title.text = Lang.t("PIÈCES · %d / %d", "PARTS · %d / %d") % [mini(ps.size(), n), n]
@@ -835,10 +886,13 @@ func _refresh_prompts(pd: PlayerData, insp: Array) -> void:
 	var on_part := f is InventorySlot and part_buttons.has(f)
 	var in_bag: bool = not insp.is_empty() and insp[0] == ROW_BAG
 	var a := Lang.t("Monter", "Mount") if on_part else (Lang.t("Équiper", "Equip") if in_bag else Lang.t("Échanger", "Swap"))
-	prompts.set_items([[Hub2Input.ACCEPT, a], [Hub2Input.SECONDARY, Lang.t("Recycler", "Recycle")],
-			[Hub2Input.FILTER, Lang.t("Pièces", "Parts")],
-			["close", Lang.t("Fermer", "Close"), close_keys(), close_pads()]])
 	var w: Dictionary = BuildRules.weapon_at(pd, insp[0], insp[1]) if not insp.is_empty() else {}
+	var items := [[Hub2Input.ACCEPT, a], [Hub2Input.SECONDARY, Lang.t("Recycler", "Recycle")],
+			[Hub2Input.FILTER, Lang.t("Pièces", "Parts")]]
+	if details.visible:
+		items.append([Hub2Input.DETAILS, Hub2WeaponDetails.prompt_text(details.open)])
+	items.append(["close", Lang.t("Fermer", "Close"), close_keys(), close_pads()])
+	prompts.set_items(items)
 	var help := ""
 	if _notice != "":
 		help = _notice

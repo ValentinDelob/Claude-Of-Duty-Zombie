@@ -135,6 +135,15 @@ func run() -> void:
 	at.check(fit, "130 % : textes des cartes sans débordement")
 	await seconds(0.3)
 	await at.screenshot("fr_130")
+	# Fiche complète (DÉTAILS) ouverte à 130 % : la fiche défile, le bas
+	# (prix, CONSTRUIRE) reste dans l'écran.
+	panel.toggle_details()
+	await frames(4)
+	at.check(panel.details.open, "DÉTAILS ouverte")
+	at.check(vr.encloses(panel.build_button.get_global_rect()), "130 %, DÉTAILS ouverte : CONSTRUIRE dans l'écran")
+	await seconds(0.3)
+	await at.screenshot("fr_130_details")
+	panel.toggle_details()
 	panel.close()
 	Settings.menu_ui_scale = scale0
 	Settings.language = lang0

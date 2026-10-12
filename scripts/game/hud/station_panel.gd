@@ -16,7 +16,9 @@ extends Control
 ## (rouge si trop cher ; « NIV. N REQUIS » et carte à 50 % si le niveau
 ## manque) et durée. Fiche de 360 px : rareté · famille, nom, NIV., rendu,
 ## six statistiques (celles de l'arme construite : niveau et pièces
-## compris), PIÈCES n / m, prix, manche où l'arme sera prête, CONSTRUIRE
+## compris), fiche complète repliable « DÉTAILS ▾ » (Hub2WeaponDetails, mêmes
+## valeurs ; D / R3 / clic, état retenu pour la session ; la fiche défile,
+## aussi au stick droit), PIÈCES n / m, prix, manche où l'arme sera prête, CONSTRUIRE
 ## (gris si impossible) et « Il te restera X ferraille » ou la raison du
 ## refus (rouge). Bande MUNITIONS : arme en main, munitions, prix de la
 ## recharge, bouton « R · RECHARGER » (action « reload » réelle). Barre
@@ -44,6 +46,8 @@ const CARD_GAP := 8.0
 ## Filtres : niveau atteint / toutes.
 const BUILDABLE := "buildable"
 const ALL := "all"
+## Écran de la fiche complète (état ouvert / fermé retenu pour la session).
+const DETAILS_SCREEN := "station"
 
 var game: Game
 var station: BuildStation
@@ -76,6 +80,8 @@ var _refill_text: Hub2Text
 var _detail_head: InventoryDraw.DetailHead
 var _render: StationDraw.FxImage
 var _stats: Array[Hub2ArsenalStat] = []
+## Fiche complète repliable (DÉTAILS) sous les six statistiques.
+var details: Hub2WeaponDetails
 var _parts_title: Hub2Text
 var _parts_text: Hub2Text
 var _price_label: Hub2Text
@@ -289,11 +295,15 @@ func _build_aside() -> Control:
 	rm.add_child(_render)
 	var stats_box := _section_box(12, 18, 12, 18)
 	inner.add_child(stats_box)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", int(Hub2Style.px(10)))
+	sv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats_box.add_child(sv)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", int(Hub2Style.px(14)))
 	grid.add_theme_constant_override("v_separation", int(Hub2Style.px(10)))
-	stats_box.add_child(grid)
+	sv.add_child(grid)
 	for i in Hub2ArsenalView.STATS.size():
 		var st := Hub2ArsenalStat.new()
 		st.square = 28.0
@@ -302,6 +312,11 @@ func _build_aside() -> Control:
 		st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(st)
 		_stats.append(st)
+	# Fiche complète repliable (DÉTAILS ▾ : D / R3, clic), même grille.
+	details = Hub2WeaponDetails.new()
+	details.setup(DETAILS_SCREEN, 14, 10)
+	details.toggled.connect(func(_o): if visible: _refresh_prompts())
+	sv.add_child(details)
 	var parts_box := _section_box(10, 18, 10, 18)
 	inner.add_child(parts_box)
 	var pv := VBoxContainer.new()
@@ -725,12 +740,16 @@ func _on_prompt(id: String) -> void:
 			press_build()
 		"reload":
 			press_refill()
+		Hub2Input.DETAILS:
+			toggle_details()
 		"close":
 			close()
 
 
 ## R (action « reload ») : recharger ; Tab / Y : filtre ; [F] (« interact ») :
-## récupérer l'arme prête. Échap / B / [I] : Hud.
+## récupérer l'arme prête ; D / R3 : fiche complète. Échap / B / [I] : Hud.
+## Les actions réelles passent d'abord : un joueur qui a mis « reload » ou
+## « interact » sur D garde son action (la fiche reste au clic et à R3).
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
@@ -744,6 +763,24 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact"):
 		collect()
 		get_viewport().set_input_as_handled()
+	elif Hub2Input.is_details(event) and not event.is_action_pressed("inventory") and not event.is_action_pressed("pause"):
+		# D / R3 : fiche complète (sauf si le joueur y a mis l'inventaire ou
+		# la pause, qui doivent pouvoir fermer le panneau : Hud._input).
+		toggle_details()
+		get_viewport().set_input_as_handled()
+
+
+## DÉTAILS ▾ / MASQUER ▴ de la fiche (D, R3, invite, clic sur le titre).
+func toggle_details() -> void:
+	if details and details.visible:
+		details.toggle()
+
+
+## Fiche plus haute que le panneau (fiche complète ouverte, 130 %) : elle
+## défile au stick droit, comme à la molette (le joueur ne vise plus).
+func _process(delta: float) -> void:
+	if visible:
+		Hub2ItemsUi.pad_scroll(_aside_scroll, delta)
 
 
 # --------------------------------------------------------------------------
@@ -831,6 +868,7 @@ func _refresh_sheet() -> void:
 		_render.set_data(null, 0)
 		for st in _stats:
 			st.line = {}
+		details.set_lines([])
 		_parts_title.text = ""
 		_parts_text.text = Lang.t("Aucune arme ne correspond au filtre.", "No weapon matches the filter.")
 		_price_label.text = ""
@@ -848,6 +886,9 @@ func _refresh_sheet() -> void:
 	var lines := InventoryPanel.compare_lines(w, {})
 	for i in _stats.size():
 		_stats[i].line = lines[i] if i < lines.size() else {}
+	# Fiche complète : valeurs de l'arme construite (niveau et pièces
+	# compris), comme les six, sans comparaison.
+	details.set_lines(InventoryPanel.compare_detail_lines(w, {}))
 	_parts_title.text = Lang.t("PIÈCES · %d / %d", "PARTS · %d / %d") % [mini(o.parts.size(), o.slot_count()), o.slot_count()]
 	var has_parts := not o.parts.is_empty()
 	_parts_text.text = Lang.t("Construite avec ses pièces de l’arsenal", "Built with its arsenal parts") if has_parts \
@@ -957,10 +998,13 @@ func _set_refill_look(on: bool) -> void:
 ## (touche réelle de « reload »), Échap / B FERMER ; aide : recycler dans
 ## l'inventaire (touche réelle de « inventory »).
 func _refresh_prompts() -> void:
-	prompts.set_items([["level", Lang.t("Niveau", "Level"), PackedStringArray(["◄ ►"]), []],
+	var items := [["level", Lang.t("Niveau", "Level"), PackedStringArray(["◄ ►"]), []],
 		["same", Lang.t("Même niveau", "Same level"), PackedStringArray(["▲ ▼"]), []],
 		[Hub2Input.ACCEPT, Lang.t("Construire", "Build")],
-		["reload", Lang.t("Recharger", "Refill"), PackedStringArray([Settings.action_label("reload")]), []],
-		["close", Lang.t("Fermer", "Close"), PackedStringArray([Settings.code_label(Settings.binding("pause")) if Settings.binding("pause") != "" else Lang.t("Échap", "Esc")]), [JOY_BUTTON_B]]])
+		["reload", Lang.t("Recharger", "Refill"), PackedStringArray([Settings.action_label("reload")]), []]]
+	if details and details.visible:
+		items.append([Hub2Input.DETAILS, Hub2WeaponDetails.prompt_text(details.open)])
+	items.append(["close", Lang.t("Fermer", "Close"), PackedStringArray([Settings.code_label(Settings.binding("pause")) if Settings.binding("pause") != "" else Lang.t("Échap", "Esc")]), [JOY_BUTTON_B]])
+	prompts.set_items(items)
 	prompts.help = Lang.t("Pour recycler une arme, ouvre l’inventaire (%s).", "To recycle a weapon, open the inventory (%s).") \
 			% Settings.action_label("inventory")

@@ -21,12 +21,16 @@ func run() -> void:
 	p.teleport_to(origin, -PI * 0.5)
 	at.check(pd.points == 0, "0 ferraille au départ (%d)" % pd.points)
 
+	# Pistolet de départ (M1912, 30 dégâts) : 4 touches au corps sur 150 PV,
+	# la 5e tue.
+	var hits := ceili(150.0 / float(WeaponDB.stats("m1911").damage)) - 1
+	at.check(hits == 4, "4 touches avant l'élimination (%d)" % hits)
 	var z := await H.dummy_zombie(self, origin + Vector3(6, 0, 0))
-	for i in 5:
+	for i in hits:
 		H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 		await H.shoot(self, p)
-	var expected := 5 * PointsRules.HIT
-	at.check(pd.points == expected, "5 touches sans élimination : +%d (%d)" % [expected, pd.points])
+	var expected := hits * PointsRules.HIT
+	at.check(pd.points == expected, "%d touches sans élimination : +%d (%d)" % [hits, expected, pd.points])
 	H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 	await H.shoot(self, p)
 	expected += PointsRules.KILL

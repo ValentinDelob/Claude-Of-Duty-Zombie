@@ -7,7 +7,7 @@ extends RefCounted
 ## exemplaire de l'arsenal (PlayerProfile.add_weapon).
 ##
 ## Armes de base : le pistolet de départ (WeaponDB.STARTING_WEAPON, la
-## PÉTOIRE) et la BATTE de baseball (WeaponDB.BASE_MELEE), arme de corps à
+## M1912) et la BATTE de baseball (WeaponDB.BASE_MELEE), arme de corps à
 ## corps qui prend un emplacement en main. Le couteau n'est plus une arme de
 ## base : il reste l'attaque rapide séparée de tous les joueurs (KnifeDB).
 

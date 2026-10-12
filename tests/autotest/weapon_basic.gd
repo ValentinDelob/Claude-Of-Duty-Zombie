@@ -20,7 +20,7 @@ func run() -> void:
 	var wc := p.weapons
 	var pd := game.session.local_data()
 	at.check(wc != null and wc.current().id == "m1911", "arme de départ : M1911")
-	at.check(pd.current_weapon().mag == 8 and pd.current_weapon().reserve == 80, "munitions serveur initiales 8/80")
+	at.check(pd.current_weapon().mag == 7 and pd.current_weapon().reserve == 70, "munitions serveur initiales 7/70 (M1912)")
 
 	# Face à un mur, à 4 m.
 	p.teleport_to(MapData.cell_to_world(Vector2i(5, 7), 0.05), PI * 0.5)  # regarde vers -X
@@ -31,8 +31,8 @@ func run() -> void:
 	game.combat.shot_validated.connect(func(_pid): validated[0] += 1)
 	for i in 3:
 		await shoot_once()
-	at.check(wc.current().mag == 5, "munitions prédites après 3 tirs (%d)" % wc.current().mag)
-	at.check(pd.current_weapon().mag == 5, "munitions serveur après 3 tirs (%d)" % pd.current_weapon().mag)
+	at.check(wc.current().mag == 4, "munitions prédites après 3 tirs (%d)" % wc.current().mag)
+	at.check(pd.current_weapon().mag == 4, "munitions serveur après 3 tirs (%d)" % pd.current_weapon().mag)
 	at.check(validated[0] == 3, "3 tirs validés par le serveur")
 	at.check(game.fx_root._hole_i != holes_before, "impacts posés sur le mur")
 	p.input.fire = true
@@ -42,19 +42,19 @@ func run() -> void:
 	await seconds(0.3)
 
 	# Vide le chargeur -> rechargement automatique.
-	for i in 6:
+	for i in 5:
 		await shoot_once()
 	at.check(wc.is_reloading(), "rechargement automatique quand le chargeur est vide")
-	await seconds(1.7)
-	at.check(wc.current().mag == 8 and wc.current().reserve == 72, "après rechargement (client) : %d/%d" % [wc.current().mag, wc.current().reserve])
-	at.check(pd.current_weapon().mag == 8 and pd.current_weapon().reserve == 72, "après rechargement (serveur) : %d/%d" % [pd.current_weapon().mag, pd.current_weapon().reserve])
+	await seconds(float(WeaponDB.stats("m1911").reload) + 0.1)
+	at.check(wc.current().mag == 7 and wc.current().reserve == 63, "après rechargement (client) : %d/%d" % [wc.current().mag, wc.current().reserve])
+	at.check(pd.current_weapon().mag == 7 and pd.current_weapon().reserve == 63, "après rechargement (serveur) : %d/%d" % [pd.current_weapon().mag, pd.current_weapon().reserve])
 
 	# Rechargement manuel partiel.
 	await shoot_once()
 	await shoot_once()
 	p.input.reload = true
-	await seconds(1.8)
-	at.check(pd.current_weapon().mag == 8 and pd.current_weapon().reserve == 70, "rechargement manuel (serveur) : %d/%d" % [pd.current_weapon().mag, pd.current_weapon().reserve])
+	await seconds(float(WeaponDB.stats("m1911").reload) + 0.2)
+	at.check(pd.current_weapon().mag == 7 and pd.current_weapon().reserve == 61, "rechargement manuel (serveur) : %d/%d" % [pd.current_weapon().mag, pd.current_weapon().reserve])
 
 	# Triche : 12 tirs envoyés d'un coup -> le serveur doit en refuser.
 	var rejected := [0]

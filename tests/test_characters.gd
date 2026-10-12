@@ -167,7 +167,8 @@ func test_baseball_view_hands() -> void:
 	var fore_l := ViewHands.piece_arrays("forearm_l")
 	assert_true((fore_l.cloth[0] as PackedVector3Array).size() > (fore.cloth[0] as PackedVector3Array).size(),
 		"bandage à l'avant-bras gauche")
-	# Avant-bras de 3 × 3 cubes (7,5 cm) au poignet.
+	# Avant-bras de 5 cubes de 1,25 cm (6,25 cm) de large au poignet (mains
+	# à la taille réelle, hands_fine.py).
 	var lo := INF
 	var hi := -INF
 	for mk in ["skin", "team"]:
@@ -175,7 +176,8 @@ func test_baseball_view_hands() -> void:
 			if v.z < -0.2:
 				lo = minf(lo, v.x)
 				hi = maxf(hi, v.x)
-	assert_near(hi - lo, 0.075, 0.002, "avant-bras de 3 cubes de large")
+	assert_near(hi - lo, 0.0625, 0.002, "avant-bras de 5 cubes fins de large")
+	assert_true(WeaponModels.is_fine(WeaponModels.HANDS), "mains en cubes de 1,25 cm")
 
 
 ## La zone d'équipe des mains prend la couleur du joueur (matériau par
@@ -192,7 +194,8 @@ func test_view_hands_team_color() -> void:
 		assert_eq(m.get_shader_parameter("team"), 1.0, "matériau d'équipe")
 		assert_eq(m.get_shader_parameter("team_color"), col, "couleur du joueur")
 		teams += 1
-	assert_true(teams >= 3, "bracelets et sous-maillots teintés (%d)" % teams)
+	# Pistolet (mains minces) : bracelets portés par les deux avant-bras droits.
+	assert_true(teams >= 2, "bracelets et sous-maillots teintés (%d)" % teams)
 	for mi: MeshInstance3D in h.find_children("leather", "MeshInstance3D", true, false):
 		assert_eq((mi.material_override as ShaderMaterial).get_shader_parameter("team"), 0.0, "gants non teintés")
 	assert_true(WeaponModels.team_material(col, true) == WeaponModels.team_material(col, true), "un matériau par couleur")

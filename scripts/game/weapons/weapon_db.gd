@@ -1,7 +1,9 @@
 class_name WeaponDB
 extends RefCounted
 ## Arsenal du jeu (GAME_CONCEPT §4.9, docs/WEAPONS.md) : armes à noms
-## originaux (les identifiants internes sont ceux de l'ancien arsenal) et
+## originaux, ou proches du vrai pour les armes refaites d'après une arme
+## réelle (refonte en cours, docs/weapons/<id>.md ; les identifiants internes
+## sont ceux de l'ancien arsenal) et
 ## batte de baseball. Données pures, lues par le client (prédiction, visuel)
 ## ET par le serveur (validation, dégâts) : une seule source de vérité.
 ##
@@ -91,8 +93,10 @@ const CLASSES := {
 ## de l'ancien arsenal : seuls les noms affichés sont originaux.
 const WEAPONS := {
 	# ------------------------------------------------------------ armes de base (BaseWeapons)
-	"m1911": {"name": "PÉTOIRE", "pap_name": "PÉTOIRE", "class": "pistol", "base_level": 1, "sound": "m1911_fire",
-		"damage": 25, "rpm": 400, "mag": 8, "reserve": 80, "reload": 1.6,
+	# M1912 : Colt M1911A1 réel, nom proche du vrai (fiche docs/weapons/m1911.md).
+	"m1911": {"name": "M1912", "pap_name": "M1912", "class": "pistol", "base_level": 1, "sound": "m1911_fire",
+		"damage": 30, "rpm": 360, "mag": 7, "reserve": 70, "reload": 1.7,
+		"spread_hip": 1.8, "bloom": 0.7, "recoil": 2.2, "recoil_side": 0.5, "recoil_recover": 0.75, "range": 22.0,
 		# Amélioré : balles explosives (façon lance-grenades de poing), 6 coups.
 		"pap": {"damage": 150, "mag": 6, "reserve": 50, "rpm": 450, "splash_radius": 2.4, "splash_damage": 900,
 			"self_damage": 25, "projectile_speed": 60.0, "sound": "launcher_fire", "tracer": "grenade", "sound_pitch": 1.25}},
@@ -117,14 +121,18 @@ const WEAPONS := {
 		"spread_hip": 3.5, "range": 15.0,
 		# Amélioré : une arme dans chaque main (chargeur doublé).
 		"pap": {"damage": 140, "mag": 40, "reserve": 200, "rpm": 1050, "penetration": 2}},
-	"mp40": {"name": "CRÉCELLE", "pap_name": "CRÉCELLE", "class": "smg", "base_level": 1, "sound": "mp40_fire",
-		"damage": 90, "rpm": 550, "mag": 32, "reserve": 192, "reload": 2.3,
-		"spread_hip": 2.6, "range": 20.0,
+	# MR-40 : MP40 réel (fiche docs/weapons/mp40.md).
+	"mp40": {"name": "MR-40", "pap_name": "MR-40", "class": "smg", "base_level": 1, "sound": "mp40_fire",
+		"damage": 90, "rpm": 540, "mag": 32, "reserve": 192, "reload": 2.4,
+		"spread_hip": 3.0, "bloom": 0.25, "recoil": 0.8, "recoil_side": 0.4, "recoil_recover": 0.6,
+		"range": 18.0, "ads_time": 0.18,
 		"pap": {"damage": 180, "mag": 64, "reserve": 192, "rpm": 600, "penetration": 2}},
-	"ak74u": {"name": "BRISE-OS", "pap_name": "BRISE-OS", "class": "smg", "base_level": 19, "sound": "ak74u_fire",
-		"damage": 100, "rpm": 780, "mag": 20, "reserve": 160, "reload": 2.2,
-		"spread_hip": 2.6, "range": 25.0, "penetration": 2, "recoil": 1.1,
-		"pap": {"damage": 180, "mag": 40, "reserve": 280, "penetration": 3}},
+	# KA-74U : AKS-74U réel (fiche docs/weapons/ak74u.md).
+	"ak74u": {"name": "KA-74U", "pap_name": "KA-74U", "class": "smg", "base_level": 19, "sound": "ak74u_fire",
+		"damage": 100, "rpm": 700, "mag": 30, "reserve": 180, "reload": 2.4,
+		"spread_hip": 2.8, "bloom": 0.35, "recoil": 1.3, "recoil_side": 0.55, "recoil_recover": 0.55,
+		"range": 28.0, "penetration": 2, "ads_time": 0.2,
+		"pap": {"damage": 180, "mag": 45, "reserve": 315, "penetration": 3}},
 	"m16": {"name": "TRIPLETTE", "pap_name": "TRIPLETTE", "class": "rifle", "base_level": 12,
 		"damage": 110, "rpm": 900, "auto": false, "burst": 3, "burst_delay": 0.22,
 		"mag": 30, "reserve": 120, "reload": 2.2, "spread_hip": 2.0, "range": 40.0,
@@ -145,9 +153,19 @@ const WEAPONS := {
 	"galil": {"name": "BOURRASQUE", "pap_name": "BOURRASQUE", "class": "rifle", "base_level": 24, "sound": "galil_fire",
 		"damage": 110, "rpm": 750, "mag": 35, "reserve": 315, "reload": 2.8,
 		"pap": {"damage": 220, "reserve": 490, "penetration": 3}},
-	"famas": {"name": "CIGALE", "pap_name": "CIGALE", "class": "rifle", "base_level": 26, "sound": "famas_fire",
-		"damage": 100, "rpm": 900, "mag": 30, "reserve": 150, "reload": 2.6,
-		"pap": {"damage": 200, "mag": 45, "reserve": 225, "penetration": 3}},
+	# FAMAX F1 : FAMAS F1 réel, bullpup (fiche docs/weapons/famas.md).
+	"famas": {"name": "FAMAX F1", "pap_name": "FAMAX F1", "class": "rifle", "base_level": 26, "sound": "famas_fire",
+		"damage": 100, "rpm": 950, "mag": 25, "reserve": 175, "reload": 2.8,
+		"spread_hip": 2.4, "bloom": 0.35, "recoil": 1.0, "recoil_side": 0.4, "recoil_recover": 0.6,
+		"range": 38.0, "penetration": 2, "ads_time": 0.22, "ads_zoom": 0.75,
+		"pap": {"damage": 200, "mag": 40, "reserve": 240, "penetration": 3}},
+	# KA-47 : AK-47 type 3 réel, arme nouvelle (fiche docs/weapons/ak47.md) ;
+	# son de la famille en attendant un son propre.
+	"ak47": {"name": "KA-47", "pap_name": "KA-47", "class": "rifle", "base_level": 23, "sound": "rifle_fire",
+		"damage": 140, "head_mult": 2.5, "rpm": 600, "mag": 30, "reserve": 210, "reload": 2.6,
+		"spread_hip": 2.8, "bloom": 0.4, "recoil": 1.6, "recoil_side": 0.6, "recoil_recover": 0.5,
+		"range": 40.0, "penetration": 3, "move_mult": 0.95, "ads_time": 0.24, "ads_zoom": 0.75,
+		"pap": {"damage": 280, "mag": 45, "reserve": 315, "penetration": 4}},
 	"commando": {"name": "ÉPERVIER", "pap_name": "ÉPERVIER", "class": "rifle", "base_level": 30,
 		"damage": 120, "rpm": 800, "mag": 30, "reserve": 270, "reload": 2.4,
 		"pap": {"damage": 240, "mag": 40, "reserve": 360, "penetration": 3}},
@@ -262,25 +280,27 @@ static func display_name(id: String, pap := false) -> String:
 	return localized(stats(id, pap).name)
 
 
-## Noms anglais des armes (noms originaux, aucun nom de fabricant ni de
+## Noms anglais des armes (noms originaux, ou proches du vrai pour les armes
+## refaites d'après une arme réelle, comme M1912 ; jamais le nom exact d'un
 ## modèle réel : docs/WEAPONS.md). Couteaux compris (KnifeDB). Vérifié par
 ## tests/test_lang.gd et tests/test_weapons.gd.
 const EN_NAMES := {
-	"PÉTOIRE": "PEASHOOTER",
+	"M1912": "M1912",
 	"GUÊPE": "WASP",
 	"COUPERET": "CLEAVER",
-	"CRÉCELLE": "RATTLE",
+	"MR-40": "MR-40",
 	"MOUCHERON": "GNAT",
 	"PUCE": "FLEA",
 	"AGRAFEUSE": "STAPLER",
 	"FEU FOLLET": "WILL-O'-WISP",
-	"BRISE-OS": "BONEBREAKER",
+	"KA-74U": "KA-74U",
 	"MÉTRONOME": "METRONOME",
 	"TRIPLETTE": "TRIPLET",
 	"MASSE": "MAUL",
 	"STROBOSCOPE": "STROBE",
+	"KA-47": "KA-47",
 	"BOURRASQUE": "GALE",
-	"CIGALE": "CICADA",
+	"FAMAX F1": "FAMAX F1",
 	"ÉPERVIER": "SPARROWHAWK",
 	"VIGIE": "LOOKOUT",
 	"TAMBOUR": "DRUMMER",
@@ -296,6 +316,25 @@ const EN_NAMES := {
 	"BATTE": "BAT",
 	"COUTEAU": "KNIFE",
 }
+
+## Référence réelle d'une arme refaite d'après un modèle existant (demande
+## du 2026-10-12) : montrée seulement dans la fiche DÉTAILS (« Réf. Colt
+## M1911A1 »), jamais comme nom de l'arme (nom affiché seulement proche du
+## vrai, voir EN_NAMES). Une arme n'y entre qu'une fois refaite ; absente :
+## pas de ligne.
+const REAL_REFS := {
+	"m1911": "Colt M1911A1",
+	"mp40": "MP40",
+	"ak74u": "AKS-74U",
+	"ak47": "AK-47 type 3",
+	"famas": "FAMAS F1",
+}
+
+
+## Référence réelle de l'arme `id` ("" : aucune).
+static func real_ref(id: String) -> String:
+	return String(REAL_REFS.get(id, ""))
+
 
 ## Familles d'armes (clé « class ») : [FR, EN].
 const FAMILIES := {

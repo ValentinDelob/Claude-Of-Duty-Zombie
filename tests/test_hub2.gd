@@ -403,7 +403,8 @@ func test_prompts_help_and_hint() -> void:
 	hub.set_hint("")
 	assert_eq(hub.prompts.help, hub.panels.lab.help(), "retour à l'aide de l'écran")
 	hub.open("arsenal")
-	assert_eq(Array(hub.prompts.describe()), ["A INSTALLER", "X RECYCLER", "Y FILTRER", "B RETOUR"], "invites de l'ARSENAL (maquette)")
+	assert_eq(Array(hub.prompts.describe()), ["A INSTALLER", "X RECYCLER", "Y FILTRER", "RS DÉTAILS", "B RETOUR"],
+			"invites de l'ARSENAL (maquette, plus la fiche complète)")
 
 
 func test_register_panel_and_badges() -> void:

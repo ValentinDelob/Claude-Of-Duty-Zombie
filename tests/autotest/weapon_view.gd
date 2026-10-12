@@ -9,7 +9,7 @@ extends AutotestScenario
 ## 4. culasse du pistolet qui recule au tir, pompe au réarmement ;
 ## 5. captures : hanche, rechargement (3 instants), sprint, changement d'arme.
 ## Variable d'environnement WV_ONLY (liste d'ids séparés par des virgules) :
-## ne passe en revue que ces armes (mise au point).
+## ne passe en revue que ces armes, sprint compris (mise au point).
 
 var H := AutotestHelpers
 var game: Game
@@ -154,7 +154,8 @@ func run() -> void:
 	# 5. Sprint et changement d'arme.
 	if not owns(parts() - 1):
 		return
-	for id in ["m1911", "ak74u", "m14"]:
+	# Sprint : quelques armes, ou celles de WV_ONLY (mise au point).
+	for id in (["m1911", "ak74u", "m14"] if only == "" else ids):
 		await equip(id)
 		# Vers +X : grand espace libre.
 		p.teleport_to(MapData.cell_to_world(Vector2i(2, 3), 0.05), -PI * 0.5)

@@ -12,7 +12,7 @@ extends RefCounted
 const BASE_RARITY := 0
 
 
-## Nom affiché d'une arme (« PÉTOIRE », « BATTE »).
+## Nom affiché d'une arme (« M1912 », « BATTE »).
 static func weapon_name(id: String) -> String:
 	return HubGear.weapon_name(id).to_upper()
 

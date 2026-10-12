@@ -257,6 +257,7 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
 | Retour (fermer une fiche ou une liste ; au niveau des onglets : menu du hub) | Échap, clic droit | B (Rond) |
 | Action secondaire (retirer, recycler, abandonner) | Suppr ou R | X (Carré) |
 | Filtre / tri | Tab | Y (Triangle) |
+| Fiche complète d'une arme (DÉTAILS ▾ / MASQUER ▴ : ARSENAL, inventaire de partie, station de construction) | D, clic sur le titre | clic du stick droit (RS / R3) |
 | Menu du hub | Échap (au niveau des onglets) | Start |
 | Défiler une liste longue | Molette | Stick droit |
 
@@ -841,7 +842,7 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
     pas les noms fictifs de la maquette (FRELON…) ni les identifiants
     internes (`mp5k`, gardés dans le profil et `assets/data/hub/*.json`) ;
     famille (`HubGear.CLASS_NAMES`, mots de `WeaponDB.FAMILIES`) et icône
-    par famille (`HubGear.CLASS_ART`) ; armes de base : la PÉTOIRE et la
+    par famille (`HubGear.CLASS_ART`) ; armes de base : le M1912 et la
     **BATTE** de baseball (§4.10) ; le couteau n'est plus une arme de base
     (attaque de mêlée séparée en partie) : un profil qui partait avec lui
     part avec la batte (`BaseWeapons.migrate`) ;
