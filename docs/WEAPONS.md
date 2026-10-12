@@ -19,6 +19,12 @@ valider ou corriger (voir « Choix à valider » en bas), sauf les armes déjà
   armes refaites un nom proche du vrai (M1912 pour M1911). Vérifié mot à mot
   par `tests/test_weapons.gd` (`test_original_names`, liste de noms réels
   interdits).
+- **Référence réelle** (demande du 2026-10-12) : une arme refaite d'après un
+  modèle existant le dit dans sa fiche complète (DÉTAILS de l'ARSENAL, de
+  l'inventaire de partie et de la station de construction), une ligne
+  « Réf. Colt M1911A1 » (`WeaponDB.REAL_REFS`, `WeaponDB.real_ref`). Ce n'est
+  jamais le nom affiché, qui reste seulement proche du vrai ; une arme entre
+  dans la table quand elle est refaite.
 - Les **identifiants internes** (clés de `WeaponDB.WEAPONS`, noms des sons
   `*_fire.wav`, arsenals des profils enregistrés, tests) restent ceux de
   l'ancien arsenal : les renommer casserait les profils et les sons pour

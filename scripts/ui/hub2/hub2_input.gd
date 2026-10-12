@@ -19,6 +19,10 @@ const PLAY := "play"
 const SECONDARY := "secondary"
 ## Filtre / tri / changer de carte : Tab / Y.
 const FILTER := "filter"
+## Fiche complète d'une arme (DÉTAILS ▾ / MASQUER ▴, Hub2WeaponDetails) : D ou
+## clic du stick droit (libres dans l'ARSENAL et dans l'inventaire de partie,
+## où le joueur ne bouge plus : D n'y déplace pas, R3 n'y frappe pas).
+const DETAILS := "details"
 
 
 ## Touches du clavier de l'invite `id` (noms affichés).
@@ -30,6 +34,7 @@ static func keys_of(id: String) -> PackedStringArray:
 		PLAY: return PackedStringArray([physical_key_name(KEY_P)])
 		SECONDARY: return PackedStringArray([Lang.t("Suppr", "Del")])
 		FILTER: return PackedStringArray(["Tab"])
+		DETAILS: return PackedStringArray([physical_key_name(KEY_D)])
 	return PackedStringArray()
 
 
@@ -42,6 +47,7 @@ static func pads_of(id: String) -> Array:
 		PLAY: return [JOY_BUTTON_START]
 		SECONDARY: return [JOY_BUTTON_X]
 		FILTER: return [JOY_BUTTON_Y]
+		DETAILS: return [JOY_BUTTON_RIGHT_STICK]
 	return []
 
 
@@ -104,3 +110,11 @@ static func is_play(event: InputEvent) -> bool:
 			and (event as InputEventJoypadButton).button_index == JOY_BUTTON_START:
 		return true
 	return is_key(event, KEY_P)
+
+
+## Fiche complète d'une arme (DÉTAILS) : D ou clic du stick droit (R3).
+static func is_details(event: InputEvent) -> bool:
+	var jb := event as InputEventJoypadButton
+	if jb and jb.pressed and jb.button_index == JOY_BUTTON_RIGHT_STICK:
+		return true
+	return is_key(event, KEY_D)

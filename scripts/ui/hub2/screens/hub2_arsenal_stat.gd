@@ -7,6 +7,8 @@ extends Control
 ## 700) suivie à 6 px du modificateur des pièces (JetBrains Mono 13 px 700,
 ## #4FE3C1 bénéfique / #FF6B57 nuisible, sans unité). Bloc centré sur la
 ## hauteur du carré (align-items: center).
+## `iconless` (fiche complète DÉTAILS, Hub2WeaponDetails) : mêmes libellé,
+## valeur et modificateur, sans le carré d'icône (texte à gauche).
 
 ## {key, label, icon, value, mod, good}
 var line: Dictionary = {}:
@@ -14,6 +16,8 @@ var line: Dictionary = {}:
 		line = v
 		tooltip_text = String(v.get("label", ""))
 		queue_redraw()
+## Sans carré d'icône (à choisir avant l'entrée dans l'arbre).
+var iconless := false
 
 
 ## Carré de l'icône, icône et valeur (px de la maquette ; station de
@@ -28,7 +32,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(0, maxf(Hub2Style.px(square), roundf(_text_h())))
+	var h := roundf(_text_h())
+	custom_minimum_size = Vector2(0, h if iconless else maxf(Hub2Style.px(square), h))
 
 
 func _text_h() -> float:
@@ -40,13 +45,15 @@ func _row_h() -> float:
 
 
 func _draw() -> void:
-	var sq := Hub2Style.px(square)
-	var top := roundf((size.y - sq) * 0.5)
-	draw_rect(Rect2(0, top, sq, sq), Hub2Style.white_a(0.06))
-	var ic := Hub2Style.px(icon_size)
-	var tex := Hub2ArsenalDraw.svg_icon(String(line.get("icon", "")), ic, Hub2Style.TEXT)
-	draw_texture_rect(tex, Rect2(roundf((sq - ic) * 0.5), top + roundf((sq - ic) * 0.5), ic, ic), false)
-	var x := sq + Hub2Style.px(10)
+	var x := 0.0
+	if not iconless:
+		var sq := Hub2Style.px(square)
+		var top := roundf((size.y - sq) * 0.5)
+		draw_rect(Rect2(0, top, sq, sq), Hub2Style.white_a(0.06))
+		var ic := Hub2Style.px(icon_size)
+		var tex := Hub2ArsenalDraw.svg_icon(String(line.get("icon", "")), ic, Hub2Style.TEXT)
+		draw_texture_rect(tex, Rect2(roundf((sq - ic) * 0.5), top + roundf((sq - ic) * 0.5), ic, ic), false)
+		x = sq + Hub2Style.px(10)
 	var w := size.x - x
 	var lh := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 600, 10)
 	var y := roundf((size.y - _text_h()) * 0.5)

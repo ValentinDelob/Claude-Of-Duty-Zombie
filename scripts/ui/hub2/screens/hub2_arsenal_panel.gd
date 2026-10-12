@@ -13,7 +13,9 @@ extends Hub2Panel
 ##     choisi en jaune, clic : saut) ;
 ##   - FICHE à droite (384 px) : rareté · classe, nom 36 px, niveau, rendu de
 ##     l'arme et SCORE, six statistiques en icônes (valeur de BASE +
-##     modificateur des pièces vert / rouge, sans unité), PIÈCES n / m
+##     modificateur des pièces vert / rouge, sans unité), fiche complète
+##     repliable « DÉTAILS ▾ » (Hub2WeaponDetails ; D / R3, clic ; état
+##     retenu pour la session ; la fiche défile, aussi au stick droit), PIÈCES n / m
 ##     (installées ou « Emplacement libre — A : installer une pièce »).
 ## Actions (logique de l'ancien hub : arsenal_panel, weapon_sheet, parts_panel,
 ## part_picker) : A sur une carte -> emplacements de la fiche ; A sur un
@@ -45,6 +47,8 @@ const NODE_H := 14.0
 const LINE_Y := 56.0
 const CARD_GAP := 10.0
 const STRIP_H := 58.0
+## Écran de la fiche complète (état ouvert / fermé retenu pour la session).
+const DETAILS_SCREEN := "arsenal"
 
 var tab := WEAPONS
 var filter := "all"
@@ -83,6 +87,8 @@ var armed_slot := -1
 ## Libellés lus par les tests.
 var name_text: String = ""
 var stat_cells: Array = []
+## Fiche complète de l'arme choisie (null : pièce ou rien de choisi).
+var details: Hub2WeaponDetails
 
 var _seen_now: Dictionary = {}
 var _pending_seen := false
@@ -170,7 +176,16 @@ func first_focus() -> Control:
 	return tab_buttons.get(tab)
 
 
+## Invites de l'écran ; fiche d'une arme : DÉTAILS / MASQUER (D / R3) avant
+## RETOUR (sauf fenêtre des pièces et confirmation en cours).
 func prompts() -> Array:
+	var list := _prompts()
+	if picker == null and armed == "" and details != null and details.visible and not list.is_empty():
+		list.insert(list.size() - 1, [Hub2Input.DETAILS, Hub2WeaponDetails.prompt_text(details.open)])
+	return list
+
+
+func _prompts() -> Array:
 	var back_t := Lang.t("Retour", "Back")
 	if picker:
 		return [[Hub2Input.ACCEPT, Lang.t("Installer", "Install")], [Hub2Input.BACK, Lang.t("Annuler", "Cancel")]]
@@ -226,7 +241,25 @@ func handle_input(event: InputEvent) -> bool:
 	if _pad_pressed(event, JOY_BUTTON_X) or Hub2Input.is_key(event, KEY_DELETE):
 		secondary()
 		return true
+	if Hub2Input.is_details(event) and toggle_details():
+		return true
 	return false
+
+
+## DÉTAILS ▾ / MASQUER ▴ de la fiche d'une arme (D, R3, invite, clic sur le
+## titre) ; faux s'il n'y a pas de fiche d'arme.
+func toggle_details() -> bool:
+	if details == null or not details.visible:
+		return false
+	details.toggle()
+	return true
+
+
+## Fiche plus haute que le panneau (fiche complète ouverte) : elle défile au
+## stick droit, comme à la molette.
+func _process(delta: float) -> void:
+	if visible and picker == null:
+		Hub2ItemsUi.pad_scroll(aside_scroll, delta)
 
 
 ## Tab : filtre suivant (Tab ferait sinon passer le focus au contrôle suivant).
@@ -245,6 +278,8 @@ func on_prompt(id: String) -> void:
 			cycle_filter()
 		Hub2Input.SECONDARY:
 			secondary()
+		Hub2Input.DETAILS:
+			toggle_details()
 
 
 func badge() -> bool:
@@ -853,6 +888,7 @@ func _fill_aside() -> void:
 	slots.clear()
 	compat_rows.clear()
 	stat_cells.clear()
+	details = null
 	name_text = ""
 	var it: Variant = rail.selected()
 	if it == null:
@@ -913,18 +949,28 @@ func _fill_weapon(w: OwnedWeapon) -> void:
 	sb.border = Vector4(0, 1, 0, 0)
 	sb.pad(13, 20, 12, 20)  # liseré 1 + padding 12
 	aside_col.add_child(sb)
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", int(Hub2Style.px(12)))
+	sv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sb.add_child(sv)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", int(Hub2Style.px(16)))
 	grid.add_theme_constant_override("v_separation", int(Hub2Style.px(10)))
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sb.add_child(grid)
+	sv.add_child(grid)
 	for line in Hub2ArsenalView.stat_lines(w):
 		var cell := Hub2ArsenalStat.new()
 		cell.line = line
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(cell)
 		stat_cells.append(cell)
+	# Fiche complète repliable (DÉTAILS ▾ : D / R3, clic), même grille.
+	details = Hub2WeaponDetails.new()
+	details.setup(DETAILS_SCREEN, 16, 10)
+	details.set_lines(Hub2ArsenalView.detail_lines(w))
+	details.toggled.connect(func(_o): hub.call("refresh_prompts"))
+	sv.add_child(details)
 	# Pièces : padding 14 20, écart 8, reste de la hauteur (défile).
 	var pb := Hub2Box.new()
 	pb.flat(Color(0, 0, 0, 0), Hub2Style.LINE)

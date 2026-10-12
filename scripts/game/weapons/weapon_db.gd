@@ -302,6 +302,21 @@ const EN_NAMES := {
 	"COUTEAU": "KNIFE",
 }
 
+## Référence réelle d'une arme refaite d'après un modèle existant (demande
+## du 2026-10-12) : montrée seulement dans la fiche DÉTAILS (« Réf. Colt
+## M1911A1 »), jamais comme nom de l'arme (nom affiché seulement proche du
+## vrai, voir EN_NAMES). Une arme n'y entre qu'une fois refaite ; absente :
+## pas de ligne.
+const REAL_REFS := {
+	"m1911": "Colt M1911A1",
+}
+
+
+## Référence réelle de l'arme `id` ("" : aucune).
+static func real_ref(id: String) -> String:
+	return String(REAL_REFS.get(id, ""))
+
+
 ## Familles d'armes (clé « class ») : [FR, EN].
 const FAMILIES := {
 	"pistol": ["PISTOLET", "PISTOL"], "revolver": ["REVOLVER", "REVOLVER"],

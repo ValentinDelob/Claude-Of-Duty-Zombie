@@ -47,6 +47,41 @@ func test_compare_lines_without_hand_weapon() -> void:
 		assert_eq(l.mod, "", "même arme : %s" % l.key)
 
 
+## Fiche complète (DÉTAILS) dans l'inventaire : valeurs effectives, écart à
+## l'arme en main comme les six statistiques (recul et mise en joue : plus
+## petit = mieux), lignes propres à la famille, aucun écart sans arme comparée.
+func test_compare_detail_lines() -> void:
+	var was := Settings.language
+	Settings.language = "fr"
+	var nb := String.chr(0xA0)
+	var shotgun := GameWeapon.make("stakeout", 1)
+	var pistol := GameWeapon.make("cz75", 1)
+	var lines := InventoryPanel.compare_detail_lines(shotgun, pistol)
+	assert_eq(_line(lines, "fire_mode").value, "POMPE")
+	assert_eq(_line(lines, "fire_mode").mod, "", "mode de tir : pas d'écart")
+	assert_eq(_line(lines, "pellets").value, "8")
+	assert_eq(_line(lines, "pellets").mod, "", "le pistolet n'a pas de plombs : pas d'écart")
+	var hm := _line(lines, "head_mult")
+	assert_eq(hm.value, "×" + nb + "1,5")
+	assert_eq(hm.mod, "− 1,5", "× 1,5 contre × 3")
+	assert_false(hm.good)
+	var ads := _line(lines, "ads_time")
+	assert_eq(ads.mod, "+ 0,05", "0,20 s contre 0,15 s")
+	assert_false(ads.good, "mise en joue plus longue : rouge")
+	var rc := _line(lines, "recoil")
+	assert_true(String(rc.mod).begins_with("+ ") and not rc.good, "recul plus fort : rouge (%s)" % rc.mod)
+	assert_eq(_line(lines, "penetration").mod, "", "même pénétration : rien")
+	# Pièce de recul sur l'arme montrée : valeur effective.
+	var light := GameWeapon.make("cz75", 1, 0, [{"id": "crosse", "level": 2, "mods": {"recoil": 0.25}}])
+	assert_eq(_line(InventoryPanel.compare_detail_lines(light, {}), "recoil").value, "1,4°", "1,8 ÷ 1,25 (effective)")
+	for l in InventoryPanel.compare_detail_lines(GameWeapon.make("mp40", 3), {}):
+		assert_eq(l.mod, "", "pas de comparaison : aucun écart (%s)" % l.key)
+	var bat := InventoryPanel.compare_detail_lines(GameWeapon.make("bat", 1), pistol)
+	assert_eq(bat.map(func(l): return l.key), ["energy", "swings", "lunge_range", "targets", "move_mult"], "batte")
+	assert_true(InventoryPanel.compare_detail_lines({}, pistol).is_empty())
+	Settings.language = was
+
+
 func test_level_and_parts_count_in_compare() -> void:
 	var lo := GameWeapon.make("mp40", 1)
 	var hi := GameWeapon.make("mp40", 11)

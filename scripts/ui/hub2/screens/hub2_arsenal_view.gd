@@ -6,7 +6,9 @@ extends RefCounted
 ## TOUTES / MONTABLES), ordre dans une colonne (rareté puis score), les six
 ## statistiques de la fiche (valeur de BASE + modificateur des pièces « + N »
 ## vert / « − N » rouge, sans unité ; un rechargement plus long est un malus),
-## qualité et effets d'une pièce. Fonctions pures (tests/test_hub2_arsenal.gd).
+## qualité et effets d'une pièce, fiche complète repliable (DÉTAILS : toutes
+## les autres statistiques, detail_lines). Fonctions pures
+## (tests/test_hub2_arsenal.gd).
 
 ## Filtres des armes (Y / Tab : cycle) et des pièces.
 const FILTERS := ["all", "firearm", "melee", "usable"]
@@ -46,6 +48,36 @@ const HARMFUL := Color("FF6B57")
 ## excellente ; couleurs des raretés commune, rare, épique.
 const QUALITY_STEPS := [0.12, 0.2]
 const QUALITY_NAMES := [["ORDINAIRE", "ORDINARY"], ["SOLIDE", "STURDY"], ["EXCELLENTE", "EXCELLENT"]]
+
+## Fiche complète repliable (DÉTAILS ▾, Hub2WeaponDetails) : les autres
+## statistiques de l'arme, dans l'ordre d'affichage (grille 2 colonnes). Les
+## lignes sans objet pour l'arme ne sont pas montrées : à feu seulement
+## (tir à la tête, mode de tir, recul, mise en joue, réserve, pénétration),
+## plombs (fusils à pompe), zone (explosifs) ; corps à corps seulement
+## (énergie, coups par seconde, fente, cibles).
+const DETAILS := ["head_mult", "fire_mode", "recoil", "ads_time", "reserve", "penetration", "pellets",
+	"splash_radius", "energy", "swings", "lunge_range", "targets", "move_mult"]
+const DETAIL_LABELS := {
+	"head_mult": ["TIR À LA TÊTE", "HEADSHOT"], "fire_mode": ["MODE DE TIR", "FIRE MODE"],
+	"recoil": ["RECUL", "RECOIL"], "ads_time": ["MISE EN JOUE", "AIM TIME"], "reserve": ["RÉSERVE", "RESERVE"],
+	"penetration": ["PÉNÉTRATION", "PENETRATION"], "pellets": ["PLOMBS", "PELLETS"],
+	"splash_radius": ["ZONE D'EXPLOSION", "BLAST RADIUS"], "energy": ["ÉNERGIE PAR COUP", "ENERGY PER SWING"],
+	"swings": ["COUPS PAR SECONDE", "SWINGS PER SECOND"], "lunge_range": ["FENTE", "LUNGE"],
+	"targets": ["CIBLES PAR COUP", "TARGETS PER SWING"], "move_mult": ["MOBILITÉ", "MOBILITY"],
+}
+const FIREARM_ONLY := ["head_mult", "fire_mode", "recoil", "ads_time", "reserve", "penetration", "pellets",
+	"splash_radius"]
+const MELEE_ONLY := ["energy", "swings", "lunge_range", "targets"]
+## Plus petit = mieux dans la fiche complète (recul, durée de mise en joue).
+const DETAIL_LOWER_IS_BETTER := ["recoil", "ads_time"]
+## Décimales affichées (valeur et modificateur) ; absentes : entier.
+const DETAIL_DECIMALS := {"recoil": 1, "ads_time": 2, "swings": 2, "head_mult": 1, "splash_radius": 1,
+	"lunge_range": 1}
+## Mode de tir (FIRE_MODES[clé] : [FR, EN]) ; la rafale porte son nombre de coups.
+const FIRE_MODES := {
+	"semi": ["SEMI-AUTO", "SEMI-AUTO"], "auto": ["AUTO", "AUTO"], "burst": ["RAFALE DE %d", "%d-ROUND BURST"],
+	"pump": ["POMPE", "PUMP-ACTION"], "bolt": ["VERROU", "BOLT-ACTION"],
+}
 
 ## Effet d'un modificateur de pièce en clair (« +8 % dégâts ») : nom [FR, EN].
 ## Les modificateurs « div » (rechargement, recul, précision) sont écrits
@@ -192,10 +224,18 @@ static func format_value(key: String, v: float) -> String:
 	return Hub2Style.num(roundi(v))
 
 
-## Nombre à une décimale dans la langue (« 0,3 » / « 0.3 »).
-static func decimal(v: float) -> String:
-	var t := "%.1f" % v
+## Nombre à `places` décimales (une par défaut) dans la langue (« 0,3 » /
+## « 0.3 »).
+static func decimal(v: float, places := 1) -> String:
+	var t := ("%." + str(places) + "f") % v
 	return t if Lang.is_en() else t.replace(".", ",")
+
+
+## Entier s'il est rond (« 3 »), sinon à `places` décimales (« 2,5 »).
+static func short_decimal(v: float, places := 1) -> String:
+	if absf(v - roundf(v)) < 0.5 * pow(10.0, -places):
+		return str(roundi(v))
+	return decimal(v, places)
 
 
 ## Modificateur des pièces (écart `d` = avec pièces − sans), SANS unité :
@@ -274,6 +314,152 @@ static func preview_lines(w: OwnedWeapon, p: WeaponPart) -> Array:
 		var lbl: Array = STAT_LABELS[key]
 		out.append({"key": key, "label": Lang.t(lbl[0], lbl[1]), "before": tb, "after": ta, "good": mod_good(key, a - b)})
 	return out
+
+
+# --------------------------------------------------------------------------
+# Fiche complète (DÉTAILS)
+# --------------------------------------------------------------------------
+
+## Mode de tir de statistiques `s` (clé de FIRE_MODES) : « pump » / « bolt »
+## d'après `cycle` (réarmement entre deux coups), « burst » d'après `burst`,
+## sinon « auto » / « semi » d'après `auto`.
+static func fire_mode_key(s: Dictionary) -> String:
+	var cycle := String(s.get("cycle", ""))
+	if cycle in ["pump", "bolt"]:
+		return cycle
+	if int(s.get("burst", 0)) > 1:
+		return "burst"
+	return "auto" if bool(s.get("auto", false)) else "semi"
+
+
+## « SEMI-AUTO », « AUTO », « RAFALE DE 3 » / « 3-ROUND BURST », « POMPE »,
+## « VERROU ».
+static func fire_mode_text(s: Dictionary) -> String:
+	var k := fire_mode_key(s)
+	var n: Array = FIRE_MODES[k]
+	var t := Lang.t(n[0], n[1])
+	return t % int(s.get("burst", 3)) if k == "burst" else t
+
+
+## La ligne `key` de la fiche complète a-t-elle un sens pour l'arme `id`
+## (statistiques `s`) ? À feu / corps à corps seulement, plombs s'il y en a
+## plusieurs, zone si l'arme explose.
+static func has_detail(key: String, id: String, s: Dictionary) -> bool:
+	if s.is_empty():
+		return false
+	var melee := HubGear.is_melee(id)
+	if (melee and key in FIREARM_ONLY) or (not melee and key in MELEE_ONLY):
+		return false
+	match key:
+		"fire_mode":
+			return true
+		"swings":
+			return s.has("rpm")
+		"pellets":
+			return int(s.get("pellets", 1)) > 1
+		"splash_radius":
+			return float(s.get("splash_radius", 0.0)) > 0.0
+	return s.has(key)
+
+
+## Valeur numérique d'une ligne de la fiche complète (coups par seconde
+## d'après la cadence, mobilité en %).
+static func detail_number(key: String, s: Dictionary) -> float:
+	match key:
+		"swings":
+			return float(s.get("rpm", 0.0)) / 60.0
+		"move_mult":
+			return float(s.get("move_mult", 1.0)) * 100.0
+	return float(s.get(key, 0.0))
+
+
+## Valeur affichée : « × 3 », « 2,2° », « 0,15 s », « 80 », « 3 zombies »,
+## « 8 », « 3,5 m », « 15 », « 1,25 », « 95 % » (anglais : « 2.2° », « 95% »).
+static func format_detail(key: String, v: float) -> String:
+	var nb := String.chr(0xA0)
+	match key:
+		"head_mult":
+			return "×" + nb + short_decimal(v, 1)
+		"recoil":
+			return decimal(v, 1) + "°"
+		"ads_time":
+			return decimal(v, 2) + nb + "s"
+		"penetration", "targets":
+			var n := roundi(v)
+			return "%d%szombie%s" % [n, nb, "s" if n > 1 else ""]
+		"splash_radius", "lunge_range":
+			return short_decimal(v, 1) + nb + "m"
+		"swings":
+			return decimal(v, 2)
+		"move_mult":
+			return str(roundi(v)) + Lang.t(nb + "%", "%")
+	return Hub2Style.num(roundi(v))
+
+
+## Modificateur d'une ligne de la fiche complète, SANS unité, aux décimales
+## de la valeur (« − 0,4 », « + 16 ») ; "" s'il est nul une fois arrondi.
+static func format_detail_mod(key: String, d: float) -> String:
+	var places: int = DETAIL_DECIMALS.get(key, 0)
+	var mag := ""
+	if places > 0:
+		mag = decimal(absf(d), places)
+		if mag == decimal(0.0, places):
+			return ""
+	else:
+		var n := roundi(absf(d))
+		if n == 0:
+			return ""
+		mag = Hub2Style.num(n)
+	return ("+ " if d > 0.0 else "− ") + mag
+
+
+## Le modificateur aide-t-il ? (plus = mieux, sauf recul et mise en joue).
+static func detail_good(key: String, d: float) -> bool:
+	return d < 0.0 if key in DETAIL_LOWER_IS_BETTER else d > 0.0
+
+
+## Lignes de la fiche complète de l'arme `id` (composant réutilisable :
+## ARSENAL, inventaire de partie, station de construction) :
+## [{key, label, value, mod, good, wide}]. `value` est lue dans `shown` ;
+## `mod` = écart `after` − `before` (`before` : statistiques de l'arme
+## `before_id`, la même par défaut) pour chaque ligne chiffrée que les deux
+## ont. La référence réelle (WeaponDB.REAL_REFS) vient en dernier, `wide` :
+## ligne pleine largeur sous la grille (« Réf. Colt M1911A1 »).
+static func detail_lines_of(id: String, shown: Dictionary, after: Dictionary, before: Dictionary,
+		before_id := "") -> Array:
+	var out := []
+	if shown.is_empty():
+		return out
+	if before_id == "":
+		before_id = id
+	for key in DETAILS:
+		if not has_detail(key, id, shown):
+			continue
+		var lbl: Array = DETAIL_LABELS[key]
+		var line := {"key": key, "label": Lang.t(lbl[0], lbl[1]), "value": "", "mod": "", "good": true, "wide": false}
+		if key == "fire_mode":
+			line.value = fire_mode_text(shown)
+		else:
+			line.value = format_detail(key, detail_number(key, shown))
+			if has_detail(key, id, after) and has_detail(key, before_id, before):
+				var d := detail_number(key, after) - detail_number(key, before)
+				line.mod = format_detail_mod(key, d)
+				line.good = detail_good(key, d)
+		out.append(line)
+	var ref := WeaponDB.real_ref(id)
+	if ref != "":
+		out.append({"key": "ref", "label": "", "value": Lang.t("Réf. %s", "Ref. %s") % ref, "mod": "", "good": true,
+			"wide": true})
+	return out
+
+
+## Fiche complète d'un exemplaire de l'ARSENAL : valeur de BASE (niveau
+## compris, sans les pièces) + apport des pièces, comme stat_lines.
+static func detail_lines(w: OwnedWeapon) -> Array:
+	if w == null or not WeaponDB.exists(w.weapon_id):
+		return []
+	var raw := HubGear.fire_stats(w, false)
+	return detail_lines_of(w.weapon_id, raw, HubGear.fire_stats(w, true), raw)
 
 
 # --------------------------------------------------------------------------
