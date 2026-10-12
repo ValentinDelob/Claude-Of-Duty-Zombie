@@ -14,6 +14,12 @@ extends Hub2Panel
 ## DE BUTIN (LootRules : SAMPLE_CHANCE, BOSS_SAMPLE_CHANCE).
 ## Navigation : flèches / croix / stick (le focus choisit la carte), clic ;
 ## stick droit / molette : la fiche défile (130 %).
+## Page DÉTAILS (demande du 2026-10-12, docs/hub_v2/README.md) : A / Entrée
+## ou clic sur la carte déjà choisie, « DÉTAILS ▾ » en haut à droite du rendu,
+## D / R3 : la description, Éliminés / XP et le butin glissent et laissent la
+## place (≈ 0,26 s) à CodexDetails (ce qu'il te fait, résistance, quand il
+## apparaît, ce qu'il rapporte, butin, point faible, conseil ; verrouillée si
+## inconnu) ; A, B / Échap, « RETOUR ▴ » : retour animé à la fiche.
 
 ## Familles (catégories de XpRules) : nom [fr, en] et couleur (maquette).
 const FAMILY := {
@@ -45,6 +51,30 @@ var _title: Hub2Text
 ## Types NOUVEAU affichés pendant cette visite (pastille gardée jusqu'au départ).
 var _seen_now: Dictionary = {}
 var _pending_seen := false
+
+## Page DÉTAILS affichée à la place de la fiche (gardée en changeant de
+## carte, refermée en quittant l'onglet).
+var details_open := false
+## « DÉTAILS ▾ » / « RETOUR ▴ » en haut à droite du rendu de la fiche.
+var details_toggle: Hub2WeaponDetails.Title
+## Bascule fiche <-> DÉTAILS en cours (tests, captures).
+var anim_running := false
+## Durées (s) de la bascule : sortie (ease-in) puis entrée (ease-out) ;
+## glissements (px de la maquette) et échelle de départ du contenu entrant.
+const ANIM_OUT := 0.08
+const ANIM_IN := 0.18
+const ANIM_SHIFT_OUT := 12.0
+const ANIM_SHIFT_IN := 18.0
+const ANIM_SCALE := 0.97
+## Invite de la page DÉTAILS ouverte (A / Entrée ou B / Échap : retour).
+const PROMPT_CLOSE := "codex_close_details"
+var _slide: SlideBox
+var _body: VBoxContainer
+var _anim: Tween
+var _anim_dir := 1.0
+var _anim_swapped := true
+## Carte choisie par le clic en cours (le relâchement ne bascule pas).
+var _click_select := ""
 
 
 static func family_name(cat: String) -> String:
@@ -285,8 +315,8 @@ func _card(e: Dictionary) -> Hub2Button:
 		b.add_child(dash)
 		b.move_child(dash, 1)
 	b.set_meta("card", String(e.id))
-	b.focus_entered.connect(_select.bind(String(e.id)))
-	b.pressed.connect(_select.bind(String(e.id)))
+	b.focus_entered.connect(_on_card_focus.bind(String(e.id)))
+	b.pressed.connect(_on_card_pressed.bind(String(e.id)))
 	cards[String(e.id)] = b
 	return b
 
@@ -303,6 +333,27 @@ func _new_badge() -> Control:
 	tag.add_child(t)
 	tag.size = tag.get_combined_minimum_size()
 	return tag
+
+
+## Focus (flèches, stick, clic) : la carte est choisie ; un clic qui la
+## choisit ne bascule pas la page DÉTAILS en se relâchant.
+func _on_card_focus(id: String) -> void:
+	if id != selected_id and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_click_select = id
+	_select(id)
+
+
+## A / Entrée / clic sur une carte : une autre carte est choisie ; la carte
+## déjà choisie ouvre ou ferme la page DÉTAILS.
+func _on_card_pressed(id: String) -> void:
+	if _click_select == id:
+		_click_select = ""
+		return
+	_click_select = ""
+	if id != selected_id:
+		_select(id)
+		return
+	toggle_details()
 
 
 func _select(id: String) -> void:
@@ -332,9 +383,13 @@ func _show_selection() -> void:
 # --------------------------------------------------------------------------
 
 func _show_detail(e: Dictionary) -> void:
+	_stop_anim()
 	for c in _detail.get_children():
 		_detail.remove_child(c)
 		c.queue_free()
+	_body = null
+	_slide = null
+	details_toggle = null
 	if e.is_empty():
 		return
 	var known := is_known(e)
@@ -361,10 +416,17 @@ func _show_detail(e: Dictionary) -> void:
 	else:
 		img.silhouette = 0.55
 	area.add_child(img)
-	# Famille, nom, description : padding 14 20 12, écart 6.
+	# DÉTAILS ▾ / RETOUR ▴ (style des titres « DÉTAILS » des fiches d'arme),
+	# en haut à droite du rendu : n'ajoute rien à la mise en page de la fiche.
+	details_toggle = Hub2WeaponDetails.Title.new()
+	details_toggle.name = "DetailsToggle"
+	details_toggle.clicked.connect(toggle_details)
+	area.add_child(details_toggle)
+	_update_toggle()
+	# Famille, nom : padding 14 20 (12 sous la description), écart 6.
 	var info := MarginContainer.new()
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Hub2InventoryPanel._margins(info, 14, 20, 12, 20)
+	Hub2InventoryPanel._margins(info, 14, 20, 0, 20)
 	_detail.add_child(info)
 	var iv := VBoxContainer.new()
 	iv.add_theme_constant_override("separation", int(Hub2Style.px(6)))
@@ -379,15 +441,44 @@ func _show_detail(e: Dictionary) -> void:
 	title.add_theme_constant_override("line_spacing", roundi(Hub2Style.px(30) - Hub2Style.line_height(Hub2Style.font(Hub2Style.CHAKRA, 700), Hub2Style.fs(30))))
 	title.name = "Title"
 	iv.add_child(title)
+	# Corps : la fiche (description, Éliminés / XP, butin) ou la page DÉTAILS.
+	_slide = SlideBox.new()
+	_slide.name = "Slide"
+	_detail.add_child(_slide)
+	_fill_body(e)
+
+
+## Corps de la fiche ou de la page DÉTAILS (selon details_open) dans _slide.
+func _fill_body(e: Dictionary) -> void:
+	if _slide == null:
+		return
+	for c in _slide.get_children():
+		_slide.remove_child(c)
+		c.queue_free()
+	_body = VBoxContainer.new()
+	_body.add_theme_constant_override("separation", 0)
+	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_body.name = "DetailsPage" if details_open else "Sheet"
+	_slide.add_child(_body)
+	if details_open:
+		_details_page(e)
+	else:
+		_sheet(e)
+
+
+## Fiche de la maquette : description (margin-top 4 sous l'écart 6, 12 en
+## bas), Éliminés / XP par élimination, échantillons et taux de butin.
+func _sheet(e: Dictionary) -> void:
+	var known := is_known(e)
 	var pm := MarginContainer.new()
 	pm.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Hub2InventoryPanel._margins(pm, 4, 0, 0, 0)
+	Hub2InventoryPanel._margins(pm, 10, 20, 12, 20)
 	var text := HubData.text_of(e.text) if known else Lang.t("Pas encore rencontré. Il peut apparaître dès la manche %d.",
 			"Not encountered yet. It may show up from round %d.") % int(e.round)
 	var p := Hub2ItemsUi.para(text, 15, Hub2Style.text_a(0.78), 1.4)
 	p.name = "Text"
 	pm.add_child(p)
-	iv.add_child(pm)
+	_body.add_child(pm)
 	# Éliminés, XP par élimination : padding 10 20, 2 colonnes, écart 12.
 	var stats := Hub2ItemsUi.section(10, 20, 10, 20, 0)
 	var sr := HBoxContainer.new()
@@ -396,7 +487,7 @@ func _show_detail(e: Dictionary) -> void:
 	stats.get_child(0).add_child(sr)
 	sr.add_child(_stat(Lang.t("Éliminés", "Killed"), Hub2Style.num(kills(e)), Hub2Style.TEXT, "Kills"))
 	sr.add_child(_stat(Lang.t("XP par élimination", "XP per kill"), xp_text(e) if known else "?", Hub2Style.YELLOW, "Xp"))
-	_detail.add_child(stats)
+	_body.add_child(stats)
 	# ÉCHANTILLONS · TAUX DE BUTIN : padding 10 20 14, écart 8.
 	var loot := Hub2ItemsUi.section(10, 20, 14, 20, 8)
 	var lv: VBoxContainer = loot.get_child(0)
@@ -408,7 +499,204 @@ func _show_detail(e: Dictionary) -> void:
 		lv.add_child(none)
 	for s in e.samples:
 		lv.add_child(_loot_row(String(s), known))
-	_detail.add_child(loot)
+	_body.add_child(loot)
+
+
+## Page DÉTAILS (CodexDetails) : sections au style des blocs de la fiche
+## (liseré du haut, padding 10 20 14, libellé de section, écart 8) ; carte
+## inconnue : page verrouillée.
+func _details_page(e: Dictionary) -> void:
+	var page := CodexDetails.of(e, is_known(e), kills(e))
+	var gap := Control.new()
+	gap.custom_minimum_size.y = Hub2Style.px(12)
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_body.add_child(gap)
+	if page.locked:
+		var sec := Hub2ItemsUi.section(12, 20, 16, 20, 8)
+		sec.name = "Locked"
+		var v: VBoxContainer = sec.get_child(0)
+		v.add_child(Hub2ItemsUi.kicker(Lang.t("DÉTAILS VERROUILLÉS", "DETAILS LOCKED")))
+		var t := Hub2ItemsUi.para(Lang.t("Rencontre-le pour en savoir plus.", "Meet it to learn more."), 16, Hub2Style.TEXT, 1.35, 500)
+		t.name = "LockedText"
+		v.add_child(t)
+		if String(page.hint) != "":
+			var h := Hub2ItemsUi.para(String(page.hint) + ".", 14, Hub2Style.text_a(0.55), 1.35)
+			h.name = "LockedHint"
+			v.add_child(h)
+		_body.add_child(sec)
+		return
+	for s in page.sections:
+		var sec := Hub2ItemsUi.section(10, 20, 14, 20, 8)
+		sec.name = "Section_" + String(s.id)
+		var v: VBoxContainer = sec.get_child(0)
+		v.add_child(Hub2ItemsUi.kicker(String(s.title)))
+		if String(s.text) != "":
+			var p := Hub2ItemsUi.para(String(s.text), 15, Hub2Style.text_a(0.78), 1.4)
+			p.name = "Text"
+			v.add_child(p)
+		for r in s.rows:
+			v.add_child(_loot_row(String(r.sample), true) if String(r.sample) != "" else _detail_row(r))
+		_body.add_child(sec)
+
+
+## Ligne de la page DÉTAILS : libellé (Barlow 15) et précision (Barlow 12,
+## 55 %) à gauche, valeur à droite (Chakra Petch 16 700, couleur du ton :
+## dégâts orange, XP jaune, butin turquoise).
+func _detail_row(r: Dictionary) -> Control:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", int(Hub2Style.px(12)))
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.name = "Row_" + String(r.id)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", int(Hub2Style.px(1)))
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(left)
+	var l := Hub2ItemsUi.para(String(r.label), 15, Hub2Style.TEXT, 1.25)
+	l.name = "Label"
+	left.add_child(l)
+	if String(r.note) != "":
+		var n := Hub2ItemsUi.para(String(r.note), 12, Hub2Style.text_a(0.55), 1.3)
+		n.name = "Note"
+		left.add_child(n)
+	var col := Hub2Style.TEXT
+	match String(r.tone):
+		"bad": col = Hub2Style.BAD
+		"xp": col = Hub2Style.YELLOW
+		"loot": col = Hub2Style.TEAL
+	var val := Hub2ItemsUi.para(String(r.value), 16, col, 1.25)
+	val.add_theme_font_override("font", Hub2Style.font(Hub2Style.CHAKRA, 700))
+	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Valeur courte sur une ligne ; le libellé à gauche revient à la ligne.
+	val.autowrap_mode = TextServer.AUTOWRAP_OFF
+	val.size_flags_horizontal = Control.SIZE_SHRINK_END
+	val.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	val.name = "Value"
+	h.add_child(val)
+	return h
+
+
+# --------------------------------------------------------------------------
+# Page DÉTAILS : bascule animée
+# --------------------------------------------------------------------------
+
+## Ouvre / ferme la page DÉTAILS de la carte choisie (A sur la carte choisie,
+## clic sur la carte choisie ou sur « DÉTAILS », D / R3 ; B / Échap ferme).
+func toggle_details() -> void:
+	set_details(not details_open)
+
+
+func set_details(v: bool, animate := true) -> void:
+	if v == details_open:
+		return
+	details_open = v
+	_update_toggle()
+	if hub:
+		hub.call("refresh_prompts")
+	if _slide == null:
+		return
+	if not animate or not is_inside_tree():
+		_stop_anim()
+		_fill_body(card_entry(selected_id))
+		return
+	_play_swap(1.0 if v else -1.0)
+
+
+func _update_toggle() -> void:
+	if details_toggle == null:
+		return
+	details_toggle.text = Lang.t("RETOUR", "BACK") if details_open else Lang.t("DÉTAILS", "DETAILS")
+	details_toggle.up = details_open
+	details_toggle.tooltip_text = Lang.t("A ou D : détails de l’ennemi (dégâts, résistance, butin…)",
+			"A or D: enemy details (damage, toughness, loot…)")
+	details_toggle.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, int(Hub2Style.px(14)))
+
+
+## Animation (≈ 0,26 s) : le contenu glisse et s'efface (ANIM_OUT, ease-in),
+## puis le nouveau arrive de l'autre côté en grandissant légèrement
+## (ANIM_IN, ease-out cubique) ; `dir` : 1 vers les détails, -1 retour.
+func _play_swap(dir: float) -> void:
+	_stop_anim()
+	_anim_dir = dir
+	_anim_swapped = false
+	anim_running = true
+	_anim = create_tween()
+	_anim.tween_method(_anim_step, 0.0, ANIM_OUT + ANIM_IN, ANIM_OUT + ANIM_IN)
+	_anim.finished.connect(_end_anim)
+
+
+func _anim_step(t: float) -> void:
+	if _slide == null:
+		return
+	if t < ANIM_OUT:
+		var k := t / ANIM_OUT
+		var e := k * k
+		_slide.shift = -_anim_dir * Hub2Style.px(ANIM_SHIFT_OUT) * e
+		_slide.modulate.a = 1.0 - e
+		return
+	if not _anim_swapped:
+		_anim_swapped = true
+		_fill_body(card_entry(selected_id))
+		detail_scroll.scroll_vertical = 0
+	var k2 := clampf((t - ANIM_OUT) / ANIM_IN, 0.0, 1.0)
+	var e2 := 1.0 - pow(1.0 - k2, 3.0)
+	_slide.shift = _anim_dir * Hub2Style.px(ANIM_SHIFT_IN) * (1.0 - e2)
+	_slide.modulate.a = e2
+	if _body:
+		_body.pivot_offset = Vector2(_body.size.x * 0.5, 0.0)
+		_body.scale = Vector2.ONE * lerpf(ANIM_SCALE, 1.0, e2)
+
+
+func _end_anim() -> void:
+	if not _anim_swapped:
+		_fill_body(card_entry(selected_id))
+	_reset_anim_state()
+
+
+func _stop_anim() -> void:
+	if _anim and _anim.is_valid():
+		_anim.kill()
+	_anim = null
+	_reset_anim_state()
+
+
+func _reset_anim_state() -> void:
+	anim_running = false
+	_anim_swapped = true
+	if _slide:
+		_slide.shift = 0.0
+		_slide.modulate.a = 1.0
+	if _body:
+		_body.scale = Vector2.ONE
+
+
+## Conteneur qui pose son enfant à sa largeur, décalé de `shift` px (le
+## glissement de la page DÉTAILS) ; la mise en page de l'enfant ne remet pas
+## son échelle à 1 (contrairement à fit_child_in_rect).
+class SlideBox extends Container:
+	var shift := 0.0:
+		set(v):
+			shift = v
+			queue_sort()
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	func _get_minimum_size() -> Vector2:
+		var m := Vector2.ZERO
+		for c in get_children():
+			if c is Control and (c as Control).visible:
+				m = m.max((c as Control).get_combined_minimum_size())
+		return m
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_SORT_CHILDREN:
+			for c in get_children():
+				if c is Control:
+					var cc := c as Control
+					cc.position = Vector2(shift, 0.0)
+					cc.size = Vector2(size.x, maxf(size.y, cc.get_combined_minimum_size().y))
 
 
 func _stat(label: String, value: String, color: Color, node_name: String) -> Control:
@@ -500,8 +788,36 @@ func first_focus() -> Control:
 	return cards.get(selected_id)
 
 
+## Fiche : A DÉTAILS, B RETOUR ; page DÉTAILS ouverte : A B RETOUR (A et B
+## referment la page).
 func prompts() -> Array:
+	if details_open:
+		return [[PROMPT_CLOSE, Lang.t("Retour", "Back"),
+			PackedStringArray(Array(Hub2Input.keys_of(Hub2Input.ACCEPT)) + Array(Hub2Input.keys_of(Hub2Input.BACK))),
+			Hub2Input.pads_of(Hub2Input.ACCEPT) + Hub2Input.pads_of(Hub2Input.BACK)]]
 	return [[Hub2Input.ACCEPT, Lang.t("Détails", "Details")], [Hub2Input.BACK, Lang.t("Retour", "Back")]]
+
+
+func on_prompt(id: String) -> void:
+	if id == PROMPT_CLOSE:
+		set_details(false)
+
+
+## B / Échap / clic droit : la page DÉTAILS se referme d'abord.
+func back() -> bool:
+	if details_open:
+		set_details(false)
+		return true
+	return false
+
+
+## D / clic du stick droit (comme la fiche complète d'une arme) : page
+## DÉTAILS.
+func handle_input(event: InputEvent) -> bool:
+	if Hub2Input.is_details(event) and not entries.is_empty():
+		toggle_details()
+		return true
+	return false
 
 
 func help() -> String:
@@ -520,6 +836,7 @@ func shown() -> void:
 
 
 func hidden() -> void:
+	set_details(false, false)
 	_seen_now.clear()
 	if _pending_seen:
 		# Enregistré une fois ; refresh() (profil changé) retire les pastilles

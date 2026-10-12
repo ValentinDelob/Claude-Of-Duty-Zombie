@@ -9,7 +9,7 @@ textes et comportements y sont exacts. Le jeu doit les reproduire fidèlement
 ## Écrans
 | Fichier | Écran |
 |---|---|
-| `Main.dc.html` | LABO (accueil) : Dr Brown en grand, réplique, boutons CONTRATS (anneaux jaunes pulsés quand un contrat est terminé) et ÉCHANGES |
+| `Main.dc.html` | LABO (accueil) : Dr Brown en grand, réplique, boutons CONTRATS (anneaux jaunes pulsés quand un contrat est terminé) et ÉCHANGES (réduits le 2026-10-12, voir « Retouches des maquettes ») |
 | `Contrats.dc.html` | LABO › CONTRATS : contrat d'HISTOIRE (chapitres / étapes, à gauche, turquoise) et CONTRATS TEMPORAIRES (à droite, expirent), récompenses en tuiles avec infobulle au survol |
 | `Echanges.dc.html` | LABO › ÉCHANGES (catalogue) |
 | `Arsenal.dc.html` | ARSENAL : rail horizontal des niveaux, armes d'un même niveau empilées verticalement (◄ ► niveau, ▲ ▼ même niveau), vue d'ensemble, sous-onglet PIÈCES, fiche : statistiques en icônes + valeur de base + modificateur vert / rouge (sans unité) |
@@ -86,3 +86,35 @@ Scripts de rendu : `tools/blender/hub_renders/` (armes, ennemis, joueur),
   seconde, fente, cibles ; mobilité) et « Réf. … » (Barlow 13 px) si l'arme a une
   référence réelle. D / clic du stick droit / clic sur le titre ; état retenu
   pour la session ; la fiche défile si elle ne tient pas.
+- **Page DÉTAILS du CODEX** (2026-10-12, `Hub2CodexPanel`, contenu
+  `CodexDetails`) : A / Entrée ou clic sur la carte déjà choisie,
+  « DÉTAILS ▾ » en haut à droite du rendu de la fiche (style des titres
+  « DÉTAILS » des fiches d'arme), D / clic du stick droit. Sous le nom, la
+  description, Éliminés / XP et le butin glissent vers la gauche en
+  s'effaçant (0,08 s, ease-in, 12 px), puis la page arrive de la droite
+  (18 px, échelle 0,97 -> 1, opacité 0 -> 1, 0,18 s, ease-out cubique) ;
+  retour (A, B / Échap, « RETOUR ▴ ») dans l'autre sens. Invites : A
+  DÉTAILS / B RETOUR, puis A B RETOUR. Sections au style des blocs de la
+  fiche (liseré du haut, padding 10 20 14, libellé de section Chakra Petch
+  12 px 600 0,18em, écart 8) : CE QU'IL TE FAIT, RÉSISTANCE, QUAND IL
+  APPARAÎT, CE QU'IL RAPPORTE, BUTIN, POINT FAIBLE, CONSEIL ; ligne :
+  libellé Barlow 15 px + précision Barlow 12 px 55 % à gauche, valeur
+  Chakra Petch 16 px 700 à droite (dégâts `#FF7A5C`, XP jaune, butin
+  turquoise ; échantillons : mêmes lignes à rendu que la fiche). Chiffres
+  lus dans les règles du jeu (Combat, DogRules, BrancardRules, NurseRules,
+  SurgeonRules, PlayerData, RoundRules, WaveRules, XpRules, PointsRules,
+  LootRules), textes du point faible et du conseil dans `codex.json`
+  (`weak`, `tip`, sans chiffre). Ennemi inconnu : « DÉTAILS VERROUILLÉS ·
+  Rencontre-le pour en savoir plus. ». La page reste ouverte en changeant de
+  carte et se referme en quittant l'onglet.
+
+## Retouches des maquettes
+- **LABO, entrées CONTRATS / ÉCHANGES** (2026-10-12, `Main.dc.html` mis à
+  jour) : trop grandes face aux autres écrans du hub, ramenées à leur
+  échelle : padding 14 18 (au lieu de 18 22), écart 14, carré d'icône 40 px
+  (dessin 22 px), titre Chakra Petch 20 px 0,08em (au lieu de 24 px 0,1em,
+  comme « CONTRATS TEMPORAIRES »), ligne Barlow 14 px, liseré 1 px (jaune
+  pour CONTRATS ; les anneaux pulsés gardent leurs 2 px), « 1 TERMINÉ »
+  12 px, nombres 13 px, 12 px entre les deux entrées. Structure inchangée
+  (Dr Brown, en-tête, réplique, CONTRATS avec anneaux quand un contrat est
+  prêt, ÉCHANGES).

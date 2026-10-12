@@ -1,0 +1,16 @@
+{
+ "title": {
+  "en": "Enemy details in the codex",
+  "fr": "Les détails des ennemis dans le codex"
+ },
+ "items": [
+  {
+   "en": "Codex: press A (or Enter, D, or click the selected enemy) to flip its card to a details page: how hard it hits, how tough it is, when it shows up, the XP and scrap it's worth, its loot with drop chances, its weak point and a tip. Press A or B again to flip back. Enemies you haven't met yet keep their secrets.",
+   "fr": "Codex : appuyez sur A (ou Entrée, D, ou cliquez sur l'ennemi choisi) pour retourner sa fiche sur une page de détails : la force de ses coups, sa résistance, quand il apparaît, l'XP et la ferraille qu'il rapporte, son butin avec les chances de l'obtenir, son point faible et un conseil. A ou B pour revenir. Les ennemis jamais croisés gardent leurs secrets."
+  },
+  {
+   "en": "Lab: the CONTRACTS and EXCHANGES buttons are now sized like the rest of the hub.",
+   "fr": "Labo : les boutons CONTRATS et ÉCHANGES ont maintenant la même taille que le reste du hub."
+  }
+ ]
+}
