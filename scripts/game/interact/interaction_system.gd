@@ -44,6 +44,8 @@ var _resend_t := 0.0
 var _limit := NetGuard.Limiter.new(20.0, 20.0)
 ## Serveur : fins d'interaction (une par demande acceptée, même cadence).
 var _release_limit := NetGuard.Limiter.new(20.0, 20.0)
+## Serveur : votes d'évacuation (un appui de touche à la fois).
+var _vote_limit := NetGuard.Limiter.new(10.0, 10.0)
 
 
 func _ready() -> void:
@@ -86,6 +88,10 @@ func get_obj(id: String) -> Interactable:
 func local_tick(p: Player) -> void:
 	focused = _find_focus(p)
 	var inp := p.input
+	# Vote d'évacuation de n'importe où (PlayerInput.vote, F1 / F2 ou croix
+	# gauche / droite) : le serveur décide (srv_evac_vote).
+	if inp.vote != EvacRules.Vote.NONE and game.evac != null and game.evac.is_open:
+		srv_evac_vote.rpc_id(1, inp.vote)
 	if focused and inp.interact_pressed:
 		_holding = focused
 		_resend_t = 0.0
@@ -184,6 +190,17 @@ func srv_interact(id: String) -> void:
 		print("[Interact] %d : %s hors de vue" % [pid, id])
 		return
 	obj.srv_use(pid)
+
+
+## Vote d'évacuation (EvacRules.Vote.READY : CONTINUER, LEAVE : ÉVACUER) du
+## joueur qui l'envoie, de n'importe où : pas de portée ni de ligne de vue.
+## Un joueur à terre vote aussi ; un mort (spectateur), jamais (EvacDoor.srv_vote).
+@rpc("any_peer", "call_local", "reliable")
+func srv_evac_vote(vote: int) -> void:
+	var pid := NetGuard.known_sender(self, game, _vote_limit, false)
+	if pid == NetGuard.NO_SENDER or game.evac == null:
+		return
+	game.evac.srv_vote(pid, vote)
 
 
 ## Hauteur de l'œil au-dessus des pieds (accroupi compris) ; joueur hors de

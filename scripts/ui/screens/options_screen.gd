@@ -33,6 +33,8 @@ const ACTION_NAMES := {
 	"weapon_3": ["ARME 3", "WEAPON 3"],
 	"inventory": ["INVENTAIRE", "INVENTORY"],
 	"scoreboard": ["TABLEAU DES SCORES", "SCOREBOARD"],
+	"vote_continue": ["ÉVACUATION : CONTINUER", "EVACUATION: CONTINUE"],
+	"vote_evacuate": ["ÉVACUATION : ÉVACUER", "EVACUATION: EVACUATE"],
 }
 const PAGE_SIZE := Vector2(870, 440)
 
@@ -433,6 +435,9 @@ func bind_hint(action: String, shared := "") -> String:
 				" The mouse wheel also switches weapons, except a notch bound to an action.")
 	elif action in Settings.MOVE_ACTIONS:
 		hint += Lang.t(" Stick gauche : déplacement progressif.", " Left stick: analog movement.")
+	elif action in Settings.VOTE_ACTIONS:
+		hint += Lang.t(" Vote de n'importe où pendant l'évacuation ; une commande partagée ne sert alors qu'au vote.",
+				" Votes from anywhere during the evacuation; a shared control then only votes.")
 	return hint
 
 

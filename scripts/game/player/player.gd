@@ -280,7 +280,9 @@ func _local_physics(delta: float) -> void:
 		# bouge plus, ne vise plus et ne tire plus.
 		var menu_open := Game.instance != null and Game.instance.menu_open()
 		if input_enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not menu_open:
-			input.read_devices(delta)
+			# Fenêtre d'évacuation : vote de n'importe où (F1 / F2, croix).
+			var evac := Game.instance.evac if Game.instance else null
+			input.read_devices(delta, evac != null and evac.local_can_vote())
 		else:
 			var keep_look := input.look
 			input = PlayerInput.new()

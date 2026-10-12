@@ -134,6 +134,9 @@ const DEFAULT_BINDINGS := {
 	"inventory": KEY_I,
 	"scoreboard": KEY_TAB,
 	"pause": KEY_ESCAPE,
+	# Vote d'évacuation, de n'importe où pendant la fenêtre (GAME_CONCEPT §4.5).
+	"vote_continue": KEY_F1,
+	"vote_evacuate": KEY_F2,
 }
 const MOUSE_BINDINGS := {
 	"fire": MOUSE_BUTTON_LEFT,
@@ -158,6 +161,11 @@ const DEFAULT_PAD_BUTTONS := {
 	"weapon_1": JOY_BUTTON_DPAD_LEFT,
 	"weapon_2": JOY_BUTTON_DPAD_DOWN,
 	"weapon_3": JOY_BUTTON_DPAD_RIGHT,
+	# Vote d'évacuation : croix gauche / droite, partagées d'origine avec les
+	# armes 1 et 3 (VOTE_ACTIONS : pendant la fenêtre, sans zombies, l'appui
+	# ne sert qu'au vote).
+	"vote_continue": JOY_BUTTON_DPAD_LEFT,
+	"vote_evacuate": JOY_BUTTON_DPAD_RIGHT,
 }
 ## ... et axes [axe, sens] : stick gauche (déplacement analogique), gâchettes.
 const DEFAULT_PAD_AXES := {
@@ -175,7 +183,16 @@ const DEFAULT_PAD_AXES := {
 ## dans un sens affecté à une action (wheel_switch_events).
 const REBINDABLE := ["move_forward", "move_back", "move_left", "move_right", "jump", "crouch",
 	"sprint", "fire", "aim", "reload", "interact", "melee", "grenade",
-	"switch_weapon", "weapon_1", "weapon_2", "weapon_3", "inventory", "scoreboard"]
+	"switch_weapon", "weapon_1", "weapon_2", "weapon_3", "inventory", "scoreboard",
+	"vote_continue", "vote_evacuate"]
+## Vote d'évacuation (CONTINUER : EvacRules.Vote.READY, ÉVACUER : LEAVE), lu
+## seulement pendant la fenêtre d'évacuation, de n'importe où
+## (PlayerInput.read_devices). Une commande partagée avec une autre action
+## (croix gauche / droite et armes 1 / 3 d'origine, ou une touche réaffectée
+## sur une commande déjà prise) ne sert alors QU'AU vote : l'autre action est
+## ignorée pour cet appui (vote_conflicts). Hors de la fenêtre, les votes ne
+## font rien et l'autre action marche comme d'habitude.
+const VOTE_ACTIONS := ["vote_continue", "vote_evacuate"]
 ## Choix direct de l'arme en main (emplacements 1 à 3, PlayerInput.select_slot).
 const WEAPON_SLOT_ACTIONS := ["weapon_1", "weapon_2", "weapon_3"]
 ## Commandes par action et par colonne (clavier / souris, manette) : deux
@@ -215,6 +232,9 @@ var bindings := {}
 ## Boutons de manette de chaque action : action -> liste de codes
 ## (« joy:<JoyButton> », « joyaxis:<JoyAxis>:<-1|1> »). Deuxième colonne des options.
 var pad_bindings := {}
+## Actions qui partagent une commande avec un vote d'évacuation (action ->
+## votes ; vote_conflicts, refait par apply_bindings).
+var vote_shared := {}
 
 ## Sensibilité de la vue au stick droit (multiplicateur, voir PlayerInput).
 var pad_look_sensitivity := 1.0
@@ -636,7 +656,29 @@ func apply_bindings() -> void:
 				InputMap.action_add_event(action, ev)
 	for w in wheel_switch_events(bindings):
 		InputMap.action_add_event("switch_weapon", w)
+	vote_shared = vote_conflicts(bindings, pad_bindings)
 	bindings_changed.emit()
+
+
+## Actions qui partagent une commande avec un vote d'évacuation : action ->
+## votes (VOTE_ACTIONS) qui ont aussi l'une de ses commandes, dans l'une ou
+## l'autre colonne (d'origine : weapon_1 -> [vote_continue], weapon_3 ->
+## [vote_evacuate]). Pure (tests) ; gardée dans `vote_shared` par apply_bindings.
+static func vote_conflicts(keys: Dictionary, pads: Dictionary) -> Dictionary:
+	var out := {}
+	for a in REBINDABLE:
+		if a in VOTE_ACTIONS:
+			continue
+		var votes := []
+		for v in VOTE_ACTIONS:
+			for col: Dictionary in [keys, pads]:
+				var mine: Array = col.get(a, [])
+				for c in col.get(v, []):
+					if c in mine and not v in votes:
+						votes.append(v)
+		if not votes.is_empty():
+			out[a] = votes
+	return out
 
 
 ## Molette : changement d'arme (haut / bas), sauf pour un cran affecté à une
@@ -663,12 +705,13 @@ static func wheel_switch_events(keys: Dictionary) -> Array[InputEventMouseButton
 ## (une version précédente en écrivait une seule, en liste ou en texte :
 ## relue telle quelle ; les fichiers d'avant le partage n'en ont aucune).
 ## Action absente du fichier (nouvelle version) : ses commandes d'origine,
-## sauf celles qu'une action du fichier a déjà (aucun partage que le joueur
-## n'a pas choisi).
+## sauf celles qu'une action du fichier a déjà sans les avoir d'origine (aucun
+## partage que le joueur n'a pas choisi ; un partage d'origine, croix gauche
+## pour ARME 1 et VOTE CONTINUER, reste).
 static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dictionary, pad: bool,
 		max_codes := SLOTS_PER_COLUMN) -> Dictionary:
 	var d := defaults.duplicate(true)
-	var used := {}
+	var used := {}  # code -> actions qui l'ont
 	for action in REBINDABLE:
 		if not cfg.has_section_key(section, action):
 			continue
@@ -683,7 +726,7 @@ static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dicti
 			var code := str(c)
 			if is_pad_code(code) == pad and event_from_code(code) != null and not code in picks:
 				picks.append(code)
-				used[code] = true
+				_note_use(used, code, action)
 				if picks.size() >= max_codes:
 					break
 		d[action] = picks
@@ -691,11 +734,25 @@ static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dicti
 		if not cfg.has_section_key(section, action):
 			var keep := []
 			for code in d[action]:
-				if not used.has(code):
-					used[code] = true
+				if not _shared_unchosen(used, code, defaults):
+					_note_use(used, code, action)
 					keep.append(code)
 			d[action] = keep
 	return d
+
+
+static func _note_use(used: Dictionary, code: String, action: String) -> void:
+	if not used.has(code):
+		used[code] = []
+	(used[code] as Array).append(action)
+
+
+## `code` déjà pris par une action qui ne l'a pas d'origine ?
+static func _shared_unchosen(used: Dictionary, code: String, defaults: Dictionary) -> bool:
+	for a in used.get(code, []):
+		if not code in (defaults.get(a, []) as Array):
+			return true
+	return false
 
 
 # --------------------------------------------------------------------------

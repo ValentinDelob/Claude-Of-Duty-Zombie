@@ -88,9 +88,7 @@ func run() -> void:
 	var inside := door.global_position + door.global_basis.z * 1.5 + Vector3.UP * 0.05
 	p.teleport_to(inside)
 	await frames(3)
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 2.0, "porte visée")
-	p.input.interact_pressed = true
+	p.input.vote = EvacRules.Vote.LEAVE  # F2 : ÉVACUER, de n'importe où
 	var ok: bool = await until(func(): return GameState.state == GameState.State.GAME_OVER and game.last_result != null, 3.0, "évacuation")
 	at.check(ok, "évacuation")
 	if not ok:

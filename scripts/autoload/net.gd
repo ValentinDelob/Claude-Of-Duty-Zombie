@@ -18,7 +18,9 @@ const MAX_SUPPORTED_PLAYERS := 8
 ## coordonnées négatives et altitudes sans borne).
 ## 7 : XP comptée par l'hôte pendant la partie (/root/Game/Xp, relevés dans
 ## le message de fin de partie).
-const PROTOCOL_VERSION := 7
+## 8 : vote d'évacuation de n'importe où (/root/Game/Interact.srv_evac_vote,
+## nouveau RPC) ; la porte n'est plus utilisable avec [F].
+const PROTOCOL_VERSION := 8
 const CONNECT_TIMEOUT_SEC := 8.0
 
 enum Mode { NONE, SOLO, HOST, CLIENT }

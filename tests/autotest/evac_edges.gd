@@ -12,13 +12,9 @@ var p: Player
 var door: EvacDoor
 
 
-## Appui sur [F] en visant la porte (vote).
-func _vote() -> void:
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 2.0, "porte visée")
-	var before: int = door.votes.get(1, EvacRules.Vote.NONE)
-	p.input.interact_pressed = true
-	await until(func(): return int(door.votes.get(1, EvacRules.Vote.NONE)) != before or not door.is_open, 2.0, "vote reçu")
+## Vote de n'importe où (F1 : CONTINUER, F2 : ÉVACUER).
+func _vote(v: int) -> void:
+	await H.evac_vote(self, p, v)
 
 
 func run() -> void:
@@ -56,11 +52,11 @@ func run() -> void:
 	await seconds(RoundRules.INTERMISSION + 1.0)
 	at.check(game.rounds.round_n == 2 and door.is_open, "la manche suivante attend la fin de la fenêtre")
 	at.check(game.zombies.alive_count() == 0 and game.rounds.to_spawn == 0, "aucun zombie pendant la fenêtre")
-	# « partir » hors de la zone puis « prêt » : tous prêts, la partie reprend.
+	# ÉVACUER hors de la zone puis CONTINUER : tous prêts, la partie reprend.
 	p.teleport_to(outside)
 	await frames(3)
-	await _vote()
-	await _vote()
+	await _vote(EvacRules.Vote.LEAVE)
+	await _vote(EvacRules.Vote.READY)
 	ok = await until(func(): return not door.is_open, 2.0, "fenêtre fermée (tous prêts)")
 	at.check(ok, "tous prêts : fenêtre fermée")
 	# Vague déjà vaincue : pas de seconde ouverture dans la même manche.
@@ -83,19 +79,31 @@ func run() -> void:
 	dogs.spawned = dogs.total
 	if not await until(func(): return door.is_open, 3.0, "porte ouverte après la vague 4"):
 		return
-	# Un coéquipier (sans corps, loin de la porte) vote « prêt » puis s'en va.
+	# Un coéquipier (sans corps, loin de la porte) vote CONTINUER puis s'en va.
+	# Votes refusés : « en attente » (pas un choix), valeur inconnue, mort.
 	const GONE := 4242
+	const GHOST := 4343
 	game.session.data[GONE] = PlayerData.new(GONE)
-	door.srv_use(GONE)
-	door.srv_use(GONE)
+	at.check(not door.srv_vote(GONE, EvacRules.Vote.NONE) and not door.srv_vote(GONE, 7) and not door.votes.has(GONE),
+			"EN ATTENTE ne se choisit pas, valeur inconnue refusée")
+	at.check(not door.srv_vote(GHOST, EvacRules.Vote.READY), "joueur inconnu : refusé")
+	var ghost := PlayerData.new(GHOST)
+	ghost.life = PlayerData.Life.DEAD
+	game.session.data[GHOST] = ghost
+	at.check(not door.srv_vote(GHOST, EvacRules.Vote.READY), "mort (spectateur) : ne vote pas")
+	game.session.data.erase(GHOST)
+	door.srv_vote(GONE, EvacRules.Vote.LEAVE)
+	at.check(door.srv_vote(GONE, EvacRules.Vote.READY) and not door.srv_vote(GONE, EvacRules.Vote.READY),
+			"l'autre touche change le vote ; le même vote ne change rien")
 	at.check(int(door.votes.get(GONE, 0)) == EvacRules.Vote.READY, "vote du coéquipier enregistré")
 	p.teleport_to(inside)
 	await frames(3)
-	await _vote()
+	await _vote(EvacRules.Vote.LEAVE)
 	await seconds(0.5)
 	at.check(door.is_open and GameState.state != GameState.State.GAME_OVER, "coéquipier loin de la porte : on l'attend")
-	at.check(game.hud.evac_status().contains(Lang.t("Partir 1/2", "Leave 1/2")) and game.hud.evac_status().contains(Lang.t("vous : PARTIR", "you: LEAVE")),
-			"bandeau : votes à jour « %s »" % game.hud.evac_status())
+	var rows: Array = game.hud.evac_panel.describe().rows
+	at.check(rows.size() == 2 and rows[0].me and rows[0].vote == EvacRules.Vote.LEAVE and rows[1].vote == EvacRules.Vote.READY
+			and rows[1].text == Lang.t("CONTINUER", "CONTINUE"), "cadre : votes à jour %s" % str(rows))
 	# Il se déconnecte, et les 2 minutes s'achèvent à cet instant : l'équipe
 	# restante est prête et à la porte, elle part (l'évacuation passe avant).
 	game._cl_remove_player(GONE)

@@ -22,6 +22,17 @@ static func recap() -> Hub2RecapModel:
 	return Hub2RecapModel.new().read(Router.last_match, ProfileStore.load_profile())
 
 
+## Vote d'évacuation du joueur (bot) `p`, de n'importe où, comme F1 / F2 ou
+## la croix gauche / droite (PlayerInput.vote -> InteractionSystem ->
+## serveur) ; vrai quand le vote revient de l'hôte (ou que la fenêtre se ferme
+## sur cette décision).
+static func evac_vote(sc: AutotestScenario, p: Player, vote: int, timeout := 3.0) -> bool:
+	var door := Game.instance.evac
+	p.input.vote = vote
+	return await sc.until(func(): return int(door.votes.get(p.peer_id, 0)) == vote or not door.is_open,
+			timeout, "vote d'évacuation reçu")
+
+
 ## Oriente le joueur (bot) vers un point du monde.
 static func aim_at(p: Player, point: Vector3) -> void:
 	var dir := point - p.camera.global_position

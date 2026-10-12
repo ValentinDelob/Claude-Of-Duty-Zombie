@@ -1,12 +1,24 @@
 {
  "title": {
-  "en": "A brand-new match inventory",
-  "fr": "Un tout nouvel inventaire de partie"
+  "en": "A brand-new match inventory and a simpler evacuation vote",
+  "fr": "Un tout nouvel inventaire de partie et un vote d'évacuation plus simple"
  },
  "items": [
   {
    "en": "The in-match inventory got a full makeover: your three equipped weapons and your backpack shown as real renders, a NEW tag on what you just picked up, your found parts, and a sheet that compares a backpack weapon with the one in your hands (green is better, red is worse). The match keeps going behind it, so don't admire your guns for too long.",
    "fr": "L'inventaire de partie fait peau neuve : vos trois armes en main et votre sac à dos en vrais rendus, une étiquette NEUF sur ce que vous venez de ramasser, vos pièces trouvées, et une fiche qui compare une arme du sac avec celle que vous tenez (vert c'est mieux, rouge c'est moins bien). La partie continue derrière, alors n'admirez pas vos flingues trop longtemps."
+  },
+  {
+   "en": "The evacuation vote no longer happens at the door: vote CONTINUE (F1, D-pad left) or EVACUATE (F2, D-pad right) from anywhere on the map; press the other key to change your mind.",
+   "fr": "Le vote d'évacuation ne se fait plus à la porte : votez CONTINUER (F1, croix gauche) ou ÉVACUER (F2, croix droite) de n'importe où sur la carte ; l'autre touche change d'avis."
+  },
+  {
+   "en": "A new vote panel on the left shows the time left and every teammate's choice, and a marker above the door guides you once you have voted to evacuate.",
+   "fr": "Un nouveau cadre de vote à gauche montre le temps restant et le choix de chaque coéquipier, et un repère au-dessus de la porte vous guide dès que vous avez voté ÉVACUER."
+  },
+  {
+   "en": "Both vote keys can be rebound in OPTIONS > CONTROLS; during the vote, the D-pad no longer switches weapons.",
+   "fr": "Les deux touches de vote se réaffectent dans OPTIONS > COMMANDES ; pendant le vote, la croix ne change plus d'arme."
   }
  ]
 }

@@ -2,9 +2,10 @@ extends AutotestScenario
 ## Fenêtre d'évacuation (GAME_CONCEPT.md §4.5) dans le vrai jeu, sur l'arène de
 ## test (porte d'évacuation contre le mur nord) : porte fermée hors fenêtre ;
 ## vague spéciale (manche de chiens forcée) vaincue -> porte ouverte, aucun
-## zombie, la manche suivante attend, bandeau du HUD ; fin des 2 minutes ->
-## la partie continue ; vote « partir » hors de la zone puis « prêt » -> la
-## partie reprend aussitôt ; vote « partir » dans la zone -> évacuation de
+## zombie, la manche suivante attend, cadre de vote du HUD (EvacVotePanel :
+## EN ATTENTE, touches F1 / F2) ; fin des 2 minutes -> la partie continue ;
+## vote ÉVACUER de loin (hors de la zone : repère de la porte) puis CONTINUER
+## -> la partie reprend aussitôt ; vote ÉVACUER dans la zone -> évacuation de
 ## l'équipe et écran de fin (évacuation réussie, manche atteinte, durée).
 
 var H := AutotestHelpers
@@ -26,13 +27,15 @@ func _clear_special_wave(n: int) -> bool:
 	return await until(func(): return door.is_open, 3.0, "porte ouverte après la vague %d" % n)
 
 
-## Appui sur [F] en visant la porte (vote).
-func _vote() -> void:
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 2.0, "porte visée")
-	var before: int = door.votes.get(1, EvacRules.Vote.NONE)
-	p.input.interact_pressed = true
-	await until(func(): return int(door.votes.get(1, EvacRules.Vote.NONE)) != before or not door.is_open, 2.0, "vote reçu")
+## Vote de n'importe où (F1 : CONTINUER, F2 : ÉVACUER).
+func _vote(v: int) -> void:
+	await H.evac_vote(self, p, v)
+
+
+## Choix affichés dans le cadre de vote, ligne du joueur local.
+func _my_row() -> Dictionary:
+	var rows: Array = game.hud.evac_panel.describe().rows
+	return rows[0] if not rows.is_empty() else {}
 
 
 func run() -> void:
@@ -50,7 +53,7 @@ func run() -> void:
 	if door == null:
 		return
 	at.check(WaveRules.is_default(game.map_def.waves), "schéma des vagues par défaut")
-	at.check(not door.is_open and door.prompt(1) == "", "fermée hors fenêtre : aucune invite")
+	at.check(not door.is_open and door.prompt(1) == "" and not game.hud.evac_panel.visible, "fermée hors fenêtre : ni invite ni cadre de vote")
 	# Repère de la porte : +x le long du mur, +z vers la pièce.
 	var inside := door.global_position + door.global_basis.z * 1.5 + Vector3.UP * 0.05
 	var outside := door.global_position + door.global_basis.x * 2.4 + door.global_basis.z * 1.0 + Vector3.UP * 0.05
@@ -65,28 +68,40 @@ func run() -> void:
 	await frames(3)
 	at.check(game.rounds.phase == RoundManager.Phase.INTERMISSION, "entracte pendant la fenêtre")
 	at.check(game.zombies.alive_count() == 0, "aucun zombie pendant la fenêtre")
-	at.check(game.hud.evac_status().contains(Lang.t("ÉVACUATION", "EVACUATION")), "bandeau du HUD : %s" % game.hud.evac_status())
-	at.check(door.prompt(1) != "", "invite à la porte : %s" % door.prompt(1))
+	var panel := game.hud.evac_panel.describe()
+	at.check(panel.visible and panel.rows.size() == 1 and _my_row().me and _my_row().vote == EvacRules.Vote.NONE
+			and _my_row().text == Lang.t("EN ATTENTE", "WAITING"), "cadre de vote : %s" % str(panel))
+	at.check(panel.keys == [Settings.action_label("vote_continue"), Settings.action_label("vote_evacuate")]
+			and (panel.clock.begins_with("1:") or panel.clock == "2:00"), "touches et temps : %s %s" % [panel.keys, panel.clock])
+	at.check(door.prompt(1) == "" and game.interact.focused != door, "porte sans invite [F] : vote de n'importe où")
+	at.check(not game.hud.evac_marker.visible, "pas encore voté : pas de repère de la porte")
 	await at.screenshot("open")
 	await seconds(RoundRules.INTERMISSION + 2.0)  # au-delà de l'entracte normal
 	at.check(game.rounds.round_n == 2 and door.is_open, "la manche suivante attend la fin de la fenêtre")
 	at.check(game.zombies.alive_count() == 0 and game.rounds.to_spawn == 0, "toujours aucun zombie")
 	door.time_left = 0.5  # fin des 2 minutes (accélérée)
 	await until(func(): return not door.is_open, 2.0, "fenêtre fermée au bout du temps")
-	at.check(not door.is_open and game.hud.evac_status() == "", "fenêtre fermée, bandeau retiré")
+	await frames(2)
+	at.check(not door.is_open and not game.hud.evac_panel.visible, "fenêtre fermée, cadre de vote retiré")
 	var ok: bool = await until(func(): return game.rounds.round_n == 3 and game.rounds.phase == RoundManager.Phase.ACTIVE, EvacRules.RESUME_DELAY + 2.0, "manche 3")
 	at.check(ok, "la partie continue : manche 3")
 	await H.clear_zombies(self)
 
-	# ------------------------------------------------ « partir » hors de la zone, puis « prêt »
+	# ------------------------------------------------ ÉVACUER de loin, puis CONTINUER
 	if not await _clear_special_wave(4):
 		return
 	p.teleport_to(outside)
 	await frames(3)
-	await _vote()
-	at.check(int(door.votes.get(1, 0)) == EvacRules.Vote.LEAVE and door.is_open, "vote « partir » hors de la zone : on attend l'équipe")
+	await _vote(EvacRules.Vote.LEAVE)
+	at.check(int(door.votes.get(1, 0)) == EvacRules.Vote.LEAVE and door.is_open, "vote ÉVACUER hors de la zone : on attend l'équipe")
 	at.check(GameState.state != GameState.State.GAME_OVER, "pas d'évacuation hors de la zone")
-	await _vote()
+	await frames(2)
+	at.check(_my_row().text == Lang.t("ÉVACUER", "EVACUATE") and game.hud.evac_panel.describe().mine == EvacRules.Vote.LEAVE,
+			"cadre : ÉVACUER en face de mon nom (%s)" % str(_my_row()))
+	var mk := game.hud.evac_marker
+	at.check(mk.visible and mk._text.contains("%d m" % roundi(p.global_position.distance_to(door.global_position))),
+			"repère de la porte : « %s »" % mk._text)
+	await _vote(EvacRules.Vote.READY)
 	ok = await until(func(): return not door.is_open, 2.0, "tous prêts")
 	at.check(ok and GameState.state != GameState.State.GAME_OVER, "tous prêts : la partie reprend")
 	ok = await until(func(): return game.rounds.round_n == 5 and game.rounds.phase == RoundManager.Phase.ACTIVE, EvacRules.RESUME_DELAY + 2.0, "manche 5")
@@ -98,9 +113,9 @@ func run() -> void:
 		return
 	p.teleport_to(inside)
 	await frames(3)
-	await _vote()
+	await _vote(EvacRules.Vote.LEAVE)
 	ok = await until(func(): return GameState.state == GameState.State.GAME_OVER and game.last_result != null, 2.0, "évacuation")
-	at.check(ok, "tous à la porte et « partir » : évacuation")
+	at.check(ok, "tous à la porte et ÉVACUER : évacuation")
 	if not ok:
 		return
 	var r := game.last_result

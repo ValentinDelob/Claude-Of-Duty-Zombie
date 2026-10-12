@@ -5,11 +5,14 @@ extends Interactable
 ##
 ## Après une vague spéciale ou de boss vaincue, RoundManager l'ouvre
 ## (srv_open) : fenêtre de EvacRules.DURATION s sans zombies, la manche
-## suivante attend. Chaque joueur vote à la porte ([F] / X : « partir », puis
-## « prêt », en alternance). Le SERVEUR décide (EvacRules.decide) : reprise de
+## suivante attend. Chaque joueur vote DE N'IMPORTE OÙ (CONTINUER : F1 /
+## croix gauche, ÉVACUER : F2 / croix droite ; PlayerInput.vote), demande
+## envoyée au serveur (InteractionSystem.srv_evac_vote -> srv_vote) ; la porte
+## elle-même n'a plus d'invite [F] (les deux choix sont dans le cadre de vote
+## du HUD, EvacVotePanel). Le SERVEUR décide (EvacRules.decide) : reprise de
 ## la partie, ou évacuation de toute l'équipe (Game.srv_end_match). L'état
-## (ouverte, temps restant, votes) passe par le message d'état des objets
-## (InteractionSystem._cl_state) ; aucun RPC propre.
+## (ouverte, temps restant, votes de tous) passe par le message d'état des
+## objets (InteractionSystem._cl_state).
 ##
 ## Modèle CUBIQUE (cubes de 5 cm, §4.19 ; build_model) : bâti,
 ## battant, voyant rouge (fermée) ou vert (ouverte) ; collision : CollisionBox
@@ -42,7 +45,6 @@ var _panel: Node3D
 var _lamp: MeshInstance3D
 var _light: OmniLight3D
 var _zone_marks: Node3D
-var _hud_text := ""
 ## Fenêtre ouverte telle qu'affichée (bandeaux d'ouverture et de fermeture).
 var _ui_open := false
 
@@ -130,12 +132,18 @@ func in_zone(feet: Vector3) -> bool:
 	return EvacRules.in_zone_local(global_transform.affine_inverse() * feet)
 
 
-func prompt(pid: int) -> String:
-	if not is_open:
-		return ""
-	if int(votes.get(pid, EvacRules.Vote.NONE)) == EvacRules.Vote.LEAVE:
-		return Lang.t("[F] Rester : voter PRÊT", "[F] Stay: vote READY")
-	return Lang.t("[F] Voter PARTIR (évacuation)", "[F] Vote LEAVE (evacuate)")
+## Le joueur local peut-il voter (fenêtre ouverte, pas mort) ? Ses touches de
+## vote ne servent alors qu'au vote (PlayerInput.read_devices).
+func local_can_vote() -> bool:
+	if not is_open or game == null or game.session == null:
+		return false
+	var pd := game.session.local_data()
+	return pd != null and pd.life != PlayerData.Life.DEAD
+
+
+## Vote du joueur local (EvacRules.Vote.NONE : pas encore voté).
+func local_vote() -> int:
+	return int(votes.get(multiplayer.get_unique_id(), EvacRules.Vote.NONE))
 
 
 # --------------------------------------------------------------------------
@@ -163,13 +171,23 @@ func srv_open() -> void:
 	broadcast_state()
 
 
-func srv_use(pid: int) -> void:
-	if not is_open or _decided:
-		return
-	votes[pid] = EvacRules.next_vote(int(votes.get(pid, EvacRules.Vote.NONE)))
-	print("[Evac] vote de %d : %s" % [pid, "partir" if votes[pid] == EvacRules.Vote.LEAVE else "prêt"])
+## Vote `vote` (CONTINUER ou ÉVACUER) du joueur `pid`, de n'importe où.
+## Refusé hors de la fenêtre, une fois la décision prise, pour un joueur
+## inconnu ou mort (spectateur), ou pour un vote qui n'est pas un choix
+## (« en attente » ne se choisit pas). Rend vrai si le vote a changé.
+func srv_vote(pid: int, vote: Variant) -> bool:
+	if not is_open or _decided or not EvacRules.is_choice(vote):
+		return false
+	var pd: PlayerData = game.session.get_data(pid) if game and game.session else null
+	if pd == null or pd.life == PlayerData.Life.DEAD:
+		return false
+	if int(votes.get(pid, EvacRules.Vote.NONE)) == int(vote):
+		return false
+	votes[pid] = int(vote)
+	print("[Evac] vote de %d : %s" % [pid, "évacuer" if vote == EvacRules.Vote.LEAVE else "continuer"])
 	broadcast_state()
 	_srv_decide()
+	return true
 
 
 ## Serveur : vies et présence dans la zone des joueurs de la partie.
@@ -223,24 +241,27 @@ func apply_state(state: Dictionary, _animate: bool) -> void:
 	is_open = o is bool and o
 	var l: Variant = state.get("left", 0.0)
 	time_left = clampf(float(l), 0.0, EvacRules.DURATION) if (l is float or l is int) and is_finite(float(l)) else 0.0
+	# Votes de tous (pid -> CONTINUER / ÉVACUER) ; valeur illisible ignorée.
 	var v: Variant = state.get("votes", {})
-	votes = v.duplicate() if v is Dictionary else {}
+	votes = {}
+	if v is Dictionary:
+		for pid in v:
+			if pid is int and EvacRules.is_choice(v[pid]):
+				votes[pid] = v[pid]
 	_show_open(is_open)
 	# Affichage suivi à part : sur le serveur, is_open a déjà changé (srv_open).
 	if game != null and game.hud != null and _ui_open != is_open:
 		_ui_open = is_open
 		if is_open:
+			# Ouverture annoncée par le son et le cadre de vote (EvacVotePanel),
+			# sans grand bandeau : il passait sur le cadre, à gauche.
 			Audio.play_2d("round_end", 0.0, 0.0)
-			game.hud.show_banner(Lang.t("LA PORTE D'ÉVACUATION EST OUVERTE", "THE EVACUATION DOOR IS OPEN"), 4.0)
-		else:
-			_hud_text = ""
-			game.hud.set_evac_status("")
-			if GameState.state != GameState.State.GAME_OVER:
-				game.hud.show_banner(Lang.t("LA PARTIE CONTINUE", "THE GAME GOES ON"), 2.5)
-	# Votes et temps restant de l'hôte affichés tout de suite.
-	_refresh_hud()
+		elif GameState.state != GameState.State.GAME_OVER:
+			game.hud.show_banner(Lang.t("LA PARTIE CONTINUE", "THE GAME GOES ON"), 2.5)
 
 
+## Le cadre de vote du HUD (EvacVotePanel) et le repère de la porte
+## (EvacDoorMarker) lisent is_open, time_left et votes à chaque image.
 func _process(delta: float) -> void:
 	if not is_open:
 		return
@@ -251,28 +272,8 @@ func _process(delta: float) -> void:
 			_resync = 0.0
 			broadcast_state()
 		_srv_decide()
-	_refresh_hud()
 
 
-## Bandeau : compte à rebours et état des votes (présence vue d'ici). Aussi à
-## chaque état reçu (apply_state) : le bandeau suit l'hôte sans attendre
-## l'image suivante.
-func _refresh_hud() -> void:
-	if game == null or game.hud == null or not is_open:
-		return
-	var life := {}
-	var zone := {}
-	for pid in game.session.data:
-		life[pid] = (game.session.data[pid] as PlayerData).life
-		var p: Player = game.players.get(pid)
-		zone[pid] = p != null and in_zone(p.global_position)
-	var text := EvacRules.status_text(time_left, EvacRules.tally(votes, life, zone),
-			int(votes.get(multiplayer.get_unique_id(), EvacRules.Vote.NONE)))
-	if text != _hud_text:
-		_hud_text = text
-		game.hud.set_evac_status(text)
-
-
-func _exit_tree() -> void:
-	if game and game.hud and is_instance_valid(game.hud):
-		game.hud.set_evac_status("")
+## Point au-dessus de la porte que vise le repère « ÉVACUATION · N m ».
+func marker_point() -> Vector3:
+	return global_position + Vector3.UP * (DOOR_H + FRAME + 0.35)

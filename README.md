@@ -113,6 +113,7 @@ standard), branchées à chaud.
 | Arme en main 1 / 2 / 3 | 1 / 2 / 3 | croix gauche / bas / droite | flèches gauche / bas / droite |
 | Inventaire de partie (échanger une arme en main avec une arme rangée ; la partie continue) | I (Échap ferme) | croix haut (B ferme) | flèche haut (Rond ferme) |
 | Interagir (acheter, réanimer : maintenir) | F | X | Carré |
+| Évacuation : voter CONTINUER / ÉVACUER (de n'importe où, pendant la fenêtre d'évacuation ; la croix ne change alors pas d'arme) | F1 / F2 | croix gauche / droite | flèches gauche / droite |
 | Tableau des scores | Tab (maintenu) | Back (maintenu) | Share / Create (maintenu) |
 | Pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) | Échap | Start | Options |
 
@@ -147,9 +148,13 @@ COUTEAU »), et la barre d'aide nomme les autres actions quand la case est
 choisie ; pour ne la garder que sur une action, effacez-la sur l'autre ligne.
 Avec la même touche pour RECHARGER et INTERAGIR, devant un objet utilisable
 (porte, caisse, courant…) l'appui sert à l'objet et ne recharge pas, comme
-X / Carré dans BO1 sur console ; ailleurs il recharge. Mise dans l'autre case
+X / Carré dans BO1 sur console ; ailleurs il recharge. De même, pendant la
+fenêtre d'évacuation, une commande d'un vote (CONTINUER, ÉVACUER) ne sert
+qu'au vote (la croix gauche vote CONTINUER sans prendre l'arme 1) ; hors de la
+fenêtre, l'autre action marche comme d'habitude. Mise dans l'autre case
 de la même action, une commande change de case. « Rétablir les commandes par
-défaut » remet les deux colonnes (aucune commande partagée).
+défaut » remet les deux colonnes (seul partage d'origine : la croix gauche /
+droite pour les armes 1 / 3 et les votes d'évacuation).
 Enregistré dans `settings.cfg` (les fichiers de la version à une commande
 par action se relisent tels quels ; les anciens fichiers à deux touches
 d'origine, d'avant la manette, gardent la première).

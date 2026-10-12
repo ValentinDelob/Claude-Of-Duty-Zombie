@@ -9,13 +9,17 @@ extends RefCounted
 ##   morts réapparaissent à l'ouverture (la vague est terminée, §4.6) ; un
 ##   joueur mort pendant la fenêtre est spectateur : il ne vote pas et part
 ##   avec l'équipe.
-## * Vote à la porte ([F] / X) : chaque appui alterne « partir » et « prêt »
-##   (premier appui : « partir »).
-## * Tous les votants ont voté « prêt » : la partie reprend (manche suivante
-##   après RESUME_DELAY secondes).
-## * Tous les votants ont voté « partir » ET sont DEBOUT dans la zone de la
-##   porte au même moment : l'équipe entière s'évacue (fin de partie réussie).
-##   Un joueur à terre bloque donc l'évacuation tant qu'il n'est pas relevé.
+## * Vote de n'importe où pendant la fenêtre (maquette
+##   docs/hub_v2/Evacuation.dc.html) : CONTINUER (action « vote_continue »,
+##   F1 / croix gauche) ou ÉVACUER (« vote_evacuate », F2 / croix droite).
+##   L'autre touche change le vote ; on ne revient jamais à « en attente »
+##   (EN ATTENTE = pas encore voté, pas un choix).
+## * Tous les votants ont voté CONTINUER (READY) : la partie reprend (manche
+##   suivante après RESUME_DELAY secondes).
+## * Tous les votants ont voté ÉVACUER (LEAVE) ET sont DEBOUT dans la zone de
+##   la porte au même moment : l'équipe entière s'évacue (fin de partie
+##   réussie). Un joueur à terre bloque donc l'évacuation tant qu'il n'est pas
+##   relevé.
 ## * Fin des DURATION secondes sans évacuation : la partie continue (comme
 ##   « tous prêts »).
 
@@ -36,9 +40,10 @@ const RESUME := "resume"
 const EVACUATE := "evacuate"
 
 
-## Vote suivant après un appui à la porte.
-static func next_vote(cur: int) -> int:
-	return Vote.READY if cur == Vote.LEAVE else Vote.LEAVE
+## Vote qu'un joueur peut choisir : CONTINUER ou ÉVACUER (jamais « en
+## attente », ni une valeur inconnue venue du réseau).
+static func is_choice(v: Variant) -> bool:
+	return v is int and (v == Vote.READY or v == Vote.LEAVE)
 
 
 ## Point local (repère de la porte : origine au pied de la porte, sur la face
@@ -89,19 +94,32 @@ static func decide(votes: Dictionary, life: Dictionary, in_zone: Dictionary, tim
 	return NONE
 
 
-## Compteurs pour l'affichage : {voters, leave, ready, in_zone}.
-static func tally(votes: Dictionary, life: Dictionary, in_zone: Dictionary) -> Dictionary:
-	var out := {"voters": 0, "leave": 0, "ready": 0, "in_zone": 0}
-	for pid in voters(life):
-		out.voters += 1
-		var v := int(votes.get(pid, Vote.NONE))
-		if v == Vote.LEAVE:
-			out.leave += 1
-		elif v == Vote.READY:
-			out.ready += 1
-		if bool(in_zone.get(pid, false)) and int(life[pid]) == PlayerData.Life.ALIVE:
-			out.in_zone += 1
+## Lignes du cadre de vote, une par votant (un mort, spectateur, n'en a
+## pas) : [{pid, vote, me}], le joueur local `me` d'abord, puis l'ordre
+## `order` (identifiants par place dans l'équipe), puis les autres votants.
+static func vote_rows(votes: Dictionary, life: Dictionary, me: int, order: Array) -> Array:
+	var vs := voters(life)
+	var ids := []
+	if me in vs:
+		ids.append(me)
+	for pid in order + vs:
+		if pid in vs and not pid in ids:
+			ids.append(pid)
+	var out := []
+	for pid in ids:
+		var v: Variant = votes.get(pid, Vote.NONE)
+		out.append({"pid": pid, "vote": int(v) if is_choice(v) else Vote.NONE, "me": pid == me})
 	return out
+
+
+## Nom affiché d'un vote : CONTINUER, ÉVACUER, EN ATTENTE (pas encore voté).
+static func vote_text(v: int) -> String:
+	match v:
+		Vote.READY:
+			return Lang.t("CONTINUER", "CONTINUE")
+		Vote.LEAVE:
+			return Lang.t("ÉVACUER", "EVACUATE")
+	return Lang.t("EN ATTENTE", "WAITING")
 
 
 ## Temps restant « m:ss ».
@@ -109,19 +127,3 @@ static func clock_text(seconds: float) -> String:
 	var s := maxi(ceili(seconds), 0)
 	@warning_ignore("integer_division")
 	return "%d:%02d" % [s / 60, s % 60]
-
-
-## Bandeau du HUD pendant la fenêtre (deux lignes, langue du joueur).
-static func status_text(time_left: float, t: Dictionary, my_vote: int) -> String:
-	var mine := ""
-	match my_vote:
-		Vote.LEAVE:
-			mine = Lang.t("vous : PARTIR", "you: LEAVE")
-		Vote.READY:
-			mine = Lang.t("vous : PRÊT", "you: READY")
-		_:
-			mine = Lang.t("vous : pas encore voté", "you: no vote yet")
-	return Lang.t("ÉVACUATION OUVERTE — %s", "EVACUATION OPEN — %s") % clock_text(time_left) + "\n" \
-			+ Lang.t("Partir %d/%d · Prêts %d/%d · À la porte %d/%d · %s",
-				"Leave %d/%d · Ready %d/%d · At the door %d/%d · %s") \
-			% [t.leave, t.voters, t.ready, t.voters, t.in_zone, t.voters, mine]

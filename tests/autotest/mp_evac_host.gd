@@ -1,8 +1,8 @@
 extends AutotestScenario
 ## [MP] Hôte : évacuation à deux (GAME_CONCEPT.md §4.5). Vague spéciale
 ## (manche de chiens forcée) vaincue : la porte s'ouvre chez tout le monde ;
-## le CLIENT vote « partir » dans la zone (vote validé ici) : on attend
-## l'hôte ; l'hôte vote « partir » dans la zone : toute l'équipe s'évacue,
+## le CLIENT vote ÉVACUER dans la zone (vote validé ici) : on attend
+## l'hôte ; l'hôte vote ÉVACUER dans la zone : toute l'équipe s'évacue,
 ## fin de partie « évacuation réussie » chez les deux.
 
 const PORT := 17907
@@ -41,19 +41,17 @@ func run() -> void:
 	if not await until(func(): return door.is_open, 3.0, "porte ouverte"):
 		return
 	MpHelpers.signal_peer("ouverte")
-	# Vote du client, validé par le serveur (portée, joueur vivant).
-	var ok: bool = await until(func(): return int(door.votes.get(client_id, 0)) == EvacRules.Vote.LEAVE, 20.0, "vote « partir » du client")
-	at.check(ok, "hôte : vote « partir » du client reçu")
+	# Vote du client, validé par le serveur (joueur de la partie, pas mort ; de n'importe où).
+	var ok: bool = await until(func(): return int(door.votes.get(client_id, 0)) == EvacRules.Vote.LEAVE, 20.0, "vote ÉVACUER du client")
+	at.check(ok, "hôte : vote ÉVACUER du client reçu")
 	await seconds(0.5)
 	at.check(door.is_open and GameState.state != GameState.State.GAME_OVER, "hôte : un seul vote, on attend l'hôte")
-	# L'hôte rejoint la zone et vote « partir ».
+	# L'hôte rejoint la zone et vote ÉVACUER.
 	var p := game.local_player
 	p.bot_controlled = true
 	p.teleport_to(door.global_position + door.global_basis.z * 1.6 + door.global_basis.x * 1.0 + Vector3.UP * 0.05)
 	await frames(3)
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 2.0, "hôte : porte visée")
-	p.input.interact_pressed = true
+	p.input.vote = EvacRules.Vote.LEAVE  # F2, de n'importe où
 	ok = await until(func(): return GameState.state == GameState.State.GAME_OVER and game.last_result != null, 3.0, "évacuation")
 	at.check(ok and game.last_result.evacuated, "hôte : toute l'équipe évacuée")
 	if ok:

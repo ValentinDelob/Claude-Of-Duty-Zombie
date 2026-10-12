@@ -1284,7 +1284,19 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
 - Évacuation (GAME_CONCEPT.md §4.5) : `EvacDoor` (Interactable `evac`, sous
   `World`), ouverte par `RoundManager._wave_cleared` après une vague spéciale
   ou de boss vaincue ; la manche suivante attend (`Phase.INTERMISSION` figée).
-  Votes par l'interaction ([F] / X) ; état (ouverte, temps restant, votes)
+  Votes de n'importe où (protocole v8) : actions `vote_continue` (F1 / croix
+  gauche) et `vote_evacuate` (F2 / croix droite) lues par
+  `PlayerInput.read_devices` seulement pendant la fenêtre
+  (`EvacDoor.local_can_vote`), envoyées par `InteractionSystem.local_tick` au
+  RPC `srv_evac_vote` (`/root/Game/Interact`) -> `EvacDoor.srv_vote` (refus :
+  fenêtre fermée, mort, « en attente ») ; la porte n'a plus d'invite [F].
+  Commande partagée avec une autre action (`Settings.vote_shared`, croix et
+  armes 1 / 3 d'origine) : pendant la fenêtre l'appui ne sert qu'au vote
+  (`PlayerInput.masked_by_vote`, aussi inventaire et tableau des scores du
+  HUD). Affichage (maquette `docs/hub_v2/Evacuation.dc.html`) : `EvacVotePanel`
+  (cadre de vote à gauche) et `EvacDoorMarker` (repère « ÉVACUATION · N m »
+  projeté au-dessus de la porte, collé au bord hors de l'écran), qui lisent
+  `Game.evac` à chaque image. État (ouverte, temps restant, votes de tous)
   par `InteractionSystem._cl_state` ; décision du serveur (`EvacRules.decide`) :
   reprise (`RoundManager.srv_resume_after`) ou `Game.srv_end_match(true)`.
   Une seule ouverture par manche, jamais après la fin de partie ; vague de
@@ -1293,7 +1305,7 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   oublié (`EvacRules.prune_votes`), le quorum se recalcule à chaque image.
   Joueur mort ou à terre à l'évacuation : son butin compte ses armes mises de
   côté (`PlayerData.saved_weapons`, transmises au client avec l'inventaire).
-  Tests : `test_evac_rules.gd`, scénarios `evacuation`, `evac_edges`,
+  Tests : `test_evac_rules.gd`, `test_evac_vote_input.gd`, scénarios `evacuation`, `evac_edges`,
   multijoueur `mp:evac`, `mp:evacdown` (à terre puis mort), `mp:evacleave`
   (client parti pendant la fenêtre).
 - Connexion (`Net.join`) : délai de CONNECT_TIMEOUT_SEC compté en temps de

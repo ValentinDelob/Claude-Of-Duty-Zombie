@@ -1,5 +1,5 @@
 extends AutotestScenario
-## [MP] Client : vote « partir » à la porte, sort de la zone, puis quitte la
+## [MP] Client : vote ÉVACUER dans la zone, sort de la zone, puis quitte la
 ## partie (menu pause) pendant la fenêtre d'évacuation : retour propre au
 ## menu ; l'hôte s'évacue sans lui.
 
@@ -26,11 +26,9 @@ func run() -> void:
 	if not await MpHelpers.wait_peer(self, "ouverte", 60.0):
 		return
 	await until(func(): return door.is_open, 5.0, "porte ouverte chez le client")
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 3.0, "client : porte visée")
-	p.input.interact_pressed = true
-	var ok: bool = await until(func(): return int(door.votes.get(me, 0)) == EvacRules.Vote.LEAVE, 5.0, "vote reçu en retour")
-	at.check(ok, "client : vote « partir » enregistré")
+	await H.evac_vote(self, p, EvacRules.Vote.LEAVE, 5.0)
+	var ok: bool = int(door.votes.get(me, 0)) == EvacRules.Vote.LEAVE
+	at.check(ok, "client : vote ÉVACUER enregistré")
 	# Hors de la zone, au fond de la pièce.
 	p.teleport_to(door.global_position + door.global_basis.z * 6.0 + Vector3.UP * 0.05)
 	await frames(3)

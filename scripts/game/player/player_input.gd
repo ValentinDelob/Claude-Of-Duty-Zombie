@@ -33,6 +33,10 @@ var switch_weapon := false
 ## Emplacement en main choisi directement (touches 1 à 3 : 0 à 2), -1 sinon.
 var select_slot := -1
 var grenade := false             # maintenu : dégoupiller / cuire, relâcher = lancer
+## Vote d'évacuation de cette image (front) : EvacRules.Vote.READY
+## (CONTINUER), LEAVE (ÉVACUER), NONE sinon. Envoyé au serveur par
+## InteractionSystem.local_tick ; lu seulement pendant la fenêtre.
+var vote := 0
 ## Sprint à la manette (BO1 : un clic sur L3 / LS lance le sprint, qui dure
 ## tant qu'on avance) ; au clavier, la touche reste maintenue.
 var _sprint_latch := false
@@ -48,6 +52,7 @@ func clear_edges() -> void:
 	switch_weapon = false
 	select_slot = -1
 	jump = false
+	vote = 0
 
 
 ## Course arrêtée (épuisement, visée, accroupi, à terre, pause...) : le
@@ -129,38 +134,95 @@ static func keys_down(action: StringName) -> bool:
 	return false
 
 
+## Vote choisi par les appuis de l'image : ÉVACUER seul -> LEAVE, CONTINUER
+## seul -> READY ; aucun, ou les deux à la fois (ambigu) -> NONE. Pure (tests).
+static func pick_vote(continue_pressed: bool, evacuate_pressed: bool) -> int:
+	if evacuate_pressed == continue_pressed:
+		return EvacRules.Vote.NONE
+	return EvacRules.Vote.LEAVE if evacuate_pressed else EvacRules.Vote.READY
+
+
+## Pendant la fenêtre d'évacuation (`vote_open`), `action` est-elle masquée par
+## un vote ? Oui si elle partage une commande (`conflicts` : action -> votes,
+## Settings.vote_shared) avec un vote `active` (vote -> bool : appuyé à cette
+## image pour un front, enfoncé pour une action maintenue) : cette commande ne
+## sert alors qu'au vote (croix gauche : vote CONTINUER, pas l'arme 1). Hors
+## de la fenêtre, jamais. Pure (tests).
+static func masked_by_vote(action: String, conflicts: Dictionary, vote_open: bool, active: Dictionary) -> bool:
+	if not vote_open:
+		return false
+	for v in conflicts.get(action, []):
+		if active.get(v, false):
+			return true
+	return false
+
+
+# Masques de l'image en cours (read_devices) : votes en conflit, appuyés,
+# enfoncés.
+const _NO_CONFLICT := {}
+var _conf: Dictionary = _NO_CONFLICT
+var _vote_jp: Dictionary = {}
+var _vote_down: Dictionary = {}
+
+
+## Front montant de `action`, sauf masqué par un vote appuyé à cette image.
+func _edge(action: String) -> bool:
+	return Input.is_action_just_pressed(action) and not masked_by_vote(action, _conf, true, _vote_jp)
+
+
+## `action` maintenue (held), sauf masquée par un vote enfoncé.
+func _hold(action: String) -> bool:
+	return held(action) and not masked_by_vote(action, _conf, true, _vote_down)
+
+
+func _strength(action: String) -> float:
+	return 0.0 if masked_by_vote(action, _conf, true, _vote_down) else Input.get_action_raw_strength(action)
+
+
 ## Lecture des périphériques (joueur humain local), `delta` : durée de l'image.
-func read_devices(delta := 0.0) -> void:
+## `vote_open` : fenêtre d'évacuation ouverte et joueur votant
+## (EvacDoor.local_can_vote) : les votes (F1 / F2, croix gauche / droite) sont
+## lus, et une commande qu'ils partagent avec une autre action ne sert qu'au
+## vote (masked_by_vote).
+func read_devices(delta := 0.0, vote_open := false) -> void:
+	_conf = Settings.vote_shared if vote_open else _NO_CONFLICT
+	_vote_jp.clear()
+	_vote_down.clear()
+	if vote_open:
+		for v in Settings.VOTE_ACTIONS:
+			_vote_jp[v] = Input.is_action_just_pressed(v)
+			_vote_down[v] = _vote_jp[v] or Input.is_action_pressed(v)
+		vote = pick_vote(_vote_jp.vote_continue, _vote_jp.vote_evacuate)
 	# Analogique au stick gauche (les touches donnent 0 ou 1).
 	move = stick_deadzone(Vector2(
-		Input.get_action_raw_strength("move_right") - Input.get_action_raw_strength("move_left"),
-		Input.get_action_raw_strength("move_forward") - Input.get_action_raw_strength("move_back")), MOVE_DEADZONE)
+		_strength("move_right") - _strength("move_left"),
+		_strength("move_forward") - _strength("move_back")), MOVE_DEADZONE)
 	look_pad += pad_look_step(right_stick(), Settings.pad_look_sensitivity, delta)
 	# Verrou seulement pour un appui venu de la manette (Settings.sprint_press_pad) :
 	# une touche du clavier (encore enfoncée ou appui très bref) ne verrouille
 	# jamais, même si le drapeau « manette » est resté levé (manette branchée
 	# qui dérive, clavier et manette mélangés) ; sinon, Maj relâchée, la
 	# course continuait toute seule.
-	var pad_click := Input.is_action_just_pressed("sprint") and Settings.sprint_press_pad \
+	var pad_click := _edge("sprint") and Settings.sprint_press_pad \
 			and not keys_down("sprint")
-	update_sprint(held("sprint"), pad_click)
-	crouch = held("crouch")
-	fire = held("fire")
-	aim = held("aim")
-	interact = held("interact")
-	grenade = held("grenade")
-	if Input.is_action_just_pressed("jump"):
+	update_sprint(_hold("sprint"), pad_click)
+	crouch = _hold("crouch")
+	fire = _hold("fire")
+	aim = _hold("aim")
+	interact = _hold("interact")
+	grenade = _hold("grenade")
+	if _edge("jump"):
 		jump = true
-	if Input.is_action_just_pressed("fire"):
+	if _edge("fire"):
 		fire_pressed = true
-	if Input.is_action_just_pressed("interact"):
+	if _edge("interact"):
 		interact_pressed = true
-	if Input.is_action_just_pressed("reload"):
+	if _edge("reload"):
 		reload = true
-	if Input.is_action_just_pressed("melee"):
+	if _edge("melee"):
 		melee = true
-	if Input.is_action_just_pressed("switch_weapon"):
+	if _edge("switch_weapon"):
 		switch_weapon = true
 	for i in Settings.WEAPON_SLOT_ACTIONS.size():
-		if Input.is_action_just_pressed(Settings.WEAPON_SLOT_ACTIONS[i]):
+		if _edge(Settings.WEAPON_SLOT_ACTIONS[i]):
 			select_slot = i

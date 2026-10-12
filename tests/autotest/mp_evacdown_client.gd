@@ -1,6 +1,7 @@
 extends AutotestScenario
-## [MP] Client : vote « partir » dans la zone, tombe à terre (le bandeau le
-## compte hors de la porte), succombe ; l'équipe s'évacue avec lui : écran
+## [MP] Client : vote ÉVACUER dans la zone, tombe à terre (cadre de vote :
+## deux ÉVACUER ; à terre il vote encore, CONTINUER puis ÉVACUER), succombe ;
+## l'équipe s'évacue avec lui : écran
 ## « évacuation réussie » et arme trouvée rapportée au profil, bien qu'il
 ## soit mort (armes mises de côté à terre).
 
@@ -39,21 +40,25 @@ func run() -> void:
 	if not await MpHelpers.wait_peer(self, "ouverte", 60.0):
 		return
 	await until(func(): return door.is_open, 5.0, "porte ouverte chez le client")
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 3.0, "client : porte visée")
-	p.input.interact_pressed = true
-	var ok: bool = await until(func(): return int(door.votes.get(me, 0)) == EvacRules.Vote.LEAVE, 5.0, "vote reçu en retour")
-	at.check(ok, "client : vote « partir » enregistré")
+	var ok: bool = await H.evac_vote(self, p, EvacRules.Vote.LEAVE, 5.0)
+	at.check(ok and int(door.votes.get(me, 0)) == EvacRules.Vote.LEAVE, "client : vote ÉVACUER enregistré")
 	if not await MpHelpers.wait_peer(self, "a_terre", 30.0):
 		return
 	ok = await until(func(): return lpd.life == PlayerData.Life.DOWNED and int(door.votes.get(1, 0)) == EvacRules.Vote.LEAVE, 5.0, "à terre, vote de l'hôte")
 	at.check(ok, "client : à terre pendant la fenêtre")
 	at.check(lpd.saved_weapons.any(func(w): return w.get("uid", "") == "loot:77"), "client : arme trouvée mise de côté (reçue de l'hôte)")
-	# Bandeau : deux « partir », mais seul l'hôte (debout) compte à la porte.
-	var want := Lang.t("Partir 2/2", "Leave 2/2")
-	var zone := Lang.t("À la porte 1/2", "At the door 1/2")
-	ok = await until(func(): return game.hud.evac_status().contains(want) and game.hud.evac_status().contains(zone), 5.0, "bandeau à terre")
-	at.check(ok, "client : bandeau « %s »" % game.hud.evac_status())
+	# Cadre : deux ÉVACUER (le sien, celui de l'hôte) ; à terre, il bloque.
+	var panel := game.hud.evac_panel
+	var both_leave := func():
+		var rows: Array = panel.describe().rows
+		return rows.size() == 2 and rows.all(func(r): return r.vote == EvacRules.Vote.LEAVE)
+	ok = await until(both_leave, 5.0, "cadre à terre")
+	at.check(ok, "client : cadre %s" % str(panel.describe().rows))
+	# À terre, il vote encore (de n'importe où) : CONTINUER puis ÉVACUER.
+	ok = await H.evac_vote(self, p, EvacRules.Vote.READY, 5.0)
+	at.check(ok and int(door.votes.get(me, 0)) == EvacRules.Vote.READY, "client à terre : vote CONTINUER enregistré")
+	ok = await H.evac_vote(self, p, EvacRules.Vote.LEAVE, 5.0)
+	at.check(ok and int(door.votes.get(me, 0)) == EvacRules.Vote.LEAVE, "client à terre : revote ÉVACUER")
 	MpHelpers.signal_peer("vu_a_terre")
 	ok = await until(func(): return GameState.state == GameState.State.GAME_OVER and game.last_result != null, 15.0, "fin de partie")
 	at.check(ok and game.last_result.evacuated, "client mort : évacué avec l'équipe")
