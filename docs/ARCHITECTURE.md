@@ -1449,7 +1449,9 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   est passée en cubes de 2,5 cm) ; la traçante reste un pavé lumineux étiré.
 - **Modèles et vue FPS** : armes, couteau, mains, grenade, peluche leurre
   et cartouches tenues sont des modèles CUBIQUES (cubes de 2,5 cm,
-  GAME_CONCEPT §4.19) construits sous Blender par
+  GAME_CONCEPT §4.19 ; armes refaites d'après une arme réelle : cubes de
+  1,25 cm, `tools/blender/weapons/weapons_fine.py`, info `cube` lue par
+  `WeaponModels.cube` / `is_fine`) construits sous Blender par
   `tools/blender/weapons/weapons_voxel.py` : `assets/models/weapons/voxel/<id>.glb`
   (un nœud par pièce mobile `wpn__<id>__<groupe>` : `body`, `mag`, `slide`,
   `pump`, `barrels`, `cyl` ; mains : `hand__<pièce>`), couleur par face
@@ -1848,7 +1850,7 @@ interface dans `scripts/game/hub/` ; écrans : le hub (`scripts/ui/hub2/`,
   rareté → 1/2/3/4/4 emplacements, pièces installées), score = niveau +
   niveaux des pièces, montage si pièce ≤ arme et ≤ joueur.
 - `BaseWeapons` : armes de base niveau 1 communes, hors arsenal (non
-  recyclables) : le pistolet de départ (PÉTOIRE) et la batte de baseball
+  recyclables) : le pistolet de départ (M1912) et la batte de baseball
   (`WeaponDB.BASE_MELEE`) ; un ancien profil qui avait choisi le couteau
   reçoit la batte (`BaseWeapons.RENAMED`).
 - `ProfileStore` : `user://profile.json` (un fichier par processus en

@@ -14,7 +14,10 @@ de référence, voir docs/ART_DIRECTION.md ; les armes, la batte, le couteau, le
 mains FPS, la grenade, la peluche leurre et les cartouches tenues,
 `assets/models/weapons/voxel/`, par `tools/blender/weapons/weapons_voxel.py`,
 formes et couleurs décrites dans le script, silhouettes et noms originaux,
-aucune arme réelle copiée, aucun logo : docs/WEAPONS.md). La plupart des bruitages
+aucune arme réelle copiée, aucun logo ; armes refaites d'après une arme
+réelle, par `tools/blender/weapons/weapons_fine.py`, décrites à la main
+d'après des cotes publiques, nom proche du vrai mais jamais exact, aucun
+logo ni marquage : docs/WEAPONS.md, docs/weapons/). La plupart des bruitages
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;
 l'identité sonore originale reste synthétisée par `tools/gen_audio.gd` et
 `tools/gen_audio_menu.gd` : musiques et ambiances, début et fin de manche,

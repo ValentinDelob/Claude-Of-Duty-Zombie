@@ -464,17 +464,30 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
 
 **Droits** : ne pas reprendre les noms de fabricants de Borderlands, ni ses
 fiches d'armes, ni son style visuel. Les armes réelles du jeu actuel (AK-74u,
-FAMAS, Galil, HK21, AUG…) doivent être renommées et leurs silhouettes
-retravaillées.
+FAMAS, Galil, HK21, AUG…) ne gardent jamais leur nom exact de fabricant ou
+de modèle.
 
-✔️ **Liste provisoire appliquée** (`docs/WEAPONS.md`, à valider) : les 27 armes
-à feu ont un **nom original** FR / EN (PÉTOIRE, CRÉCELLE, BRISE-OS,
-TRIPLETTE, BÉTONNEUSE, LONGUE-VUE, TROMBONE, ÉPROUVETTE…, aucun nom de
-fabricant ni de modèle réel ; les identifiants internes restent ceux de
-l'ancien arsenal), une **famille** et un **niveau de base** réparti de 1 à
-50 selon la puissance (le butin ne tire que les armes de niveau de base
-≤ manche + 2) ; statistiques inchangées ; **silhouettes originales en cubes
-de 2,5 cm** (§ 4.19).
+**Refonte des armes (décidée le 2026-10-12, une arme à la fois)** : chaque
+arme est refaite d'après une **arme réelle de référence**, avec un **nom
+affiché proche du vrai** (un chiffre ou une lettre changés : jamais le nom
+exact, ni une marque) et un modèle en **cubes de 1,25 cm** (§ 4.19). Les
+**pièces** deviendront des modèles visibles sur l'arme (plus tard). Une
+fiche par arme, validée par l'auteur : `docs/weapons/<id>.md`.
+
+✔️ **Refonte appliquée** :
+- **M1912** (FR / EN), pistolet de départ, d'après le Colt M1911A1 réel
+  (identifiant interne `m1911` gardé) : 30 dégâts, 360 coups/min
+  semi-automatique, 7 / 70 munitions, rechargement 1,7 s, portée 22 m
+  (fiche `docs/weapons/m1911.md`, validée le 2026-10-12).
+
+✔️ **Liste provisoire des autres armes** (`docs/WEAPONS.md`, à valider, en
+attendant leur refonte) : les autres armes à feu ont un **nom original**
+FR / EN (CRÉCELLE, BRISE-OS, TRIPLETTE, BÉTONNEUSE, LONGUE-VUE, TROMBONE,
+ÉPROUVETTE…, aucun nom de fabricant ni de modèle réel ; les identifiants
+internes restent ceux de l'ancien arsenal), une **famille** et un **niveau
+de base** réparti de 1 à 50 selon la puissance (le butin ne tire que les
+armes de niveau de base ≤ manche + 2) ; statistiques inchangées ;
+**silhouettes originales en cubes de 2,5 cm** (§ 4.19).
 
 ### 4.10 Armes de départ ✅
 - Au hub, chaque joueur choisit **jusqu'à 3 armes de départ** (au moins 1).
@@ -484,7 +497,7 @@ de 2,5 cm** (§ 4.19).
 - Un emplacement non choisi reste vide au départ.
 - Une arme de base améliorée en partie et ramenée devient une **nouvelle
   version** dans l'arsenal ; l'arme de base reste toujours disponible.
-- ✔️ **Armes de base appliquées** : la **PÉTOIRE** (pistolet de départ) et la
+- ✔️ **Armes de base appliquées** : le **M1912** (pistolet de départ) et la
   **BATTE** de baseball, arme de corps à corps tenue en main (elle prend un
   emplacement d'arme ; le couteau reste l'attaque rapide séparée) : 250
   dégâts, 1,25 coup par seconde, 15 d'énergie par coup (couteau : 8), fente
@@ -640,7 +653,7 @@ de 2,5 cm** (§ 4.19).
     communes), Station en panne (pas de station : ni construction ni
     recharge) ;
   - **conditions égales** : tout le monde part avec **toutes les armes de
-    base** (PÉTOIRE et BATTE, niveau 1, communes), quelle que soit la
+    base** (M1912 et BATTE, niveau 1, communes), quelle que soit la
     sélection d'ÉQUIPEMENT ; l'**arsenal et les pièces du profil ne servent
     pas** (la station ne construit que les armes de base) ;
   - **butin de la partie jamais gardé** (armes, pièces, échantillons), même
@@ -660,7 +673,9 @@ de 2,5 cm** (§ 4.19).
 - Le jeu **quitte le rendu réaliste** de BO1 pour une identité propre : un style
   **entièrement cubique (voxel)**, dans l'esprit de Trove.
 - Les cubes ne sont **ni trop gros ni trop petits** : deux échelles seulement,
-  l'une sous-multiple de l'autre (personnages et mobs ; décor et objets).
+  l'une sous-multiple de l'autre (personnages et mobs ; décor et objets),
+  plus **une exception validée le 2026-10-12** : les **armes refaites**
+  (§ 4.9) en cubes de **1,25 cm** (voir plus bas).
 - **Règle absolue** : aucun élément qui n'est **pas cubique** ou qui ne
   **respecte pas l'échelle des cubes** ne peut entrer dans le jeu. Pas de
   courbe, de biseau, de lissage ni de détail plus fin qu'un cube.
@@ -675,6 +690,14 @@ de 2,5 cm** (§ 4.19).
   l'échelle du décor (2 cubes de personnage = 1 cube de décor).
 - **Échelle du décor et des objets de la carte : 1 cube = 5 cm** (20 cubes par
   mètre) : une porte fait 40 cubes, un mur de 3 m en fait 60.
+- **Troisième échelle, armes refaites : 1 cube = 1,25 cm** (80 cubes par
+  mètre ; exception validée le 2026-10-12) : deux fois plus fine que les
+  personnages, sous-multiple exact des deux autres. Seules les **armes à
+  feu** refaites d'après une arme réelle (§ 4.9) l'utilisent (aujourd'hui le
+  M1912) ; les **mains et avant-bras** de la vue FPS, la batte, le couteau,
+  la grenade et les autres objets tenus restent en **2,5 cm**. Mêmes règles
+  que les autres échelles (grille, aucune courbe), vérifiées par
+  `voxel_check --pas=1.25`.
 - Le **rendu** de référence (planche Gemini) a aussi un **contour noir** autour
   des pièces et un ombrage simple : à reproduire en jeu (❓ contour par shader).
 - Pour appliquer la règle :
@@ -710,7 +733,8 @@ de 2,5 cm** (§ 4.19).
   la batte, le couteau, les mains et avant-bras de la vue FPS (gants de
   batteur, maillot d'une équipe fictive sans logo), la grenade, la peluche
   leurre et les cartouches tenues ; vus de la même façon par les autres
-  joueurs ; vérifiés par `voxel_check`.
+  joueurs ; vérifiés par `voxel_check`. Armes refaites en cubes de 1,25 cm
+  (`tools/blender/weapons/weapons_fine.py`) : ✅ M1912.
 - ✅ **Textures de toutes les surfaces en pixel art**, un pixel = un cube de
   5 cm, dans l'univers hôpital / laboratoire / bunker (textures importées
   d'une carte réduites au même grain).
@@ -801,7 +825,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | **Menu titre « style BO1 »** (logo au pochoir, rouge sang, chœur) et **options** (« comme BO1 », « comme dans Black Ops ») | ✔️ style propre au jeu : palette du laboratoire en alerte (jaune des bandes de danger, menthe des moniteurs), titres et logo en police en cubes, plus de police pochoir ni de rouge sang, fond 3D cubique (couloir du laboratoire, zombie cubique qui passe) ; options sans référence à BO1 ni à Black Ops (docs/ART_DIRECTION.md « Menus ») |
 | **Crédits** (« chiens de l'enfer / hellhounds », « annonces / announcer », personnages Callahan..., « aucune image externe », « polices système ») | ✔️ exacts : chiens errants contaminés, alertes, les 7 personnages et leurs outils de voix (Chatterbox, Kokoro, Qwen3-TTS, Seed-VC), modèles en cubes faits avec Blender (voxel_lib), police en cubes et polices système non fournies ; nom du jeu lu dans `GameName` ; ⏳ personnage unique à venir |
 | **Éditeur de cartes** : avertissements « BO1 : ... », « INDICATEURS (BO1) », « BO1 Kino : deux grandes boucles », info-bulles | ✔️ « conseillé : ... », sans référence à BO1 |
-| **Armes réelles** sous leurs noms de fabricants | ✔️ renommées (noms originaux FR / EN, identifiants internes gardés, jamais affichés) et silhouettes refaites en cubes : `docs/WEAPONS.md` |
+| **Armes réelles** sous leurs noms de fabricants | ✔️ renommées (noms originaux FR / EN, identifiants internes gardés, jamais affichés) et silhouettes refaites en cubes : `docs/WEAPONS.md` ; refonte en cours (§ 4.9) : armes réelles de référence sous un nom proche du vrai, jamais le nom exact (M1912) |
 | **Direction artistique** « fidèle à BO1 » (`docs/ART_DIRECTION.md`) | ✔️ style cubique (§4.19) ; les sections BO1 restantes sont marquées « Historique » (📜) |
 | Notes de version du lanceur (`changelogs/changelogs.json` : KINO, Pack-a-Punch, Juggernog...) | 📜 historique des versions déjà publiées ; ⏳ à remettre à zéro avec le nouveau nom avant la sortie ; les prochaines notes ne citent plus BO1 |
 | Documents de développement (README, docs/) | 📜 références techniques à BO1 (règles de vagues, mesures) gardées, internes |
@@ -840,7 +864,7 @@ corriger.
 | XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; Brancardier **60** (mini-boss) ; Infirmière hurlante **60** (mini-boss) ; Chirurgien **240** (boss) ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
 | XP hors élimination | manche survécue **3 × manche** ; vague spéciale vaincue **60**, vague de boss **240** (× bonus de manche) ; à chaque joueur non mort à la fin de la manche ; évacuation **+25 %** de l'XP de la partie | `XpRules` |
 | XP gardée | comptée par l'hôte pendant la partie, ajoutée une fois au profil à la fin (évacuation ou défaite) ou au départ d'un joueur en cours de partie (sans bonus) ; le niveau ne change pas pendant la partie | `XpSystem`, `MatchXp` |
-| Armes de base | pistolet de départ (PÉTOIRE) et batte de baseball (BATTE, arme de corps à corps tenue en main) ; sélection par défaut : les deux ; un ancien profil qui avait choisi le couteau reçoit la batte | `BaseWeapons` |
+| Armes de base | pistolet de départ (M1912) et batte de baseball (BATTE, arme de corps à corps tenue en main) ; sélection par défaut : les deux ; un ancien profil qui avait choisi le couteau reçoit la batte | `BaseWeapons` |
 | Évacuation : vote | touche d'interaction près de la porte ; 1er appui « partir », puis alterne « prêt » / « partir » | `EvacRules` |
 | Évacuation : départ | tous les joueurs non morts ont voté « partir » et sont debout dans la zone (4 m × 3,5 m devant la porte) | `EvacRules` |
 | Évacuation : reprise | tous « prêt », ou fin des 2 min : manche suivante 3 s plus tard | `EvacRules` |
@@ -850,7 +874,7 @@ corriger.
 | Modificateurs des pièces | fractions additionnées par statistique, **positif = bonus** : dégâts, cadence, chargeur, réserve × (1 + m) ; rechargement, recul, précision (dispersion) ÷ (1 + m) ; facteur jamais sous 0,1 ; noms `damage`, `fire_rate`, `reload`, `recoil`, `accuracy`, `mag`, `reserve` | `GameWeapon.MODS` |
 | Niveau d'une arme | dégâts × (1 + 0,1 × (niveau − 1)), explosions et brûlure comprises ; multiplié ensuite par les pièces | `GameWeapon.apply` |
 | Batte de baseball | 250 dégâts, 1,25 coup/s, 15 d'énergie par coup, portée 2,2 m, fente 3 m, jusqu'à 2 zombies par coup ; prend un emplacement en main ; tir = coup (maintenu : coup droit puis revers) ; ni munitions ni visée ; le couteau reste l'attaque de mêlée séparée | `WeaponDB` « bat », `Combat.srv_swing`, `docs/WEAPONS.md` |
-| Noms et niveaux des armes | noms originaux FR / EN, familles, niveaux de base de 1 à 50 selon la puissance (statistiques inchangées) | `WeaponDB`, `docs/WEAPONS.md` |
+| Noms et niveaux des armes | noms originaux FR / EN (armes refaites : noms proches du vrai, M1912), familles, niveaux de base de 1 à 50 selon la puissance (statistiques inchangées) | `WeaponDB`, `docs/WEAPONS.md` |
 | Mains vides | permis (tout rangé) : couteau et grenade restent ; à la réapparition, pistolet de départ seulement si ni main ni inventaire | `MatchRules` |
 | Effet légendaire / unique | aucun pour l'instant ; point d'accroche `GameWeapon.visual_effect` | `GameWeapon` |
 | Prix de construction | 500 × (1 + 0,15 × (niveau − 1)) × rareté (commune 1, rare 1,5, épique 2,2, légendaire 3,2, unique 4), arrondi à 10 : arme de base 500, niveau 10 rare 1 760, niveau 50 unique 16 700 ; pièces non comptées | `BuildRules.price` |
