@@ -1,6 +1,6 @@
 # Fiche d'arme — SPAX-12 (fusil à pompe de combat)
 
-Statut : **proposition, à valider**. Refonte des armes du 2026-10-12 : armes
+Statut : **validée le 2026-10-12, à intégrer en jeu (lot 2)**. Refonte des armes du 2026-10-12 : armes
 réelles de référence, noms proches des vrais, cubes de 1,25 cm, pièces
 visibles. Statistiques du jeu (`WeaponDB`, GAME_CONCEPT § 4.9).
 

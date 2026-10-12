@@ -2031,9 +2031,10 @@ def b_g11():
 # ---------------------------------------------------------------------------
 # Fusil d'assaut (id interne « galil ») : IMI Galil ARM réel (5,56 × 45 mm,
 # chargeur courbe de 35, bipied, crosse tubulaire repliable dépliée),
-# 979 mm -> 79 cubes. Dérivé de la Kalachnikov : long cache-flamme, bloc de
-# guidon à tunnel, BIPIED replié sous le canon, GARDE-MAIN EN BOIS CLAIR
-# AJOURÉ, POIGNÉE DE TRANSPORT au-dessus du garde-main, boîtier bronzé,
+# 979 mm -> 76 cubes. Dérivé de la Kalachnikov : canon court et cache-flamme
+# devant le bloc de gaz à guidon à tunnel, LONG GARDE-MAIN EN BOIS AJOURÉ
+# jusqu'au bloc de gaz, BIPIED replié dessous, POIGNÉE DE TRANSPORT juste
+# devant le boîtier, boîtier bronzé,
 # LEVIER D'ARMEMENT RELEVÉ à droite (pièce « slide »), chargeur courbe de
 # 35, poignée noire, crosse tubulaire à deux tubes et plaque de couche.
 # ---------------------------------------------------------------------------
@@ -2055,35 +2056,39 @@ def b_galil():
     # Levier d'armement relevé à droite (pièce « slide »).
     F(2, 2, 2, 3, -6, -6, "steel", g="slide")
     it.put(2, 4, -6, "steel", g="slide")
-    # Garde-main en bois clair ajouré (k = -29 à -12), poignée de transport.
-    F(-1, 1, 0, 3, -29, -12, "galil_wood")
-    for k in range(-27, -13, 3):
+    # LONG garde-main en bois (k = -38 à -12), jusqu'au bloc de gaz, bas plus
+    # large que le haut, fentes d'aération sur le dessus et les flancs.
+    F(-1, 1, 0, 3, -38, -12, "galil_wood")
+    F(-1, 1, -1, -1, -36, -14, "galil_wood", f=0.9)
+    for k in range(-36, -13, 3):
+        it.paint(0, 3, k, "+y", "bore", f=3.0)
         for i, d in ((1, "+x"), (-1, "-x")):
-            it.paint(i, 2, k, d, "bore", f=3.0)    # fentes d'aération
-            it.paint(i, 1, k, d, "bore", f=3.0)
-    F(0, 0, 4, 5, -21, -21, "gun_black")
-    F(0, 0, 4, 5, -13, -13, "gun_black")
-    F(0, 0, 6, 6, -21, -13, "gun_black")
-    # Canon (section en croix) et bloc de gaz / guidon à tunnel.
-    for k in range(-46, -29):
+            it.paint(i, 2, k, d, "bore", f=3.0)
+    # Poignée de transport juste devant le boîtier, sur le tube à gaz.
+    F(0, 0, 4, 5, -17, -17, "gun_black")
+    F(0, 0, 4, 5, -11, -11, "gun_black")
+    F(0, 0, 6, 6, -17, -11, "gun_black")
+    # Bloc de gaz et guidon à tunnel AU BOUT du garde-main, canon court
+    # devant (section en croix), cache-flamme à fentes.
+    F(-1, 1, 0, 3, -41, -39, "blued")
+    F(0, 0, 4, 4, -40, -40, "gun_black")
+    for i in (-1, 1):
+        F(i, i, 4, 5, -40, -40, "gun_black")
+    F(-1, 1, 6, 6, -40, -40, "gun_black")
+    for k in range(-44, -41):
         for (i, j) in cross:
             it.put(i, j, k, "gun_black")
-    F(-1, 1, 0, 3, -45, -43, "blued")
-    F(0, 0, 4, 4, -44, -44, "gun_black")
-    for i in (-1, 1):
-        F(i, i, 4, 5, -44, -44, "gun_black")
-    # Long cache-flamme à fentes.
-    for k in range(-52, -46):
+    for k in range(-49, -44):
         for (i, j) in cross:
             it.put(i, j, k, "gun_dark")
-    for k in (-51, -49):
+    for k in (-48, -46):
         for i in (-1, 1):
             it.drop(i, 1, k)
-    it.paint(0, 1, -52, "-z", "bore")
-    # Bipied replié sous le canon (deux jambes, pivot sous le bloc de gaz).
-    F(-1, 1, -1, -1, -43, -43, "gun_black")
+    it.paint(0, 1, -49, "-z", "bore")
+    # Bipied replié sous le garde-main (deux jambes, pivot sous le bloc de gaz).
+    F(-1, 1, -2, -1, -40, -40, "gun_black")
     for i in (-1, 1):
-        F(i, i, -1, -1, -42, -30, "gun_dark")
+        F(i, i, -2, -2, -39, -24, "gun_dark")
     # Chargeur courbe de 35 (pièce « mag »).
     last = 0
     for r in range(14):
@@ -2114,12 +2119,12 @@ def b_galil():
     # Points remarquables.
     line = 5
     it.a("sight", 0, line, 6.0)
-    it.a("front", 0, line, -43.5)
-    it.a("muzzle", 0, 1.5, -52)
+    it.a("front", 0, line, -39.5)
+    it.a("muzzle", 0, 1.5, -49)
     it.a("eject", 1.0, 2.5, -3)
     it.a("grip", 0, 0, 2.5)
     it.info["grip_angle"] = -18.0
-    it.a("support", 0, 0, -21)
+    it.a("support", 0, -1, -25)
     it.a("pivot_slide", 2, 3.0, -5.5)
     it.info["slide_travel"] = 0.06
     it.a("pivot_mag", 0, 0, -4.5)
@@ -2130,11 +2135,11 @@ def b_galil():
     it.info["cube"] = FINE
     it.anchors["ads"] = [0.0, 0.0, 0.3]
     # Points d'attache des pièces visibles (docs/weapons/galil.md).
-    it.a("att_muzzle", 0, 1.5, -52)
+    it.a("att_muzzle", 0, 1.5, -49)
     it.a("att_optic", 0, 4, -2)
     it.a("att_mag", 0, -1, -4.5)
     it.a("att_stock", 0, 1.5, 8)
-    it.a("att_rail", 0, 0, -21)
+    it.a("att_rail", 0, -1, -25)
     return it
 
 
