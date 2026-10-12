@@ -10,13 +10,18 @@ valider ou corriger (voir « Choix à valider » en bas), sauf les armes déjà
   à la fois, d'après une **arme réelle de référence**, avec un **nom affiché
   proche du vrai** (jamais le nom exact ni une marque), un modèle en **cubes
   de 1,25 cm** (« Modèles cubiques ») et, plus tard, des pièces visibles.
-  Faite : **M1912** (`m1911`, Colt M1911A1, `docs/weapons/m1911.md`).
+  Faites : **M1912** (`m1911`, Colt M1911A1), **MR-40** (`mp40`, MP40),
+  **KA-74U** (`ak74u`, AKS-74U), **KA-47** (`ak47`, AK-47 type 3, arme
+  nouvelle), **FAMAX F1** (`famas`, FAMAS F1) ; fiches validées le
+  2026-10-12 dans `docs/weapons/<id>.md`. Proposée, pas encore validée :
+  IZ-43 (`olympia`, fiche et modèle prêts, pas intégrée).
 - Jamais le nom exact d'un fabricant ni d'un modèle réel (AK-74u, FAMAS,
   Galil, HK21, AUG, M14, MP40, MP5K, Olympia, SPAS-12, Python, Dragunov,
   L96A1, M16, Commando, CZ75, MPL, PM63, Spectre, G11, RPK, China Lake,
   FN FAL, M1911…) : les armes pas encore refaites ont des mots courants,
   souvent liés à l'univers (hôpital, laboratoire, bricolage, bêtes) ; les
-  armes refaites un nom proche du vrai (M1912 pour M1911). Vérifié mot à mot
+  armes refaites un nom proche du vrai (M1912 pour M1911, MR-40 pour MP40,
+  KA-74U pour AKS-74U, KA-47 pour AK-47, FAMAX F1 pour FAMAS F1). Vérifié mot à mot
   par `tests/test_weapons.gd` (`test_original_names`, liste de noms réels
   interdits).
 - **Référence réelle** (demande du 2026-10-12) : une arme refaite d'après un
@@ -51,7 +56,7 @@ balle (fusils à pompe : × 8 plombs) ; rechargement en secondes.
 |---|---|---|---|---|---|---|---|---|---|
 | `m1911` | M1912 | M1912 | pistolet | 1 | 30 | 360 | 7 / 70 | 1,7 | **arme de base** (pistolet de départ) ; **refaite** d'après le Colt M1911A1 (fiche `docs/weapons/m1911.md`) : semi-automatique, portée 22 m, recul 2,2° |
 | `bat` | BATTE | BAT | corps à corps | 1 | 250 | 1,25 coup/s | — | — | **arme de base** ; énergie 15 par coup ; portée 2,2 m, fente 3 m ; 2 zombies par coup |
-| `mp40` | CRÉCELLE | RATTLE | mitraillette | 1 | 90 | 550 | 32 / 192 | 2,3 | |
+| `mp40` | MR-40 | MR-40 | mitraillette | 1 | 90 | 540 | 32 / 192 | 2,4 | **refaite** d'après le MP40 (fiche `docs/weapons/mp40.md`) : recul 0,8°, portée 18 m |
 | `olympia` | GARDE-CHASSE | GAMEKEEPER | fusil à pompe | 3 | 60 × 8 | 200 | 2 / 38 | 2,8 | deux canons basculants |
 | `stakeout` | BALAI | BROOM | fusil à pompe | 4 | 70 × 8 | 70 | 6 / 54 | 3,0 | pompe, cartouche par cartouche |
 | `m14` | MÉTRONOME | METRONOME | fusil d'assaut | 5 | 105 | 380 | 8 / 96 | 1,9 | semi-automatique |
@@ -63,11 +68,12 @@ balle (fusils à pompe : × 8 plombs) ; rechargement en secondes.
 | `spas12` | CONCASSEUR | CRUSHER | fusil à pompe | 14 | 70 × 8 | 90 | 8 / 32 | 3,0 | pompe |
 | `fnfal` | MASSE | MAUL | fusil d'assaut | 15 | 150 | 400 | 20 / 120 | 2,6 | semi-automatique, pénétration 3 |
 | `spectre` | FEU FOLLET | WILL-O'-WISP | mitraillette | 16 | 80 | 950 | 30 / 120 | 2,2 | |
-| `ak74u` | BRISE-OS | BONEBREAKER | mitraillette | 19 | 100 | 780 | 20 / 160 | 2,2 | pénétration 2 |
+| `ak74u` | KA-74U | KA-74U | mitraillette | 19 | 100 | 700 | 30 / 180 | 2,4 | **refaite** d'après l'AKS-74U (fiche `docs/weapons/ak74u.md`) : pénétration 2, recul 1,3°, portée 28 m |
 | `python` | COUPERET | CLEAVER | revolver | 20 | 400 | 180 | 6 / 60 | 3,0 | barillet |
 | `g11` | STROBOSCOPE | STROBE | fusil d'assaut | 22 | 110 | 1 800 | 48 / 192 | 2,6 | rafale de 3, lunette courte |
+| `ak47` | KA-47 | KA-47 | fusil d'assaut | 23 | 140 | 600 | 30 / 210 | 2,6 | **arme nouvelle**, **refaite** d'après l'AK-47 type 3 (fiche `docs/weapons/ak47.md`) : pénétration 3, recul 1,6°, portée 40 m ; son de la famille (`rifle_fire`) |
 | `galil` | BOURRASQUE | GALE | fusil d'assaut | 24 | 110 | 750 | 35 / 315 | 2,8 | |
-| `famas` | CIGALE | CICADA | fusil d'assaut | 26 | 100 | 900 | 30 / 150 | 2,6 | compact (chargeur derrière la poignée) |
+| `famas` | FAMAX F1 | FAMAX F1 | fusil d'assaut | 26 | 100 | 950 | 25 / 175 | 2,8 | **refaite** d'après le FAMAS F1 (fiche `docs/weapons/famas.md`) : bullpup (chargeur derrière la poignée), recul 1,0°, portée 38 m |
 | `l96a1` | LONGUE-VUE | SPYGLASS | précision | 27 | 1 000 | 45 | 5 / 50 | 3,6 | verrou, lunette, pénétration 6 |
 | `hs10` | TOURNIQUET | TOURNIQUET | fusil à pompe | 28 | 60 × 8 | 240 | 6 / 36 | 2,8 | semi-automatique |
 | `commando` | ÉPERVIER | SPARROWHAWK | fusil d'assaut | 30 | 120 | 800 | 30 / 270 | 2,4 | |
@@ -159,7 +165,11 @@ godot --headless --path . --import
   fines).
 - **Repère** : l'arme pointe vers -Z, origine à la détente ; la colonne de
   cubes x = 0 est centrée sur l'axe du canon (décalage d'un demi-cube), pour
-  que guidon et cran soient centrés.
+  que guidon et cran soient centrés. **Largeurs paires** (armes fines,
+  `Item(..., even=True)` de `weapons_fine.py` : MR-40, et la proposition
+  IZ-43) : l'axe du canon passe ENTRE les colonnes -1 et 0 (x = 0), pièces
+  sans décalage ; canon de 2 × 2 cubes, boîtier rond de 4 × 4, guidon et
+  cran de 2 cubes, toujours centrés (`test_even_width_fine_model`).
 - **Organes de visée** : guidon = un cube centré, cran = vide d'un cube entre
   deux oreilles posées sur les coins du boîtier, sommets à la même hauteur
   (ligne de mire un cube au-dessus du boîtier) ; lunettes en tube de 3 × 3
@@ -180,34 +190,41 @@ godot --headless --path . --import
   (`forearm_l`) ; bracelets, sous-maillot et liseré dans la zone d'équipe
   (matière `team`), teintée à la couleur du joueur
   (`WeaponModels.team_material`) ; poings autour d'un manche d'un ou deux
-  cubes, berceau sous un garde-main, main d'appui du pistolet, poings de la
-  batte, mains du lancer ; avant-bras rigide de 12 cubes (jamais étiré :
-  posé du poignet vers le coude).
+  cubes, berceau sous un garde-main (et berceau étroit `cradle_narrow` de
+  deux cubes pour le garde-main de 3,75 cm d'une arme fine, info
+  `narrow_support`), main d'appui du pistolet, poings de la batte, mains du
+  lancer ; avant-bras rigide de 12 cubes (jamais étiré : posé du poignet
+  vers le coude).
 - **Budget** : < 1 500 triangles par arme en cubes de 2,5 cm, < 5 000 par
   arme fine en cubes de 1,25 cm (contrôlés par `test_weapons`), < 2 000
   pour l'ensemble des mains ; la vue FPS ajoute la découpe en tranches de
   5 mm de la partie courbée par la joue de visée.
 - **Tenue des armes fines** : les mains restent en cubes de 2,5 cm ; le
   poing droit suit l'inclinaison de la poignée (info `grip_angle`, en
-  degrés autour de X, négatif : bas de la poignée vers l'arrière).
+  degrés autour de X, négatif : bas de la poignée vers l'arrière) ; main
+  gauche en berceau étroit sous un garde-main de 3 cubes fins (KA-74U,
+  KA-47 : `narrow_support`), en berceau normal quand l'appui est plus large
+  (FAMAX F1 : bipied replié), ou poing vertical sur le puits du chargeur
+  (MR-40 : `front_grip`).
 
 | Modèle | Triangles | Silhouette |
 |---|---|---|
 | `m1911` M1912 | 788 | **fine** (1,25 cm) : Colt M1911A1, glissière d'acier usé (rouille, éclats), carcasse parkérisée, plaquettes de noyer quadrillées, poignée inclinée, fenêtre d'éjection avec canon de laiton |
 | `cz75` GUÊPE | 260 | glissière noire longue, carcasse rayée jaune et noir, chargeur allongé, guidon jaune |
 | `python` COUPERET | 336 | carénage de canon plat et haut comme une lame de hachoir, gros barillet cubique |
-| `mp40` CRÉCELLE | 436 | tube fin, bas en bakélite, manchon ajouré, crosse en fil repliée à gauche |
+| `mp40` MR-40 | 2 446 | **fine**, largeurs paires : MP40, boîtier rond bleu-noir de 4 × 4, canon de 2 × 2, arrêtoir d'appui, long puits nervuré, chargeur droit de 32, carcasse en bakélite brun-rouge, crosse dépliée à deux bras |
 | `mp5k` MOUCHERON | 486 | bloc carré sans crosse, poignée avant à ruban sarcelle, chargeur en escalier |
 | `pm63` PUCE | 266 | minuscule, culasse claire apparente, crosse orange repliée à droite |
 | `mpl` AGRAFEUSE | 472 | agrafeuse géante : bras supérieur sarcelle à charnière arrière |
 | `spectre` FEU FOLLET | 476 | manchon ajouré dont le cœur luit en vert |
-| `ak74u` BRISE-OS | 588 | garde-main en bois clair, frein carré, chargeur rouillé, ruban blanc « os » |
+| `ak74u` KA-74U | 1 392 | **fine** : AKS-74U, booster en cloche, garde-main en lamellé-collé, boîtier embouti à rivets, chargeur courbe orangé-brun, poignée prune, crosse triangulaire repliable |
+| `ak47` KA-47 | 1 768 | **fine** : AK-47 type 3, bloc de guidon à oreilles, baguette sous le canon nu, garde-mains en bois verni, boîtier usiné bleu-noir, chargeur d'acier très courbé, crosse fixe en bois |
 | `m14` MÉTRONOME | 650 | bois sur toute la longueur, bagues et plaque de couche en laiton |
 | `m16` TRIPLETTE | 750 | trois canons superposés à bagues rouge, jaune, bleue, « III » blanc |
 | `fnfal` MASSE | 728 | garde-main olive épais, frein massif d'acier, crosse fauve |
 | `g11` STROBOSCOPE | 518 | brique gris clair, viseur intégré, bande jaune, gyrophare orange |
 | `galil` BOURRASQUE | 748 | ailettes crénelées sur le garde-main en bois clair, crosse en fil, bipied |
-| `famas` CIGALE | 726 | « ailes » vertes translucides sur les flancs, crête de visée |
+| `famas` FAMAX F1 | 2 142 | **fine** : FAMAS F1 bullpup, poignée de transport (ligne de mire haute), manchon lance-grenades, bipied replié, pontet intégral, chargeur droit de 25 derrière la poignée |
 | `commando` ÉPERVIER | 632 | fauve et brun, frein en bec qui pique, crosse sur tube |
 | `aug` VIGIE | 782 | viseur perché sur une tour, garde-main olive, crosse fauve |
 | `rpk` TAMBOUR | 916 | gros tambour peint en caisse claire (rouge, peaux blanches), bois |
@@ -222,7 +239,7 @@ godot --headless --path . --import
 | `law` ÉPROUVETTE | 994 | grosse éprouvette de verre graduée, liquide vert, bouchons de liège |
 | `bat` BATTE | 476 | voir plus haut |
 | `knife` COUTEAU | 110 | lame d'acier à fil clair, garde en croix, manche noir |
-| mains (`hands`) | 1 680 | 10 pièces |
+| mains (`hands`) | 1 828 | 12 pièces (dont le berceau étroit) |
 | grenade (`frag`) | 118 | corps olive 3 × 3 × 3, bande sombre, goupille jaune à part |
 | peluche (`teddy`) | 464 | ours assis de 27 cm, tête à part, nœud rouge, pièce rapiécée |
 
@@ -235,7 +252,7 @@ profil à la même échelle).
 - Les noms (FR / EN) et leur ton (objets du quotidien, laboratoire, bêtes,
   un peu d'humour : AGRAFEUSE, BÉTONNEUSE, ÉPROUVETTE, TROMBONE).
 - Les niveaux de base (1 à 50) ; une seule arme de butin au niveau 1
-  (CRÉCELLE) ; le lance-roquettes au niveau 50.
+  (MR-40) ; le lance-roquettes au niveau 50.
 - Le butin ne tire que des armes de niveau de base ≤ manche + 2.
 - La batte : 250 dégâts, 1,25 coup/s, 15 d'énergie, 2 zombies par coup,
   portée 2,2 m, fente 3 m ; tir pour frapper, coups enchaînés en maintenant.

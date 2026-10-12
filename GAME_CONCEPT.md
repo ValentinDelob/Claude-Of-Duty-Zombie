@@ -479,10 +479,32 @@ fiche par arme, validée par l'auteur : `docs/weapons/<id>.md`.
   (identifiant interne `m1911` gardé) : 30 dégâts, 360 coups/min
   semi-automatique, 7 / 70 munitions, rechargement 1,7 s, portée 22 m
   (fiche `docs/weapons/m1911.md`, validée le 2026-10-12).
+- **MR-40** (FR / EN), mitraillette de niveau 1, d'après le MP40 réel
+  (`mp40`, ancienne CRÉCELLE) : 90 dégâts, 540 coups/min, 32 / 192,
+  rechargement 2,4 s, recul 0,8°, portée 18 m ; modèle en largeurs paires
+  (axe du canon entre deux colonnes de cubes), main gauche sur le puits du
+  chargeur (fiche `docs/weapons/mp40.md`, validée le 2026-10-12).
+- **KA-74U** (FR / EN), mitraillette de niveau 19, d'après l'AKS-74U réel
+  (`ak74u`, ancien BRISE-OS) : 100 dégâts, 700 coups/min, 30 / 180,
+  rechargement 2,4 s, recul 1,3°, portée 28 m, pénétration 2 (fiche
+  `docs/weapons/ak74u.md`, validée le 2026-10-12).
+- **KA-47** (FR / EN), **arme nouvelle**, fusil d'assaut de niveau 23,
+  d'après l'AK-47 type 3 réel (`ak47`) : 140 dégâts, 600 coups/min,
+  30 / 210, rechargement 2,6 s, recul 1,6°, portée 40 m, pénétration 3 ;
+  son de la famille en attendant un son propre (fiche
+  `docs/weapons/ak47.md`, validée le 2026-10-12).
+- **FAMAX F1** (FR / EN), fusil d'assaut bullpup de niveau 26, d'après le
+  FAMAS F1 réel (`famas`, ancienne CIGALE) : 100 dégâts, 950 coups/min,
+  25 / 175, rechargement 2,8 s, recul 1,0°, portée 38 m (fiche
+  `docs/weapons/famas.md`, validée le 2026-10-12).
+- Proposée, pas encore validée : IZ-43 (`olympia`, fusil à deux canons
+  juxtaposés ; fiche et modèle prêts, non intégrés).
+- La référence réelle est rappelée dans la fiche DÉTAILS de l'arme
+  (« Réf. AKS-74U », `WeaponDB.REAL_REFS`), jamais comme nom.
 
 ✔️ **Liste provisoire des autres armes** (`docs/WEAPONS.md`, à valider, en
 attendant leur refonte) : les autres armes à feu ont un **nom original**
-FR / EN (CRÉCELLE, BRISE-OS, TRIPLETTE, BÉTONNEUSE, LONGUE-VUE, TROMBONE,
+FR / EN (TRIPLETTE, BÉTONNEUSE, LONGUE-VUE, TROMBONE,
 ÉPROUVETTE…, aucun nom de fabricant ni de modèle réel ; les identifiants
 internes restent ceux de l'ancien arsenal), une **famille** et un **niveau
 de base** réparti de 1 à 50 selon la puissance (le butin ne tire que les
@@ -704,8 +726,8 @@ armes de niveau de base ≤ manche + 2) ; statistiques inchangées ;
 - **Troisième échelle, armes refaites : 1 cube = 1,25 cm** (80 cubes par
   mètre ; exception validée le 2026-10-12) : deux fois plus fine que les
   personnages, sous-multiple exact des deux autres. Seules les **armes à
-  feu** refaites d'après une arme réelle (§ 4.9) l'utilisent (aujourd'hui le
-  M1912) ; les **mains et avant-bras** de la vue FPS, la batte, le couteau,
+  feu** refaites d'après une arme réelle (§ 4.9) l'utilisent (aujourd'hui
+  M1912, MR-40, KA-74U, KA-47, FAMAX F1) ; les **mains et avant-bras** de la vue FPS, la batte, le couteau,
   la grenade et les autres objets tenus restent en **2,5 cm**. Mêmes règles
   que les autres échelles (grille, aucune courbe), vérifiées par
   `voxel_check --pas=1.25`.
@@ -745,7 +767,8 @@ armes de niveau de base ≤ manche + 2) ; statistiques inchangées ;
   batteur, maillot d'une équipe fictive sans logo), la grenade, la peluche
   leurre et les cartouches tenues ; vus de la même façon par les autres
   joueurs ; vérifiés par `voxel_check`. Armes refaites en cubes de 1,25 cm
-  (`tools/blender/weapons/weapons_fine.py`) : ✅ M1912.
+  (`tools/blender/weapons/weapons_fine.py`) : ✅ M1912, MR-40, KA-74U,
+  KA-47, FAMAX F1.
 - ✅ **Textures de toutes les surfaces en pixel art**, un pixel = un cube de
   5 cm, dans l'univers hôpital / laboratoire / bunker (textures importées
   d'une carte réduites au même grain).
@@ -836,7 +859,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | **Menu titre « style BO1 »** (logo au pochoir, rouge sang, chœur) et **options** (« comme BO1 », « comme dans Black Ops ») | ✔️ style propre au jeu : palette du laboratoire en alerte (jaune des bandes de danger, menthe des moniteurs), titres et logo en police en cubes, plus de police pochoir ni de rouge sang, fond 3D cubique (couloir du laboratoire, zombie cubique qui passe) ; options sans référence à BO1 ni à Black Ops (docs/ART_DIRECTION.md « Menus ») |
 | **Crédits** (« chiens de l'enfer / hellhounds », « annonces / announcer », personnages Callahan..., « aucune image externe », « polices système ») | ✔️ exacts : chiens errants contaminés, alertes, les 7 personnages et leurs outils de voix (Chatterbox, Kokoro, Qwen3-TTS, Seed-VC), modèles en cubes faits avec Blender (voxel_lib), police en cubes et polices système non fournies ; nom du jeu lu dans `GameName` ; ⏳ personnage unique à venir |
 | **Éditeur de cartes** : avertissements « BO1 : ... », « INDICATEURS (BO1) », « BO1 Kino : deux grandes boucles », info-bulles | ✔️ « conseillé : ... », sans référence à BO1 |
-| **Armes réelles** sous leurs noms de fabricants | ✔️ renommées (noms originaux FR / EN, identifiants internes gardés, jamais affichés) et silhouettes refaites en cubes : `docs/WEAPONS.md` ; refonte en cours (§ 4.9) : armes réelles de référence sous un nom proche du vrai, jamais le nom exact (M1912) |
+| **Armes réelles** sous leurs noms de fabricants | ✔️ renommées (noms originaux FR / EN, identifiants internes gardés, jamais affichés) et silhouettes refaites en cubes : `docs/WEAPONS.md` ; refonte en cours (§ 4.9) : armes réelles de référence sous un nom proche du vrai, jamais le nom exact (M1912, MR-40, KA-74U, KA-47, FAMAX F1) |
 | **Direction artistique** « fidèle à BO1 » (`docs/ART_DIRECTION.md`) | ✔️ style cubique (§4.19) ; les sections BO1 restantes sont marquées « Historique » (📜) |
 | Notes de version du lanceur (`changelogs/changelogs.json` : KINO, Pack-a-Punch, Juggernog...) | 📜 historique des versions déjà publiées ; ⏳ à remettre à zéro avec le nouveau nom avant la sortie ; les prochaines notes ne citent plus BO1 |
 | Documents de développement (README, docs/) | 📜 références techniques à BO1 (règles de vagues, mesures) gardées, internes |
@@ -885,7 +908,7 @@ corriger.
 | Modificateurs des pièces | fractions additionnées par statistique, **positif = bonus** : dégâts, cadence, chargeur, réserve × (1 + m) ; rechargement, recul, précision (dispersion) ÷ (1 + m) ; facteur jamais sous 0,1 ; noms `damage`, `fire_rate`, `reload`, `recoil`, `accuracy`, `mag`, `reserve` | `GameWeapon.MODS` |
 | Niveau d'une arme | dégâts × (1 + 0,1 × (niveau − 1)), explosions et brûlure comprises ; multiplié ensuite par les pièces | `GameWeapon.apply` |
 | Batte de baseball | 250 dégâts, 1,25 coup/s, 15 d'énergie par coup, portée 2,2 m, fente 3 m, jusqu'à 2 zombies par coup ; prend un emplacement en main ; tir = coup (maintenu : coup droit puis revers) ; ni munitions ni visée ; le couteau reste l'attaque de mêlée séparée | `WeaponDB` « bat », `Combat.srv_swing`, `docs/WEAPONS.md` |
-| Noms et niveaux des armes | noms originaux FR / EN (armes refaites : noms proches du vrai, M1912), familles, niveaux de base de 1 à 50 selon la puissance (statistiques inchangées) | `WeaponDB`, `docs/WEAPONS.md` |
+| Noms et niveaux des armes | noms originaux FR / EN (armes refaites : noms proches du vrai, M1912, MR-40, KA-74U, KA-47, FAMAX F1, statistiques de leur fiche), familles, niveaux de base de 1 à 50 selon la puissance (autres armes : statistiques inchangées) | `WeaponDB`, `docs/WEAPONS.md` |
 | Mains vides | permis (tout rangé) : couteau et grenade restent ; à la réapparition, pistolet de départ seulement si ni main ni inventaire | `MatchRules` |
 | Effet légendaire / unique | aucun pour l'instant ; point d'accroche `GameWeapon.visual_effect` | `GameWeapon` |
 | Prix de construction | 500 × (1 + 0,15 × (niveau − 1)) × rareté (commune 1, rare 1,5, épique 2,2, légendaire 3,2, unique 4), arrondi à 10 : arme de base 500, niveau 10 rare 1 760, niveau 50 unique 16 700 ; pièces non comptées | `BuildRules.price` |

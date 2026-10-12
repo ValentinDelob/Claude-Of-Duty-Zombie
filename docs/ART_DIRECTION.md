@@ -393,10 +393,23 @@ et exporte.
   visée, usure). L'info `cube` (0,0125) du modèle le signale au jeu
   (`WeaponModels.cube`, `is_fine`) : `voxel_check --pas=1.25`, budget de
   5 000 triangles. Le poing droit suit l'inclinaison de la poignée (info
-  `grip_angle`, même axe que `mag_dir`). Faite : **M1912** (`m1911`, Colt
-  M1911A1, 788 triangles).
+  `grip_angle`, même axe que `mag_dir`) ; un garde-main de 3 cubes fins
+  (3,75 cm) reçoit la main gauche en berceau étroit (info `narrow_support`,
+  pièce `cradle_narrow` des mains, toujours en 2,5 cm). Faites : **M1912**
+  (`m1911`, Colt M1911A1, 788 triangles), **MR-40** (`mp40`, MP40, 2 446),
+  **KA-74U** (`ak74u`, AKS-74U, 1 392), **KA-47** (`ak47`, AK-47 type 3,
+  1 768), **FAMAX F1** (`famas`, FAMAS F1, 2 142).
+- **Largeurs paires** (option `even=True` de `Item` dans
+  `weapons_fine.py`) : par défaut la colonne i = 0 est centrée sur l'axe du
+  canon (décalage d'un demi-cube) et toutes les largeurs sont impaires (3, 5
+  cubes) ; avec `even=True`, l'axe passe ENTRE les colonnes i = -1 et 0, les
+  pièces n'ont plus de décalage et les largeurs sont paires (canon de
+  2 × 2 cubes = 25 mm, boîtier rond de 4 × 4 aux coins abattus, guidon et
+  cran de 2 cubes). Les pavés restent sur la grille de 1,25 cm
+  (`voxel_check`), cran, guidon et bouche à x = 0 (`weapon_aim` : 0,00 px).
+  Utilisée par le MR-40 (et la proposition IZ-43, `olympia`).
   ```
-  sh tools/blender.sh tools/blender/weapons/weapons_fine.py m1911 --export [--sheet DOSSIER]
+  sh tools/blender.sh tools/blender/weapons/weapons_fine.py m1911 mp40 ak74u ak47 famas --export [--sheet DOSSIER]
   godot --headless --path . --import
   ```
 - Formes **décrites** dans le script, en cellules dans le repère Godot de
@@ -428,7 +441,8 @@ et exporte.
   `team`, peinte en gris) : `weapon.gdshader` la teinte à la couleur du
   joueur (`WeaponModels.team_material`, même calcul que
   `player_voxel.gdshader`), comme le joueur vu par les autres ; plus de
-  tenue par personnage. Poings, berceau, mains du lancer et de la batte.
+  tenue par personnage. Poings, berceau (et berceau étroit des armes
+  fines), mains du lancer et de la batte.
   Chaque pièce est rigide : les avant-bras ne sont jamais étirés (le
   poignet est posé sur la main, le coude suit la direction).
 - En jeu : `WeaponModels` / `ViewHands` lisent les .glb, `weapon.gdshader`
