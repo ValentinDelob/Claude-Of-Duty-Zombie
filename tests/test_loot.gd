@@ -382,14 +382,15 @@ func test_report_and_match_result_text() -> void:
 # --------------------------------------------------------------------------
 
 func test_drop_model_is_cubic() -> void:
+	# La vraie arme (cubes de l'arme : 2,5 cm, ou 1,25 cm pour une arme fine).
 	var root := Node3D.new()
-	for r in 5:
+	for id in ["mp40", "ak47"]:
 		for c in root.get_children():
 			root.remove_child(c)
 			c.free()
-		LootDrop.build_model(root, r, r)
-		var rep := VoxelCheck.check_scene(root)
-		assert_true(rep.ok, "modèle en cubes de 5 cm : %s" % rep.get("fr", ""))
+		var parts := LootDrop.build_model(root, id, 2)
+		var rep := VoxelCheck.check_scene(parts.model, false, 1.0, WeaponModels.cube(id))
+		assert_true(rep.ok, "%s en cubes : %s" % [id, rep.get("fr", "")])
 	root.free()
 
 

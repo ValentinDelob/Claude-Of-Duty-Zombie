@@ -1,36 +1,56 @@
 {
-  "title": {
-    "en": "Gameplay fixes: progressive runners, audible exhaustion, calmer pack",
-    "fr": "Corrections de jeu : coureurs progressifs, essoufflement audible, meute plus calme"
-  },
-  "items": [
-    {
-      "en": "After a lost match, the recap no longer lists the weapons you built at the station as lost: they come from your arsenal and stay there. Only weapons picked up during the match are lost.",
-      "fr": "Après une partie perdue, le récapitulatif n'annonce plus comme perdues les armes construites à la station : elles viennent de ton arsenal et y restent. Seules les armes ramassées pendant la partie sont perdues."
-    },
-    {
-      "en": "Zombies no longer all start running at once: from round 4, a growing share of them runs, and every zombie runs from round 8.",
-      "fr": "Les zombies ne se mettent plus tous à courir d'un coup : à partir de la manche 4, une part croissante court, et tous courent à partir de la manche 8."
-    },
-    {
-      "en": "You can now clearly hear your character pant when out of breath, even in the middle of a fight.",
-      "fr": "On entend maintenant clairement ton personnage haleter quand il est à bout de souffle, même en pleine fusillade."
-    },
-    {
-      "en": "The floating \"+XP\" marker on each kill is gone; the match XP counter stays.",
-      "fr": "Le « +XP » flottant à chaque élimination a disparu ; le compteur d'XP de la partie reste."
-    },
-    {
-      "en": "Wandering pack dogs are a bit slower: still faster than you walking, but a sprint now leaves them behind.",
-      "fr": "Les chiens de la meute errante sont un peu moins rapides : toujours plus vifs que toi à la marche, mais un sprint les distance."
-    },
-  {
-   "en": "Codex: press A (or Enter, D, or click the selected enemy) to flip its card to a details page: how hard it hits, how tough it is, when it shows up, the XP and scrap it's worth, its loot with drop chances, its weak point and a tip. Press A or B again to flip back. Enemies you haven't met yet keep their secrets.",
-   "fr": "Codex : appuyez sur A (ou Entrée, D, ou cliquez sur l'ennemi choisi) pour retourner sa fiche sur une page de détails : la force de ses coups, sa résistance, quand il apparaît, l'XP et la ferraille qu'il rapporte, son butin avec les chances de l'obtenir, son point faible et un conseil. A ou B pour revenir. Les ennemis jamais croisés gardent leurs secrets."
-  },
-  {
-   "en": "Lab: the CONTRACTS and EXCHANGES buttons are now sized like the rest of the hub.",
-   "fr": "Labo : les boutons CONTRATS et ÉCHANGES ont maintenant la même taille que le reste du hub."
-  }
-  ]
+    "title":  {
+                  "en":  "Livelier loot, a richer codex and gameplay fixes",
+                  "fr":  "Butin plus vivant, codex plus riche et corrections de jeu"
+              },
+    "items":  [
+                  {
+                      "en":  "After a lost match, the recap no longer lists the weapons you built at the station as lost: they come from your arsenal and stay there. Only weapons picked up during the match are lost.",
+                      "fr":  "Après une partie perdue, le récapitulatif n\'annonce plus comme perdues les armes construites à la station : elles viennent de ton arsenal et y restent. Seules les armes ramassées pendant la partie sont perdues."
+                  },
+                  {
+                      "en":  "Zombies no longer all start running at once: from round 4, a growing share of them runs, and every zombie runs from round 8.",
+                      "fr":  "Les zombies ne se mettent plus tous à courir d\'un coup : à partir de la manche 4, une part croissante court, et tous courent à partir de la manche 8."
+                  },
+                  {
+                      "en":  "You can now clearly hear your character pant when out of breath, even in the middle of a fight.",
+                      "fr":  "On entend maintenant clairement ton personnage haleter quand il est à bout de souffle, même en pleine fusillade."
+                  },
+                  {
+                      "en":  "The floating \"+XP\" marker on each kill is gone; the match XP counter stays.",
+                      "fr":  "Le « +XP » flottant à chaque élimination a disparu ; le compteur d\'XP de la partie reste."
+                  },
+                  {
+                      "en":  "Wandering pack dogs are a bit slower: still faster than you walking, but a sprint now leaves them behind.",
+                      "fr":  "Les chiens de la meute errante sont un peu moins rapides : toujours plus vifs que toi à la marche, mais un sprint les distance."
+                  },
+                  {
+                      "en":  "Codex: press A (or Enter, D, or click the selected enemy) to flip its card to a details page: how hard it hits, how tough it is, when it shows up, the XP and scrap it\'s worth, its loot with drop chances, its weak point and a tip. Press A or B again to flip back. Enemies you haven\'t met yet keep their secrets.",
+                      "fr":  "Codex : appuyez sur A (ou Entrée, D, ou cliquez sur l\'ennemi choisi) pour retourner sa fiche sur une page de détails : la force de ses coups, sa résistance, quand il apparaît, l\'XP et la ferraille qu\'il rapporte, son butin avec les chances de l\'obtenir, son point faible et un conseil. A ou B pour revenir. Les ennemis jamais croisés gardent leurs secrets."
+                  },
+                  {
+                      "en":  "Lab: the CONTRACTS and EXCHANGES buttons are now sized like the rest of the hub.",
+                      "fr":  "Labo : les boutons CONTRATS et ÉCHANGES ont maintenant la même taille que le reste du hub."
+                  },
+                  {
+                      "en":  "Loot now bursts out of the zombie you kill: it pops up, falls, bounces and settles, then floats and slowly spins above the floor. Your teammates see exactly the same arc.",
+                      "fr":  "Le butin jaillit maintenant du zombie que vous tuez : il saute, retombe, rebondit, se pose, puis flotte et tourne doucement au-dessus du sol. Vos coéquipiers voient exactement le même saut."
+                  },
+                  {
+                      "en":  "Every item glows in its rarity colour. Rare and epic items twinkle with little cube stars; legendaries and uniques send up shafts of light you can spot from across the room.",
+                      "fr":  "Chaque objet brille de la couleur de sa rareté. Les rares et les épiques scintillent de petites étoiles en cubes ; les légendaires et les uniques projettent des colonnes de lumière visibles de l\'autre bout de la salle."
+                  },
+                  {
+                      "en":  "Look at an item on the floor to see its card: name, rarity, level (in red if it is too high for you), score and stats compared with the weapon in your hands, and the key to pick it up.",
+                      "fr":  "Regardez un objet au sol pour voir sa fiche : nom, rareté, niveau (en rouge s\'il est trop élevé pour vous), score et stats comparés à l\'arme en main, et la touche pour le ramasser."
+                  },
+                  {
+                      "en":  "Parts and samples also pop out of the bodies and fly into your pockets when you walk by.",
+                      "fr":  "Les pièces et les échantillons jaillissent aussi des corps et filent dans vos poches quand vous passez à côté."
+                  },
+                  {
+                      "en":  "Each rarity has its own pickup sound, from a soft click to a sparkling fanfare, and a legendary drop rings out so you never miss it.",
+                      "fr":  "Chaque rareté a son propre son de ramassage, du petit clic à la fanfare scintillante, et une arme légendaire qui tombe se fait entendre pour ne jamais passer inaperçue."
+                  }
+              ]
 }

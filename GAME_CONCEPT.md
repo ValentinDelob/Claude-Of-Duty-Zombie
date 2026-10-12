@@ -342,8 +342,11 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
 ### 4.7 Butin ✅
 - **Butin personnel** : chaque joueur fait ses propres tirages ; chaque joueur a
   une **couleur**, et son butin au sol porte sa couleur.
-- 💡 Affichage : couleur du joueur sur le contour au sol (anneau, faisceau),
-  rareté sur l'objet lui-même, nom du joueur sur l'étiquette (daltoniens).
+- 💡 Affichage (refait le 2026-10-12, docs/ART_DIRECTION.md « Butin au
+  sol ») : le butin jaillit du zombie tué ; rareté sur l'objet lui-même
+  (contour lumineux, étoiles, faisceaux des légendaires) ; la fiche de
+  l'objet regardé porte le nom du propriétaire, à sa couleur, quand ce
+  n'est pas le sien (« BUTIN DE ... ») ; seul le propriétaire a la touche.
 
 **Armes**
 - Les armes se trouvent sur les **vagues spéciales** et les **vagues de boss** :

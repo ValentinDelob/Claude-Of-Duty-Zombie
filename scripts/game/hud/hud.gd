@@ -313,6 +313,9 @@ func _process(delta: float) -> void:
 		_crosshair.queue_redraw()
 	var focus := game.interact.focused
 	var raw := focus.prompt(player.peer_id) if focus else ""
+	# Arme de butin regardée : sa fiche porte déjà la touche (LootCard).
+	if focus is LootDrop and game.loot and game.loot.looked == focus and game.loot.card_shown():
+		raw = ""
 	# Recalculée aussi quand la touche change (clavier <-> manette, réaffectation).
 	var key := Settings.action_label("interact") if raw != "" else _prompt_key
 	if raw != _prompt.text or key != _prompt_key:

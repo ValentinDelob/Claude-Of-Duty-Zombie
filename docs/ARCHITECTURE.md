@@ -491,8 +491,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   de `SIZE_GAIN`, filtrage avec mipmaps, contour fin pour les caractères de
   repli ; une fois par étiquette (méta `tag3d`), méta `tag3d_keep` pour
   garder une étiquette telle quelle. Nom au-dessus des coéquipiers et
-  « ✚ À TERRE » (`Player`), butin (`LootDrop`), panneaux du piège électrique
-  et du poste central.
+  « ✚ À TERRE » (`Player`), panneaux du piège électrique et du poste
+  central (le butin au sol n'a plus d'étiquette : fiche `LootCard` du HUD).
 - Captures de contrôle : `tests/autotest/ui_look.gd` (@rendu : menu titre,
   zombie qui passe, crédits, options, ciel de jour et de nuit, étiquettes 3D).
 

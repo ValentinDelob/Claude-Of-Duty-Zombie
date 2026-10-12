@@ -49,6 +49,15 @@ func run() -> void:
 			"tirages du client faits ici (échantillons, pièce)")
 	at.check(host_drop.prompt(cid) == "" and host_drop.prompt(1) != "", "invite de l'arme de l'hôte : l'hôte seulement")
 	var client_uid: String = client_drop.weapon.uid
+	# Arcs choisis ici (départ : le dernier chien tué, arrivée au sol) : le
+	# client doit rejouer exactement les mêmes.
+	at.check(host_drop.from.distance_to(host_drop.global_position) > 0.3, "armes jaillies d'un corps")
+	var arcs := {}
+	for d: LootDrop in loot.drops.values():
+		arcs[str(d.drop_id)] = [var_to_str(d.from), var_to_str(d.global_position)]
+	var f := FileAccess.open(MpHelpers.sync_dir().path_join("loot_arcs.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify(arcs))
+	f.close()
 	MpHelpers.signal_peer("drops")
 
 	# 2. Le client sur l'arme de l'hôte : sa demande est refusée.

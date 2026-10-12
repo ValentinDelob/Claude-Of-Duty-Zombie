@@ -1305,3 +1305,100 @@ func gen_nurse_far() -> void:
 	b = s.env_adsr(b, 0.15, 0.2, 0.7, 0.8)
 	b = s.lowpass(b, 2600.0)
 	_save("nurse_far", s.finish(s.reverb(b, 0.95, 0.55, 1.4), 0.8))
+
+
+# ---------------------------------------------------------------- butin (LootFx)
+
+## Note de cloche : partiels d'un petit carillon (fondamental, octave, 2,76 et
+## 5,4 : timbre de clochette), attaque nette, décroissance `decay` s.
+func _chime(f: float, dur: float, decay: float) -> PackedFloat32Array:
+	var b := s.buf(dur)
+	for p in [[1.0, 1.0], [2.0, 0.45], [2.76, 0.3], [5.4, 0.12]]:
+		s.mix(b, s.env_exp(s.tone(dur, f * p[0]), 0.002, decay / sqrt(p[0])), 0.0, p[1])
+	return b
+
+
+## Pluie d'étincelles sonores : `n` tintements aigus brefs au hasard sur
+## `dur` s, de `f0` à `f1` Hz.
+func _glitter(dur: float, n: int, f0: float, f1: float) -> PackedFloat32Array:
+	var b := s.buf(dur + 0.2)
+	for k in n:
+		var f := s.rng.randf_range(f0, f1)
+		var at := dur * float(k) / n + s.rng.randf_range(0.0, dur / n)
+		s.mix(b, s.env_exp(s.tone(0.12, f), 0.001, 0.03), at, s.rng.randf_range(0.25, 0.5))
+	return b
+
+
+## Ramassage d'un objet commun : clic sourd et court (boucle de sac, métal mat).
+func gen_loot_pickup_common() -> void:
+	var b := s.buf(0.3)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.08), 1800.0), 0.0005, 0.012), 0.0, 1.0)
+	s.mix(b, s.env_exp(s.sweep(0.12, 320.0, 180.0), 0.001, 0.03), 0.0, 0.8)
+	s.mix(b, _clank(700.0, 0.06, 0.2), 0.01, 0.35)
+	_save("loot_pickup_common", s.finish(s.reverb(b, 0.35, 0.12, 0.25), 0.8))
+
+
+## Rare : clic puis carillon clair (deux notes qui montent, mi - si).
+func gen_loot_pickup_rare() -> void:
+	var b := s.buf(0.8)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.06), 2200.0), 0.0005, 0.01), 0.0, 1.0)
+	s.mix(b, s.env_exp(s.sweep(0.1, 300.0, 200.0), 0.001, 0.025), 0.0, 0.5)
+	s.mix(b, _chime(1318.5, 0.6, 0.22), 0.02, 0.5)
+	s.mix(b, _chime(1975.5, 0.7, 0.28), 0.09, 0.45)
+	_save("loot_pickup_rare", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.85))
+
+
+## Épique : clic, arpège de quatre notes (do - mi - sol - do, aigu) plus
+## riche (notes doublées, légèrement désaccordées), léger chatoiement.
+func gen_loot_pickup_epic() -> void:
+	var b := s.buf(1.3)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.06), 2400.0), 0.0005, 0.01), 0.0, 1.0)
+	s.mix(b, s.env_exp(s.sweep(0.1, 280.0, 190.0), 0.001, 0.025), 0.0, 0.5)
+	var notes := [1046.5, 1318.5, 1568.0, 2093.0]
+	for k in notes.size():
+		s.mix(b, _chime(notes[k], 0.9, 0.35), 0.02 + k * 0.06, 0.38)
+		s.mix(b, _chime(notes[k] * 1.004, 0.9, 0.35), 0.02 + k * 0.06, 0.12)
+	s.mix(b, _glitter(0.4, 8, 4000.0, 7000.0), 0.15, 0.25)
+	_save("loot_pickup_epic", s.finish(s.reverb(b, 0.8, 0.35, 0.9), 0.85))
+
+
+## Légendaire / unique : fanfare scintillante (accord de cuivres synthé qui
+## s'ouvre, arpège de cloches, pluie d'étincelles, queue de réverbération).
+func gen_loot_pickup_legendary() -> void:
+	var b := s.buf(2.2)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.06), 2400.0), 0.0005, 0.01), 0.0, 1.0)
+	var chord := s.buf(1.5)
+	for f in [261.63, 329.63, 392.0, 523.25, 783.99]:
+		for det in [-0.004, 0.003]:
+			s.mix(chord, s.tone(1.5, f * (1.0 + det), "saw"), 0.0, 0.05)
+	chord = s.lowpass_sweep(chord, 900.0, 5200.0)
+	chord = s.env_adsr(chord, 0.03, 0.25, 0.5, 0.9)
+	s.mix(b, chord, 0.04, 0.75)
+	var notes := [1046.5, 1318.5, 1568.0, 2093.0, 2637.0]
+	for k in notes.size():
+		s.mix(b, _chime(notes[k], 1.1, 0.45), 0.05 + k * 0.055, 0.32)
+	s.mix(b, _glitter(0.8, 18, 3500.0, 8000.0), 0.2, 0.3)
+	_save("loot_pickup_legendary", s.finish(s.reverb(b, 0.9, 0.38, 1.3), 0.85, 0.15))
+
+
+## Objet qui touche le sol : petit choc mat (bois / carrelage), sans éclat.
+func gen_loot_land() -> void:
+	var b := s.buf(0.3)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.12), 1200.0, 1.5), 0.0005, 0.012), 0.0, 1.0)
+	s.mix(b, s.env_exp(s.sweep(0.1, 200.0, 110.0), 0.001, 0.02), 0.0, 0.7)
+	s.mix(b, _clank(950.0, 0.05, 0.1), 0.0, 0.2)
+	_save("loot_land", s.finish(s.reverb(b, 0.35, 0.1, 0.2), 0.7))
+
+
+## Une arme légendaire ou unique tombe : souffle qui monte, cloche grave et
+## halo scintillant (le joueur se retourne).
+func gen_loot_drop_legendary() -> void:
+	var b := s.buf(2.4)
+	var rise := s.env_adsr(s.bandpass(s.noise(0.7), 2500.0, 1.2), 0.5, 0.05, 0.6, 0.15)
+	s.mix(b, rise, 0.0, 0.35)
+	s.mix(b, s.env_adsr(s.sweep(0.7, 300.0, 1200.0, "tri"), 0.5, 0.05, 0.5, 0.15), 0.0, 0.12)
+	s.mix(b, _chime(523.25, 1.7, 0.7), 0.62, 0.55)
+	s.mix(b, _chime(784.0, 1.7, 0.6), 0.62, 0.35)
+	s.mix(b, _chime(1046.5, 1.6, 0.5), 0.62, 0.25)
+	s.mix(b, _glitter(1.0, 16, 3000.0, 7500.0), 0.65, 0.28)
+	_save("loot_drop_legendary", s.finish(s.reverb(b, 0.92, 0.4, 1.4), 0.85, 0.2))
