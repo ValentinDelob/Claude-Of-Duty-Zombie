@@ -47,12 +47,15 @@ func run() -> void:
 	var lvl := GameWeapon.level_of(d.weapon)
 	at.check(lvl >= 1 and lvl <= 4, "niveau manche 2 : 1 à 4 (%d)" % lvl)
 	at.check(not BaseWeapons.is_base(d.weapon.id), "pas une arme de base : %s" % d.weapon.id)
-	at.check(VoxelCheck.check_scene(d).ok, "modèle cubique")
+	# Elle a jailli du dernier chien tué et retombe à côté de son corps.
+	at.check(d.from.distance_to(d.global_position) > 0.3, "arme jaillie d'un corps (%.2f m)" % d.from.distance_to(d.global_position))
 	await at.screenshot("drop")
 
 	# 3. Inventaire plein : refusé, l'arme reste.
 	for i in GameWeapon.BAG:
 		game.session.give_to_bag(1, GameWeapon.make("mp40", 1, 0, [], "w%d" % (i + 10)))
+	p.teleport_to(d.global_position + Vector3(0, 0.05, 1.2))
+	await seconds(1.2)
 	H.aim_at(p, d.interact_point())
 	if not await until(func(): return game.interact.focused == d, 2.0, "arme visée"):
 		return

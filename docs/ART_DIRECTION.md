@@ -661,6 +661,58 @@ Toutes les particules du jeu sont des **cubes** (code : docs/ARCHITECTURE.md
   sombre), comme les textures du décor. L'étalonnage s'applique à eux comme
   au reste de l'image.
 
+### Butin au sol (scripts/game/loot/loot_fx.gd, loot_arc.gd, loot_drop.gd, loot_pickup.gd)
+
+Référence : docs/art/gemini_target.webp (objets lumineux et colorés sur le
+sol, éclairage vivant). Le butin est une **récompense visible** : on doit le
+voir tomber, le repérer de loin et savoir ce qu'il vaut d'un regard.
+
+- **Il jaillit du corps** (comme les objets de Minecraft, `LootArc`) : petite
+  impulsion vers le haut (45 à 75 cm), écart horizontal de 0,6 à 1,3 m,
+  chute sous une gravité un peu flottante, deux rebonds décroissants, puis
+  l'objet s'élève doucement à 30 cm et flotte (va-et-vient de 3,5 cm) en
+  tournant lentement. Il tourbillonne en vol et ralentit jusqu'au sol. Le
+  serveur choisit le point de chute ; chaque machine rejoue le même arc
+  (départ, arrivée, graine). Armes : du dernier zombie tué de la vague ;
+  pièces et échantillons : de chaque zombie qui les donne (vus de leur seul
+  propriétaire, ils filent vers lui quand il passe à moins de 1,5 m).
+- **Modèles** : la vraie arme (mêmes cubes que l'arme en main) ; pièce :
+  bloc de métal sombre à bande de la couleur de sa rareté ; échantillon :
+  fiole (verre, liquide de la couleur de sa rareté, bouchon) ; cubes de
+  2,5 cm.
+- **Couleur de rareté sur l'objet** (couleurs du hub v2 : commune `#C9C7BE`,
+  rare `#4D9BFF`, épique `#B56CFF`, légendaire `#FF9A1F`, unique `#FF4D5E`) :
+  coque lumineuse de 1 à 1,5 cm autour de l'objet (le contour noir de
+  l'écran l'entoure) et liseré additif sur ses faces rasantes, battement
+  lent ; flaque de lumière au sol en pixels de 5 cm (quatre paliers).
+- **Paliers** : commune sobre (coque, petite flaque) ; rare : étoiles
+  cubiques qui scintillent autour de l'objet (croix 3D de 7 cubes de
+  2,5 cm qui s'ouvre et se replie) ; épique : plus d'étoiles et une petite
+  lueur colorée ; légendaire et unique : grandes étoiles (branches de deux
+  cubes), 3 ou 4 faisceaux verticaux de 1,6 à 3 m (colonnes carrées
+  additives, bords fondus, paliers de 5 cm qui frémissent) autour d'un fût
+  pâle, étincelles qui montent, lumière colorée sans ombre. Lueurs et
+  faisceaux montent du sol au premier contact.
+- **Ramassage** : gerbe d'étincelles de la couleur de la rareté, son de la
+  rareté (`loot_pickup_common` clic sourd, `_rare` carillon clair, `_epic`
+  arpège plus riche, `_legendary` fanfare scintillante, aussi pour l'unique) ;
+  objet qui touche le sol : `loot_land` (choc mat discret) ; arme
+  légendaire ou unique qui tombe : `loot_drop_legendary`. Sons procéduraux
+  (tools/gen_audio.gd), catégories d'intensité « butin » et « butin_sol »
+  (aucune baisse des autres sons).
+- **Fiche de l'objet regardé** (`LootCard`, HUD) : panneau de verre du hub
+  v2 ancré à côté de l'objet (près du réticule), barre et liseré de la
+  couleur de sa rareté, nom (Chakra Petch), rareté et famille, niveau
+  (« NIV. N REQUIS » en rouge s'il dépasse celui du joueur), score et écart
+  avec l'arme en main (vert / rouge), six statistiques en icône + valeur
+  (style de la fiche de l'ARSENAL) avec l'écart, touche réelle d'interaction
+  (clavier ou manette) ; pièce : qualité et modificateurs ; échantillon :
+  quantité de la partie. Elle remplace l'invite du centre de l'écran et
+  l'ancienne étiquette 3D au-dessus de l'arme.
+- **Coût** : une flaque, 0 à 4 faisceaux, 0 à 2 systèmes de particules GPU
+  (quelques dizaines de cubes), 0 ou 1 lumière sans ombre par objet ;
+  étoiles masquées au-delà de 28 m.
+
 ## Étalonnage et post-traitement (code actuel, à revoir pour le style cubique)
 
 
@@ -814,7 +866,8 @@ sang et cadavre, chœur et boîte à musique) a été **remplacé** le 11/10/202
 ## Étiquettes 3D
 
 - Toutes les `Label3D` du jeu (nom au-dessus des coéquipiers, « ✚ À
-  TERRE », butin au sol, panneaux du piège électrique et du poste central)
+  TERRE », panneaux du piège électrique et du poste central ; le butin au
+  sol a désormais sa fiche, voir « Butin au sol »)
   sont en **police en cubes** (`Tag3D`), un peu plus grandes que l'ancienne
   police système pour rester lisibles de loin ; la croix médicale est un
   glyphe en cubes.

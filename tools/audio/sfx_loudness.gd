@@ -69,6 +69,10 @@ const CATEGORIES := [
 	{"id": "musique", "match": ["menu_theme", "special_wave_music"],
 		"target": -20.0, "tol": 2.0, "mode": "int"},
 	{"id": "ambiance", "match": ["ambience_*"], "target": -24.0, "tol": 2.0, "mode": "int"},
+	# Butin (LootFx) : ramassage par rareté (la récompense s'entend, sans rien
+	# baisser d'autre), arme légendaire qui tombe, objet qui touche le sol (discret).
+	{"id": "butin", "match": ["loot_pickup_*", "loot_drop_legendary"], "target": -15.0, "tol": 2.5, "mode": "max"},
+	{"id": "butin_sol", "match": ["loot_land"], "target": -22.0, "tol": 3.0, "mode": "max"},
 	{"id": "interface", "match": ["ui_*", "menu_*", "hitmarker"], "target": -18.0, "tol": 3.0, "mode": "max"},
 	{"id": "decor", "match": ["*"], "target": -15.0, "tol": 3.5, "mode": "max"},
 ]

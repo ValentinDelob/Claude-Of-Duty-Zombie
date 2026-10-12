@@ -1,0 +1,28 @@
+{
+ "title": {
+  "en": "Loot that feels like loot",
+  "fr": "Du butin qui donne envie"
+ },
+ "items": [
+  {
+   "en": "Loot now bursts out of the zombie you kill: it pops up, falls, bounces and settles, then floats and slowly spins above the floor. Your teammates see exactly the same arc.",
+   "fr": "Le butin jaillit maintenant du zombie que vous tuez : il saute, retombe, rebondit, se pose, puis flotte et tourne doucement au-dessus du sol. Vos coéquipiers voient exactement le même saut."
+  },
+  {
+   "en": "Every item glows in its rarity colour. Rare and epic items twinkle with little cube stars; legendaries and uniques send up shafts of light you can spot from across the room.",
+   "fr": "Chaque objet brille de la couleur de sa rareté. Les rares et les épiques scintillent de petites étoiles en cubes ; les légendaires et les uniques projettent des colonnes de lumière visibles de l'autre bout de la salle."
+  },
+  {
+   "en": "Look at an item on the floor to see its card: name, rarity, level (in red if it is too high for you), score and stats compared with the weapon in your hands, and the key to pick it up.",
+   "fr": "Regardez un objet au sol pour voir sa fiche : nom, rareté, niveau (en rouge s'il est trop élevé pour vous), score et stats comparés à l'arme en main, et la touche pour le ramasser."
+  },
+  {
+   "en": "Parts and samples also pop out of the bodies and fly into your pockets when you walk by.",
+   "fr": "Les pièces et les échantillons jaillissent aussi des corps et filent dans vos poches quand vous passez à côté."
+  },
+  {
+   "en": "Each rarity has its own pickup sound, from a soft click to a sparkling fanfare, and a legendary drop rings out so you never miss it.",
+   "fr": "Chaque rareté a son propre son de ramassage, du petit clic à la fanfare scintillante, et une arme légendaire qui tombe se fait entendre pour ne jamais passer inaperçue."
+  }
+ ]
+}

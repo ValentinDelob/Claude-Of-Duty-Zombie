@@ -35,9 +35,32 @@ func run() -> void:
 	if mine == null or host_drop == null:
 		return
 	at.check(mine.prompt(me) != "" and host_drop.prompt(me) == "", "invite seulement sur mon arme")
+	# Mêmes arcs que l'hôte (départ, arrivée, graine) : même trajectoire.
+	var arcs: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(MpHelpers.sync_dir().path_join("loot_arcs.json")))
+	for d: LootDrop in loot.drops.values():
+		var a: Array = arcs.get(str(d.drop_id), ["", ""])
+		var same: bool = a[0] != "" and (str_to_var(a[0]) as Vector3).is_equal_approx(d.from) \
+				and (str_to_var(a[1]) as Vector3).is_equal_approx(d.global_position)
+		at.check(same, "arc de l'arme %d identique à l'hôte" % d.drop_id)
+		var ref := LootArc.plan(str_to_var(a[0]), str_to_var(a[1]), d.drop_id) if same else {}
+		at.check(same and LootArc.position(ref, 0.3).is_equal_approx(LootArc.position(d.arc, 0.3)), "même position en vol")
+	# Mes pièces et échantillons ont jailli ici (objets visibles, à moi seul).
+	at.check(not loot.pickups.is_empty(), "objets jaillis reçus (%d)" % loot.pickups.size())
 	at.check(not loot.my_samples.is_empty() and loot.counter_shown() != "", "mes échantillons : « %s »" % loot.counter_shown())
 
 	# 1. Debout sur l'arme de l'hôte : demande envoyée quand même -> refus.
+	# Du côté du corps d'où elle a jailli (toujours dégagé).
+	var to_corpse := host_drop.from - host_drop.global_position
+	to_corpse.y = 0.0
+	to_corpse = to_corpse.normalized() if to_corpse.length() > 0.05 else Vector3.BACK
+	p.teleport_to(host_drop.global_position + to_corpse * 1.3 + Vector3(0, 0.05, 0))
+	await seconds(0.5)
+	# Visée refaite à chaque essai (la téléportation peut arriver une image après).
+	var seen: bool = await until(func():
+		H.aim_at(p, host_drop.card_point())
+		return loot.looked == host_drop and loot.card_shown(), 4.0, "fiche de l'arme de l'hôte")
+	at.check(seen and loot.card.info.get("key", "x") == "" and String(loot.card.info.get("action", "")).contains(Net.player_name(1).to_upper()),
+			"fiche de l'arme de l'hôte : « %s », sans touche" % loot.card.info.get("action", "") if loot.card else "")
 	p.teleport_to(host_drop.global_position + Vector3(0.6, 0.05, 0))
 	MpHelpers.signal_peer("near_host_drop")
 	if not await MpHelpers.wait_peer(self, "host_sees", 30.0):
@@ -58,6 +81,10 @@ func run() -> void:
 	await seconds(0.5)
 	H.aim_at(p, mine.interact_point())
 	await until(func(): return game.interact.focused == mine, 3.0, "mon arme visée")
+	# Fiche de mon arme : la mienne (touche), avec ses statistiques.
+	ok = await until(func(): return loot.looked == mine and loot.card_shown(), 3.0, "fiche de mon arme")
+	at.check(ok and loot.card.info.get("key", "") != "" and (loot.card.info.get("stats", []) as Array).size() == 6,
+			"fiche de mon arme : touche et statistiques")
 	ok = await until(func():
 		if loot.drops.has(my_id) and game.interact.focused == mine:
 			p.input.interact_pressed = true
