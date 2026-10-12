@@ -1,7 +1,9 @@
 class_name WeaponDB
 extends RefCounted
 ## Arsenal du jeu (GAME_CONCEPT §4.9, docs/WEAPONS.md) : armes à noms
-## originaux (les identifiants internes sont ceux de l'ancien arsenal) et
+## originaux, ou proches du vrai pour les armes refaites d'après une arme
+## réelle (refonte en cours, docs/weapons/<id>.md ; les identifiants internes
+## sont ceux de l'ancien arsenal) et
 ## batte de baseball. Données pures, lues par le client (prédiction, visuel)
 ## ET par le serveur (validation, dégâts) : une seule source de vérité.
 ##
@@ -91,8 +93,10 @@ const CLASSES := {
 ## de l'ancien arsenal : seuls les noms affichés sont originaux.
 const WEAPONS := {
 	# ------------------------------------------------------------ armes de base (BaseWeapons)
-	"m1911": {"name": "PÉTOIRE", "pap_name": "PÉTOIRE", "class": "pistol", "base_level": 1, "sound": "m1911_fire",
-		"damage": 25, "rpm": 400, "mag": 8, "reserve": 80, "reload": 1.6,
+	# M1912 : Colt M1911A1 réel, nom proche du vrai (fiche docs/weapons/m1911.md).
+	"m1911": {"name": "M1912", "pap_name": "M1912", "class": "pistol", "base_level": 1, "sound": "m1911_fire",
+		"damage": 30, "rpm": 360, "mag": 7, "reserve": 70, "reload": 1.7,
+		"spread_hip": 1.8, "bloom": 0.7, "recoil": 2.2, "recoil_side": 0.5, "recoil_recover": 0.75, "range": 22.0,
 		# Amélioré : balles explosives (façon lance-grenades de poing), 6 coups.
 		"pap": {"damage": 150, "mag": 6, "reserve": 50, "rpm": 450, "splash_radius": 2.4, "splash_damage": 900,
 			"self_damage": 25, "projectile_speed": 60.0, "sound": "launcher_fire", "tracer": "grenade", "sound_pitch": 1.25}},
@@ -262,11 +266,12 @@ static func display_name(id: String, pap := false) -> String:
 	return localized(stats(id, pap).name)
 
 
-## Noms anglais des armes (noms originaux, aucun nom de fabricant ni de
+## Noms anglais des armes (noms originaux, ou proches du vrai pour les armes
+## refaites d'après une arme réelle, comme M1912 ; jamais le nom exact d'un
 ## modèle réel : docs/WEAPONS.md). Couteaux compris (KnifeDB). Vérifié par
 ## tests/test_lang.gd et tests/test_weapons.gd.
 const EN_NAMES := {
-	"PÉTOIRE": "PEASHOOTER",
+	"M1912": "M1912",
 	"GUÊPE": "WASP",
 	"COUPERET": "CLEAVER",
 	"CRÉCELLE": "RATTLE",

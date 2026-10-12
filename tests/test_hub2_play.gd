@@ -210,7 +210,7 @@ func test_solo_view_mockup_content() -> void:
 	assert_false(p.preview_fun.visible, "carte du jeu : pas POUR LE FUN")
 	var t := " | ".join(_texts(p, PackedStringArray()))
 	for want in ["SOLO", "COOP", "DÉFI DE LA SEMAINE · S47", "CARTES DU JEU", "1 à 4 joueurs", "CARTES PERSONNALISÉES", "POUR LE FUN",
-			"Créées avec l’éditeur. Aucune progression : ni XP, ni butin, ni contrat.", "ÉQUIPEMENT", "X · MODIFIER", "PÉTOIRE",
+			"Créées avec l’éditeur. Aucune progression : ni XP, ni butin, ni contrat.", "ÉQUIPEMENT", "X · MODIFIER", "M1912",
 			"BATTE", "Emplacement libre", "LANCER", "Meute", "Brancardier", "Chirurgien", "Infirmière"]:
 		assert_true(t.contains(want), "« %s » dans : %s" % [want, t])
 	Settings.using_pad = true
@@ -251,7 +251,7 @@ func test_loadout_picker() -> void:
 	await wait_frames(1)
 	assert_eq(p.modal, null)
 	var t := " | ".join(_texts(p, PackedStringArray()))
-	assert_true(t.contains("PÉTOIRE") and t.contains("BATTE"), "ÉQUIPEMENT relu : %s" % t)
+	assert_true(t.contains("M1912") and t.contains("BATTE"), "ÉQUIPEMENT relu : %s" % t)
 
 
 func test_coop_form_errors() -> void:

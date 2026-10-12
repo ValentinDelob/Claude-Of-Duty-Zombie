@@ -1,24 +1,33 @@
 # Armes — liste originale provisoire
 
 Liste des armes du jeu (GAME_CONCEPT.md § 4.9, § 4.10, § 6), avec leurs
-**noms originaux** français et anglais, leur famille, leur **niveau de base**
-et leurs statistiques. Tout est **provisoire** : choisi en l'absence de
-l'auteur, à valider ou corriger (voir « Choix à valider » en bas).
+noms français et anglais, leur famille, leur **niveau de base** et leurs
+statistiques. Tout est **provisoire** : choisi en l'absence de l'auteur, à
+valider ou corriger (voir « Choix à valider » en bas), sauf les armes déjà
+**refaites** (fiche validée `docs/weapons/<id>.md`).
 
-- Aucun nom de fabricant ni de modèle réel (AK-74u, FAMAS, Galil, HK21, AUG,
-  M14, MP40, MP5K, Olympia, SPAS-12, Python, Dragunov, L96A1, M16, Commando,
-  CZ75, MPL, PM63, Spectre, G11, RPK, China Lake, FN FAL, M1911…) : les noms
-  sont des mots courants, souvent liés à l'univers (hôpital, laboratoire,
-  bricolage, bêtes). Vérifié mot à mot par `tests/test_weapons.gd`
-  (`test_original_names`, liste de noms réels interdits).
+- **Refonte en cours (décidée le 2026-10-12)** : chaque arme est refaite, une
+  à la fois, d'après une **arme réelle de référence**, avec un **nom affiché
+  proche du vrai** (jamais le nom exact ni une marque), un modèle en **cubes
+  de 1,25 cm** (« Modèles cubiques ») et, plus tard, des pièces visibles.
+  Faite : **M1912** (`m1911`, Colt M1911A1, `docs/weapons/m1911.md`).
+- Jamais le nom exact d'un fabricant ni d'un modèle réel (AK-74u, FAMAS,
+  Galil, HK21, AUG, M14, MP40, MP5K, Olympia, SPAS-12, Python, Dragunov,
+  L96A1, M16, Commando, CZ75, MPL, PM63, Spectre, G11, RPK, China Lake,
+  FN FAL, M1911…) : les armes pas encore refaites ont des mots courants,
+  souvent liés à l'univers (hôpital, laboratoire, bricolage, bêtes) ; les
+  armes refaites un nom proche du vrai (M1912 pour M1911). Vérifié mot à mot
+  par `tests/test_weapons.gd` (`test_original_names`, liste de noms réels
+  interdits).
 - Les **identifiants internes** (clés de `WeaponDB.WEAPONS`, noms des sons
   `*_fire.wav`, arsenals des profils enregistrés, tests) restent ceux de
   l'ancien arsenal : les renommer casserait les profils et les sons pour
   rien, ils ne sont jamais affichés. Seuls les noms affichés changent.
-- Les **silhouettes** sont refaites en cubes de 2,5 cm (§ 4.19), inspirées de
-  chaque famille sans copier une arme réelle reconnaissable (voir
-  « Modèles »).
-- Les **statistiques** de l'ancien arsenal sont gardées telles quelles.
+- Les **silhouettes** des armes pas encore refaites sont en cubes de 2,5 cm
+  (§ 4.19), inspirées de chaque famille sans copier une arme réelle
+  reconnaissable (voir « Modèles »).
+- Les **statistiques** de l'ancien arsenal sont gardées telles quelles, sauf
+  pour les armes refaites (celles de leur fiche).
 - **Niveau de base** (§ 4.7, § 4.9) : niveau minimum auquel l'arme se trouve
   (butin des vagues : seules les armes de niveau de base ≤ manche + 2 sont
   tirées, `LootRules.weapon_pool`) et peut être offerte (contrats, échanges :
@@ -34,7 +43,7 @@ balle (fusils à pompe : × 8 plombs) ; rechargement en secondes.
 
 | Id interne | Nom (FR) | Nom (EN) | Famille | Niv. de base | Dégâts | Cadence | Chargeur / réserve | Recharg. | Particularités |
 |---|---|---|---|---|---|---|---|---|---|
-| `m1911` | PÉTOIRE | PEASHOOTER | pistolet | 1 | 25 | 400 | 8 / 80 | 1,6 | **arme de base** (pistolet de départ, peu efficace) |
+| `m1911` | M1912 | M1912 | pistolet | 1 | 30 | 360 | 7 / 70 | 1,7 | **arme de base** (pistolet de départ) ; **refaite** d'après le Colt M1911A1 (fiche `docs/weapons/m1911.md`) : semi-automatique, portée 22 m, recul 2,2° |
 | `bat` | BATTE | BAT | corps à corps | 1 | 250 | 1,25 coup/s | — | — | **arme de base** ; énergie 15 par coup ; portée 2,2 m, fente 3 m ; 2 zombies par coup |
 | `mp40` | CRÉCELLE | RATTLE | mitraillette | 1 | 90 | 550 | 32 / 192 | 2,3 | |
 | `olympia` | GARDE-CHASSE | GAMEKEEPER | fusil à pompe | 3 | 60 × 8 | 200 | 2 / 38 | 2,8 | deux canons basculants |
@@ -115,15 +124,33 @@ pour reconstruire à l'identique) ; sorties dans `assets/models/weapons/voxel/`.
 sh tools/blender.sh tools/blender/weapons/weapons_voxel.py [ids...] [--cache] [--sheet DOSSIER] [--no-check]
 ```
 
+**Armes refaites (fines)** : script `tools/blender/weapons/weapons_fine.py`
+(cubes de 1,25 cm, une fonction par arme décrite en profil texte, sans
+cache) ; `--export` écrit `<id>.glb` et l'entrée `<id>` de
+`weapons_voxel.json` (info `cube` = 0,0125), `--sheet DOSSIER` la planche de
+validation (profil gauche, trois-quarts, vue du tireur, dessus, profil
+droit). `weapons_voxel.py` ne construit plus ces armes (absentes de ses
+`BUILDERS` et de son cache ; un id fin passé en argument est refusé) et sa
+fusion de `weapons_voxel.json` garde leurs entrées.
+
+```
+sh tools/blender.sh tools/blender/weapons/weapons_fine.py [ids...] [--export] [--sheet DOSSIER] [--no-check]
+godot --headless --path . --import
+```
+
 (Variable `GODOT` : chemin d'un vrai `godot.exe` pour la vérification
 `tools/voxel_check.gd` lancée à la fin.)
 
-- **Cubes de 2,5 cm** pour tous les objets tenus (§ 4.19) : armes, batte,
-  couteau, mains et avant-bras, grenade, peluche leurre, cartouche et
-  grenade de 40 mm tenues au rechargement. Vérifiés par `voxel_check`
-  (armes : d'un bloc, en statique, pièces mobiles comprises sur la même
-  grille ; objets à pièces indépendantes : pièce par pièce) et par
-  `tests/test_weapons.gd` (`test_held_models_are_cubic`).
+- **Cubes de 2,5 cm** pour les objets tenus (§ 4.19) : armes pas encore
+  refaites, batte, couteau, mains et avant-bras, grenade, peluche leurre,
+  cartouche et grenade de 40 mm tenues au rechargement. **Cubes de
+  1,25 cm** pour les armes refaites (exception validée le 2026-10-12 ;
+  `WeaponModels.cube` / `is_fine` lisent l'info `cube`). Vérifiés par
+  `voxel_check` (armes : d'un bloc, en statique, pièces mobiles comprises
+  sur la même grille, `--pas=1.25` pour les armes fines ; objets à pièces
+  indépendantes : pièce par pièce) et par `tests/test_weapons.gd`
+  (`test_held_models_are_cubic` : seules des armes à feu peuvent être
+  fines).
 - **Repère** : l'arme pointe vers -Z, origine à la détente ; la colonne de
   cubes x = 0 est centrée sur l'axe du canon (décalage d'un demi-cube), pour
   que guidon et cran soient centrés.
@@ -150,13 +177,17 @@ sh tools/blender.sh tools/blender/weapons/weapons_voxel.py [ids...] [--cache] [-
   cubes, berceau sous un garde-main, main d'appui du pistolet, poings de la
   batte, mains du lancer ; avant-bras rigide de 12 cubes (jamais étiré :
   posé du poignet vers le coude).
-- **Budget** : < 1 500 triangles par arme (contrôlé par `test_weapons`), < 2 000
+- **Budget** : < 1 500 triangles par arme en cubes de 2,5 cm, < 5 000 par
+  arme fine en cubes de 1,25 cm (contrôlés par `test_weapons`), < 2 000
   pour l'ensemble des mains ; la vue FPS ajoute la découpe en tranches de
   5 mm de la partie courbée par la joue de visée.
+- **Tenue des armes fines** : les mains restent en cubes de 2,5 cm ; le
+  poing droit suit l'inclinaison de la poignée (info `grip_angle`, en
+  degrés autour de X, négatif : bas de la poignée vers l'arrière).
 
-| Modèle | Triangles | Silhouette (originale) |
+| Modèle | Triangles | Silhouette |
 |---|---|---|
-| `m1911` PÉTOIRE | 252 | glissière d'acier usé tachée de rouille, plaquettes de bois scotchées |
+| `m1911` M1912 | 788 | **fine** (1,25 cm) : Colt M1911A1, glissière d'acier usé (rouille, éclats), carcasse parkérisée, plaquettes de noyer quadrillées, poignée inclinée, fenêtre d'éjection avec canon de laiton |
 | `cz75` GUÊPE | 260 | glissière noire longue, carcasse rayée jaune et noir, chargeur allongé, guidon jaune |
 | `python` COUPERET | 336 | carénage de canon plat et haut comme une lame de hachoir, gros barillet cubique |
 | `mp40` CRÉCELLE | 436 | tube fin, bas en bakélite, manchon ajouré, crosse en fil repliée à gauche |

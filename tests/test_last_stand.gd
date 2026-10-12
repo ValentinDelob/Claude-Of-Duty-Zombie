@@ -23,8 +23,9 @@ func test_empty_m1911_is_topped_up() -> void:
 	var w := DownedSystem.last_stand_weapon([_w("m1911", false, 0, 0), _w("mp40")])
 	assert_eq(w.id, "m1911")
 	assert_eq(w.reserve, WeaponDB.stats("m1911").mag * 2, "M1911 vide : de quoi tirer à terre")
-	var full := DownedSystem.last_stand_weapon([_w("m1911", false, 8, 80)])
-	assert_eq(full.reserve, 80, "rien n'est retiré")
+	var s := WeaponDB.stats("m1911")
+	var full := DownedSystem.last_stand_weapon([_w("m1911", false, int(s.mag), int(s.reserve))])
+	assert_eq(full.reserve, int(s.reserve), "rien n'est retiré")
 
 
 func test_better_pistol_preferred_with_two_extra_mags() -> void:

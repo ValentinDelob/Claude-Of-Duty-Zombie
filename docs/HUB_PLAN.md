@@ -841,7 +841,7 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
     pas les noms fictifs de la maquette (FRELON…) ni les identifiants
     internes (`mp5k`, gardés dans le profil et `assets/data/hub/*.json`) ;
     famille (`HubGear.CLASS_NAMES`, mots de `WeaponDB.FAMILIES`) et icône
-    par famille (`HubGear.CLASS_ART`) ; armes de base : la PÉTOIRE et la
+    par famille (`HubGear.CLASS_ART`) ; armes de base : le M1912 et la
     **BATTE** de baseball (§4.10) ; le couteau n'est plus une arme de base
     (attaque de mêlée séparée en partie) : un profil qui partait avec lui
     part avec la batte (`BaseWeapons.migrate`) ;

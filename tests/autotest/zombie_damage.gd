@@ -19,28 +19,29 @@ func run() -> void:
 	p.teleport_to(origin, -PI * 0.5)
 	await seconds(0.3)
 
-	# 1. Tirs au corps (M1911) : 25 dégâts x 6 = 150.
+	# 1. Tirs au corps (M1912) : 30 dégâts x 5 = 150.
+	at.check(int(WeaponDB.stats("m1911").damage) == 30, "M1912 : 30 dégâts par balle")
 	var z := await H.dummy_zombie(self, origin + Vector3(6, 0, 0))
-	for i in 5:
+	for i in 4:
 		H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 		await H.shoot(self, p)
-	at.check(z.is_alive() and z.health == 25, "5 balles au corps : 150 -> %d PV (serveur)" % z.health)
+	at.check(z.is_alive() and z.health == 30, "4 balles au corps : 150 -> %d PV (serveur)" % z.health)
 	H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 	await H.shoot(self, p)
-	at.check(not z.is_alive(), "6e balle : zombie mort")
+	at.check(not z.is_alive(), "5e balle : zombie mort")
 	await seconds(0.7)  # capture : corps en train de tomber
 	await at.screenshot("body_kill")
 	var dead_id := z.id
 	await until(func(): return game.zombies.get_zombie(dead_id) == null, Zombie.DISSOLVE_DELAY + Zombie.DISSOLVE_TIME + 2.0, "corps dissous et retiré")
 	at.check(not is_instance_valid(z) or game.zombies.get_zombie(z.id) == null, "corps retiré après dissolution")
 
-	# 2. Tirs à la tête : 25 x 3 = 75 dégâts x 2.
+	# 2. Tirs à la tête : 30 x 3 = 90 dégâts x 2.
 	p.input.reload = true
 	await until(func(): return p.weapons.current().mag >= p.weapons.current_stats().mag, 4.0, "rechargement terminé")
 	z = await H.dummy_zombie(self, origin + Vector3(5, 0, 0.5))
 	H.aim_at(p, z.head_position())
 	await H.shoot(self, p)
-	at.check(z.is_alive() and z.health == 75, "tir à la tête : 150 -> %d PV" % z.health)
+	at.check(z.is_alive() and z.health == 60, "tir à la tête : 150 -> %d PV" % z.health)
 	H.aim_at(p, z.head_position())
 	await H.shoot(self, p)
 	at.check(not z.is_alive(), "2e tir à la tête : mort")

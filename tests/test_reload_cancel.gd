@@ -100,13 +100,14 @@ func test_reload_finishes_normally_without_switch() -> void:
 	var wc := _wc(["m1911", "mp40"], 2, 50)
 	_reloading(wc, 0.1, 1.0)
 	wc.update_reload(GameClock.now() + 2.0)
-	assert_eq(int(wc.weapons[0].mag), 8, "rechargement mené à terme : chargeur plein")
-	assert_eq(int(wc.weapons[0].reserve), 44)
+	# M1912 : chargeur de 7 (2 + 5 pris dans la réserve de 50).
+	assert_eq(int(wc.weapons[0].mag), 7, "rechargement mené à terme : chargeur plein")
+	assert_eq(int(wc.weapons[0].reserve), 45)
 	wc.free()
 
 
 func test_other_locks_still_block_switch() -> void:
-	var wc := _wc(["m1911", "mp40"], 8, 80)
+	var wc := _wc(["m1911", "mp40"], 7, 70)
 	var t := GameClock.now()
 	wc._switch_end = t + 0.3
 	assert_false(wc.can_switch(t), "changement d'arme déjà en cours")

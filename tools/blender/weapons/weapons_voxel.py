@@ -2,9 +2,16 @@
 # et objets tenus en cubes de 2,5 cm ; § 6 : armes réelles renommées,
 # silhouettes retravaillées ; docs/WEAPONS.md : liste des armes). Construit
 # avec tools/blender/voxel/voxel_lib.py :
-#   - les 27 armes à feu de WeaponDB, la batte de baseball et le couteau,
-#     chacune avec une silhouette ORIGINALE inspirée de sa famille (aucune
-#     copie d'une arme réelle reconnaissable) ;
+#   - les armes à feu de WeaponDB pas encore refaites, la batte de baseball
+#     et le couteau, chacune avec une silhouette ORIGINALE inspirée de sa
+#     famille (aucune copie d'une arme réelle reconnaissable) ;
+#
+# ARMES FINES : les armes refaites d'après une arme réelle (refonte du
+# 2026-10-12, cubes de 1,25 cm, fiches docs/weapons/<id>.md ; aujourd'hui
+# m1911) sont construites par weapons_fine.py, PAS ici : elles sont absentes
+# de BUILDERS et du cache, et la fusion de weapons_voxel.json garde leurs
+# entrées (seuls les objets reconstruits ici sont remplacés).
+#
 #   - les mains et avant-bras de la vue FPS, ceux du joueur de baseball
 #     (même palette que tools/blender/player/player_voxel.py : gants de
 #     frappe, poignet nu, sous-maillot et liseré dans la zone d'équipe
@@ -408,12 +415,8 @@ def pistol(iid, slide_key, frame_key, grip_key, length=8, mag_ext=1, accent=None
     return it
 
 
-def b_m1911():
-    # PÉTOIRE : pistolet de départ bon marché, glissière d'acier usé, plaquettes
-    # de bois scotchées (ruban gris).
-    it = pistol("m1911", "steel", "gun_dark", "wood_dark", accent="tape")
-    it.recolor("rust", lambda i, j, k: (i, j, k) in ((0, 2, -4), (0, 1, -1), (0, 2, -3)), g="slide")
-    return it
+# m1911 (M1912) : arme fine en cubes de 1,25 cm, construite par
+# weapons_fine.py (plus ici : ce script ne doit pas l'écraser).
 
 
 def b_cz75():
@@ -1401,7 +1404,7 @@ def b_round_40mm():
 
 
 BUILDERS = {
-    "m1911": b_m1911, "cz75": b_cz75, "python": b_python,
+    "cz75": b_cz75, "python": b_python,
     "mp40": b_mp40, "mp5k": b_mp5k, "pm63": b_pm63, "mpl": b_mpl, "spectre": b_spectre, "ak74u": b_ak74u,
     "m14": b_m14, "m16": b_m16, "fnfal": b_fnfal, "g11": b_g11, "galil": b_galil, "famas": b_famas,
     "commando": b_commando, "aug": b_aug,
@@ -1657,7 +1660,12 @@ def main():
             ids.append(a)
         i += 1
     ids = ids or list(BUILDERS)
-    items = load_cache(CACHE, ids) if use_cache else [BUILDERS[iid]() for iid in ids]
+    unknown = [iid for iid in ids if iid not in BUILDERS]
+    if unknown:
+        # Armes fines (weapons_fine.py) ou ids inconnus : jamais écrasés ici.
+        print("[weapons_voxel] pas construits par ce script : %s (armes fines : weapons_fine.py)" % ", ".join(unknown))
+        sys.exit(2)
+    items =load_cache(CACHE, ids) if use_cache else [BUILDERS[iid]() for iid in ids]
     if not use_cache:
         save_cache(items, CACHE)
     specs = {}
