@@ -156,17 +156,25 @@ func test_barricade_planks_cubic_and_on_the_grid_at_rest() -> void:
 		var b := Barricade.new()
 		b.setup(_opening(kind))
 		host.add_child(_keep(b))
-		var mm := (b.get_node("Planks") as MultiMeshInstance3D).multimesh
 		var size := Barricade.DOOR_PLANK_SIZE if b.is_door() else Barricade.PLANK_SIZE
-		assert_true(VoxelCheck.check_mesh(mm.mesh).ok, "%s : planche cubique" % kind)
-		assert_true(mm.mesh.get_aabb().size.is_equal_approx(size), "%s : planche de %s (%s)" % [kind, size, mm.mesh.get_aabb().size])
+		# Planches de plusieurs modèles (longueur, hauteur, épaisseur, bouts
+		# éclatés) : un MultiMesh par modèle, toutes les planches comptées.
+		var total := 0
+		for mmi: MultiMeshInstance3D in b.find_children("Planks*", "MultiMeshInstance3D", false, false):
+			total += mmi.multimesh.instance_count
+			assert_true(VoxelCheck.check_mesh(mmi.multimesh.mesh).ok, "%s : planche cubique (%s)" % [kind, mmi.name])
+		assert_eq(total, b.plank_count, "%s : toutes les planches" % kind)
+		for i in b.plank_count:
+			var sz := b.plank_mesh_of(i).get_aabb().size
+			assert_true(absf(sz.x - size.x) <= 0.1 + 0.001 and sz.y <= size.y + 0.05 + 0.001 and sz.z <= 0.1 + 0.001,
+				"%s : planche %d proche de %s (%s)" % [kind, i, size, sz])
 		# Au repos : aucune rotation, coins sur la grille (avec la porte, s'il y en a une).
 		var root := Node3D.new()
 		for i in b.plank_count:
 			var xf: Transform3D = b._rest[i]
 			assert_true(xf.basis.is_equal_approx(Basis.IDENTITY), "%s : planche %d à plat, sans rotation" % [kind, i])
 			var c := MeshInstance3D.new()
-			c.mesh = mm.mesh
+			c.mesh = b.plank_mesh_of(i)
 			c.transform = xf
 			root.add_child(c)
 		var asm := b.get_node_or_null("DoorAssembly")
@@ -182,8 +190,8 @@ func test_barricade_planks_cubic_and_on_the_grid_at_rest() -> void:
 		# Deux planches au repos ne se chevauchent pas.
 		for i in b.plank_count:
 			for j in range(i + 1, b.plank_count):
-				var ai := AABB(b._rest[i].origin - size * 0.5, size)
-				var aj := AABB(b._rest[j].origin - size * 0.5, size)
+				var ai := b._rest[i] * b.plank_mesh_of(i).get_aabb()
+				var aj := b._rest[j] * b.plank_mesh_of(j).get_aabb()
 				assert_false(ai.grow(-0.001).intersects(aj.grow(-0.001)), "%s : planches %d et %d séparées" % [kind, i, j])
 		# Arrachage : la planche tourne pendant l'animation, puis se pose à plat au sol.
 		b.set_mask(b.full_mask() & ~1, true)

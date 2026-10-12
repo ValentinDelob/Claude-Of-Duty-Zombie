@@ -186,7 +186,11 @@ var _slot_ok: Array = []
 
 ## Serveur : pid -> temps de maintien cumulé.
 var _repairers: Dictionary = {}
-var _mm: MultiMesh
+## Planches : modèle de chacune, MultiMesh de chaque modèle employé, place
+## de chaque planche [modèle, indice dans son MultiMesh].
+var _variants := PackedInt32Array()
+var _mms: Dictionary = {}
+var _slot: Array = []
 var _rest: Array[Transform3D] = []
 var _fallen: Array[Transform3D] = []
 ## Animation par planche : [type (0 aucune, 1 arrachée, 2 reposée), temps].
@@ -289,31 +293,71 @@ func _ready() -> void:
 # Construction (toutes les machines)
 # --------------------------------------------------------------------------
 
+## Planches de la barricade : un MultiMesh par modèle de planche employé
+## (PLANK_VARIANTS modèles : longueur, hauteur, épaisseur et bouts éclatés
+## différents ; modèle de chaque planche tiré de la graine), teinte par
+## planche (couleur d'instance). Nœuds « Planks » (modèle 0) et
+## « Planks<v> ».
 func _build_planks() -> void:
-	_mm = MultiMesh.new()
-	_mm.transform_format = MultiMesh.TRANSFORM_3D
-	_mm.use_colors = true
-	_mm.mesh = plank_mesh(DOOR_PLANK_SIZE if is_door() else PLANK_SIZE)
-	_mm.instance_count = plank_count
+	_variants = PackedInt32Array()
+	_slot = []
+	var by_variant := {}
+	for i in plank_count:
+		var v := plank_variant(seed, i)
+		_variants.append(v)
+		var list: Array = by_variant.get_or_add(v, [])
+		_slot.append(Vector2i(v, list.size()))
+		list.append(i)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed + 7
+	var tints := []
 	for i in plank_count:
-		var v := rng.randf_range(0.72, 1.08)
-		_mm.set_instance_color(i, Color(v, v * rng.randf_range(0.9, 1.0), v * rng.randf_range(0.8, 0.95)))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = "Planks"
-	mmi.multimesh = _mm
-	# Matériau du décor cubique : couleur de face × teinte de la planche.
-	mmi.material_override = VoxelBuild.material()
-	# Sans ombre portée : ombre peu visible dans la pénombre des fenêtres, mais
-	# redessinée dans les cubemaps des lampes à chaque planche animée.
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Au-delà, les planches ne se distinguent plus dans la pénombre.
-	mmi.visibility_range_end = 32.0
-	mmi.visibility_range_end_margin = 4.0
-	mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
-	add_child(mmi)
+		var k := rng.randf_range(0.78, 1.1)
+		tints.append(Color(k, k * rng.randf_range(0.92, 1.0), k * rng.randf_range(0.85, 0.97)))
+	_mms = {}
+	var vs := by_variant.keys()
+	vs.sort()
+	for v: int in vs:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = plank_mesh(DOOR_PLANK_SIZE if is_door() else PLANK_SIZE, v, is_door())
+		mm.instance_count = (by_variant[v] as Array).size()
+		for k in mm.instance_count:
+			mm.set_instance_color(k, tints[by_variant[v][k]])
+		_mms[v] = mm
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Planks" if v == 0 else "Planks%d" % v
+		mmi.multimesh = mm
+		# Matériau du décor cubique : couleur de face × teinte de la planche.
+		mmi.material_override = VoxelBuild.material()
+		# Sans ombre portée : ombre peu visible dans la pénombre des fenêtres, mais
+		# redessinée dans les cubemaps des lampes à chaque planche animée.
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Au-delà, les planches ne se distinguent plus dans la pénombre.
+		mmi.visibility_range_end = 32.0
+		mmi.visibility_range_end_margin = 4.0
+		mmi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		add_child(mmi)
 	_refresh_all()
+
+
+## Modèle de la planche `i` d'une barricade de graine `s` (0..PLANK_VARIANTS-1,
+## le même sur toutes les machines).
+static func plank_variant(s: int, i: int) -> int:
+	var h := ((s * 2654435761) ^ (i * 40503 + 12345)) & 0x7FFFFFFF
+	h = ((h ^ (h >> 13)) * 1274126177) & 0x7FFFFFFF
+	return (h >> 9) % PLANK_VARIANTS
+
+
+## Maillage de la planche `i` (son modèle).
+func plank_mesh_of(i: int) -> ArrayMesh:
+	return plank_mesh(DOOR_PLANK_SIZE if is_door() else PLANK_SIZE, _variants[i], is_door())
+
+
+func _set_plank(i: int, xf: Transform3D) -> void:
+	var sl: Vector2i = _slot[i]
+	(_mms[sl.x] as MultiMesh).set_instance_transform(sl.y, xf)
 
 
 ## Ouverture : infranchissable à pied (les zombies l'enjambent par script),
@@ -337,33 +381,84 @@ func _build_barrier() -> void:
 static var _plank_meshes: Dictionary = {}
 
 
-@warning_ignore("integer_division")
+## Modèles de planche : [écart de longueur (cubes, pair : bouts sur la
+## grille), hauteur en plus (cubes, vers le haut), couche en plus derrière
+## (fenêtres : vers le dehors), bouts éclatés (gauche, droite)].
+const PLANK_SHAPES := [
+	[0, 0, 0, [false, true]],
+	[2, 0, 1, [true, false]],
+	[-2, 1, 0, [true, true]],
+	[2, 0, 1, [true, true]],
+]
+const PLANK_VARIANTS := 4
 
-## Planche CUBIQUE de taille `size` (multiples de 5 cm), centrée sur son
-## origine : bois gris délavé, une teinte par cube (veinage dans la longueur),
-## bouts sombres et clous peints des deux côtés. Partagée par toutes les
-## barricades (teinte par planche : couleur d'instance du MultiMesh).
-static func plank_mesh(size: Vector3) -> ArrayMesh:
-	if _plank_meshes.has(size):
-		return _plank_meshes[size]
-	var n := Vector3i(VoxelBuild.cubes(size.x), VoxelBuild.cubes(size.y), VoxelBuild.cubes(size.z))
+
+## Planche CUBIQUE de taille nominale `size` (multiples de 5 cm), modèle
+## `variant` (PLANK_SHAPES) : longueur, hauteur et épaisseur variées, bouts
+## éclatés en escalier, bois brun veiné (traits sombres dans la longueur,
+## nœuds, fente), bois de bout plus sombre, têtes de clous près des bouts.
+## Couche de devant centrée sur l'origine (comme la planche nominale) ;
+## hauteur en plus vers le haut, couche en plus derrière (-z, vers le dehors ;
+## jamais pour une porte : `door`). Partagée par toutes les barricades
+## (teinte par planche : couleur d'instance du MultiMesh).
+@warning_ignore("integer_division")
+static func plank_mesh(size: Vector3, variant := 0, door := false) -> ArrayMesh:
+	var key := [size, variant, door]
+	if _plank_meshes.has(key):
+		return _plank_meshes[key]
+	var sh: Array = PLANK_SHAPES[posmod(variant, PLANK_SHAPES.size())]
+	var nx := VoxelBuild.cubes(size.x) + int(sh[0])
+	var ny := VoxelBuild.cubes(size.y) + int(sh[1])
+	var nz := 1 + (0 if door else int(sh[2]))
+	var splinter: Array = sh[3]
 	var vb := VoxelBuild.new()
-	var base := VoxelBuild.col("plank_grey")
-	for x in n.x:
-		for y in n.y:
-			for z in n.z:
-				# Veines : teinte par tronçon de 3 cubes et par rang, grain léger.
-				var c := VoxelBuild.grain(x / 3, y, 0, base, 11, 0.09, 3)
-				vb.put(x, y, z, VoxelBuild.tone(c, 0.96 + 0.08 * VoxelBuild.noise(x, y, z, 12)))
-	var dark := VoxelBuild.col("plank_grey", 0.55)
-	var nail := VoxelBuild.col("rubber", 1.6)
-	for x in [0, n.x - 1]:
-		for y in n.y:
-			vb.put(x, y, 0, VoxelBuild.tone(dark, 1.0 + 0.1 * VoxelBuild.noise(x, y, 0, 13)))
-		for d in [VoxelBuild.PZ, VoxelBuild.NZ]:
-			vb.paint(1 if x == 0 else n.x - 2, n.y / 2, 0, d, nail)
-	var m := vb.mesh(-Vector3(n) * VoxelBuild.CUBE * 0.5)
-	_plank_meshes[size] = m
+	var base := VoxelBuild.col("plank_grey").lerp(VoxelBuild.col("wood"), 0.5)
+	var s := 900 + variant * 17
+	# Bouts éclatés : rangs raccourcis de 0 à 2 cubes.
+	var cut_l := []
+	var cut_r := []
+	for y in ny:
+		# Le rang du milieu garde toute la longueur (cloué des deux côtés).
+		var whole := y == ny / 2
+		cut_l.append(int(VoxelBuild.noise(y, 1, variant, s) * 3.0) if splinter[0] and not whole else 0)
+		cut_r.append(int(VoxelBuild.noise(y, 2, variant, s) * 3.0) if splinter[1] and not whole else 0)
+	var knot := Vector2i(4 + int(VoxelBuild.noise(0, 3, variant, s) * (nx - 8)), int(VoxelBuild.noise(0, 4, variant, s) * ny))
+	var split_row := 1 if ny >= 3 else 0
+	var split_x0 := int(VoxelBuild.noise(0, 5, variant, s) * nx * 0.5)
+	for z in range(-(nz - 1), 1):
+		for y in ny:
+			# Teinte du rang (lame sciée : rangs un peu différents).
+			var row := VoxelBuild.tone(base, 0.94 + 0.1 * VoxelBuild.noise(y, 0, variant, s + 1))
+			var x0: int = cut_l[y] if z == 0 else int(cut_l[y]) / 2
+			var x1: int = nx - (int(cut_r[y]) if z == 0 else int(cut_r[y]) / 2)
+			for x in range(x0, x1):
+				var c := VoxelBuild.tone(row, 0.95 + 0.08 * VoxelBuild.noise(x, y, z, s + 2))
+				# Veinage : longs traits sombres dans la longueur.
+				if VoxelBuild.noise(x / 4, y, variant, s + 3) > 0.7:
+					c = VoxelBuild.tone(c, 0.8)
+				# Fente le long d'un rang, sur un tronçon.
+				if y == split_row and x >= split_x0 and x < split_x0 + nx / 3 and VoxelBuild.noise(x, y, 0, s + 4) > 0.25:
+					c = VoxelBuild.tone(c, 0.62)
+				# Nœud : cube sombre cerclé d'un peu plus clair.
+				var dk := Vector2i(x, y) - knot
+				if dk == Vector2i.ZERO:
+					c = VoxelBuild.tone(row, 0.5)
+				elif absi(dk.x) <= 1 and absi(dk.y) <= 1:
+					c = VoxelBuild.tone(row, 0.82)
+				# Bois de bout (premier et dernier cube du rang) plus sombre.
+				if x == x0 or x == x1 - 1:
+					c = VoxelBuild.tone(c, 0.68)
+				vb.put(x, y, z, c)
+	# Têtes de clous près des bouts (faces de devant et de derrière).
+	var nail := VoxelBuild.col("metal_dark", 0.75)
+	var rows := [ny / 2] if ny <= 3 else [1, ny - 2]
+	for k in rows.size():
+		var y: int = rows[k]
+		for x in [int(cut_l[y]) + 2 + k, nx - int(cut_r[y]) - 3 - k]:
+			vb.paint(x, y, 0, VoxelBuild.PZ, nail)
+			vb.paint(x, y, -(nz - 1), VoxelBuild.NZ, nail)
+	var m := vb.mesh(Vector3(-(nx / 2), -VoxelBuild.cubes(size.y) * 0.5, -0.5) * VoxelBuild.CUBE)
+	_plank_meshes[key] = m
 	return m
 
 
@@ -395,7 +490,7 @@ func apply_state(state: Dictionary, animate: bool) -> void:
 func set_mask(new_mask: int, animate := true) -> void:
 	var old := mask
 	mask = new_mask & full_mask()
-	if _mm == null:
+	if _mms.is_empty():
 		return
 	if not animate:
 		for i in plank_count:
@@ -440,7 +535,7 @@ func _process(delta: float) -> void:
 			a[0] = 0
 		else:
 			busy = true
-		_mm.set_instance_transform(i, _plank_xform(i))
+		_set_plank(i, _plank_xform(i))
 	if not busy:
 		_animating = false
 		set_process(false)
@@ -449,7 +544,7 @@ func _process(delta: float) -> void:
 
 func _refresh_all() -> void:
 	for i in plank_count:
-		_mm.set_instance_transform(i, _plank_xform(i))
+		_set_plank(i, _plank_xform(i))
 
 
 ## Transformation actuelle d'une planche (au repos, au sol ou en vol).

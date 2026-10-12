@@ -15,7 +15,7 @@ extends MapProps
 ## PixelSurfaces, un pixel = 5 cm) ou une clé spéciale (voir _special). Sols,
 ## plafonds et petits détails (« ns ») ne projettent pas d'ombre.
 
-const NO_SHADOW_KINDS := ["floor", "ceil", "ns"]
+const NO_SHADOW_KINDS := ["floor", "ceil", "ns", "relief"]
 ## Décor cubique (docs/VOXEL_DECOR_PLAN.md) : modèles du sous-dossier
 ## « voxel/ » des modèles (nom « voxel/<id> » dans le catalogue et la
 ## description), nœuds « voxel__<id>__<type> », matériau unique « voxel »
@@ -434,6 +434,9 @@ static func _special(key: String) -> Material:
 			m.metallic = 0.25 if key in ["paint_teal", "paint_blue"] else 0.0
 		"plank":
 			return PixelSurfaces.material("plank")
+		"puddle", "void":
+			# Eau des flaques et vide sombre du relief (SurfaceRelief).
+			return SurfaceRelief.material(key)
 	if m != null:
 		_specials[key] = m
 	return m

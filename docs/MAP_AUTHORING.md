@@ -1798,6 +1798,27 @@ celui du jeu aussi.
    navmesh des zombies et des chiens est cuit dessus (chemins qui le
    contournent, porte en biais reliée par son passage). **Aucune étape Blender** :
    une carte de l'éditeur se joue aussitôt, y compris dans le `.exe`.
+5. **Relief des surfaces** (`SurfaceRelief`, `scripts/game/map/surface_relief.gd`,
+   docs/ART_DIRECTION.md « Relief des surfaces ») : à la construction, sans
+   rien écrire dans la carte ni demander quoi que ce soit à l'auteur, les sols,
+   murs et plafonds aux textures du jeu reçoivent leur relief en cubes de
+   5 cm : carreaux manquants, cassés ou écornés, nids-de-poule, fissures et
+   flaques **en creux d'un cube** dans les sols ; plinthe et cimaise (ou
+   couvre-joint de la faïence) **en saillie d'un cube**, plâtre tombé
+   (briques dessous) et faïence manquante dans les murs ; ossature du faux
+   plafond et dalles tombées. Nœuds `<matériau>__<salle>__relief` (sans
+   ombre) ; le sol, le mur ou le plafond visible est percé des creux, sa
+   **collision reste pleine et plane** (aucun accroc, navmesh inchangé).
+   Déterministe (graine : l'`id` de la carte) : les mêmes creux sur toutes
+   les machines. Jamais à moins d'un mètre d'un marqueur (portes, fenêtres,
+   évacuation, station, caisse, apparitions, pièges...), d'un escalier
+   (emprise + 1 m) ni d'un objet posé ; plinthe et cimaise s'interrompent
+   devant les objets muraux ; pas de dalle tombée au-dessus d'une lampe.
+   Densité : profils par matériau (`SurfaceRelief.FLOOR`, `WALL`, `CEIL`),
+   multipliés par la clé facultative `relief` de la description (0 : aucun
+   relief, 1 par défaut, 2 au plus). Les textures importées d'une carte
+   (`tex-*`) n'ont pas de relief. Les cartes en grille (BUNKER K-7,
+   `MapBuilder`) et le fond du menu (`MenuBackdrop`) ont le même relief.
 
 Déclarer une carte livrée avec le jeu : ses JSON dans `assets/maps/<id>/`, un
 script de 3 lignes (`scripts/game/map/maps/<id>.gd` : `extends EditorMapDef`

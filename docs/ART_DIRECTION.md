@@ -569,6 +569,61 @@ et exporte.
 - Contrôle automatique : `LayoutCheck` (cartes du jeu, tests, `--check` de
   l'éditeur).
 
+### Relief des surfaces (scripts/game/map/surface_relief.gd)
+
+Image cible : `docs/art/gemini_target.webp` (retour de l'utilisateur, 2026-10-12 :
+surfaces « trop plates, simples »). Le relief ajoute de la matière aux
+surfaces planes **sans quitter la grille de 5 cm** : des cubes en creux ou en
+saillie, jamais tournés ni penchés (pas de carreau soulevé de biais, pas de
+planche en travers).
+
+- **Sols**, en creux d'**un cube** (5 cm, jamais plus) : carrelage (carreaux
+  de 40 cm de la texture) manquants — tout le carreau, le béton dessous —,
+  cassés (morceau de coin en escalier), écornés (un à trois cubes au coin) ;
+  les carreaux manquants peints par la texture sont toujours en creux (la
+  texture et la géométrie disent la même chose) ; béton : nids-de-poule (taches
+  de 4 à 9 cubes au bord rongé) et fissures (escalier d'un cube de large) ;
+  parquet : morceaux de lame arrachés (le joint reste, vide noir dessous,
+  matériau `void`) ; partout : flaques (eau sombre et lisse au fond d'un creux
+  d'un cube, matériau `puddle`, reflets des lampes).
+- **Murs** : plinthe (3 cubes de haut, béton sombre) et cimaise sur le bord de
+  la bande peinte (2 cubes, bois sombre) **en saillie d'un cube** ; faïence du
+  laboratoire : lisse d'acier à 1,10 m, juste sous la frise verte (la lisse
+  de protection d'un couloir d'hôpital ; plus bas que les yeux : à 1,60 m on
+  ne la voyait que par la tranche), plinthe, carreaux manquants, cassés,
+  écornés (mortier dessous) ; murs peints : plâtre tombé (briques dessous) et
+  fissures ; béton : éclats et fissures.
+- **Plafonds** : ossature du faux plafond en saillie d'un cube sous chaque
+  joint des dalles (80 cm), dalles tombées en creux de 2 cubes (vide sombre),
+  y compris les dalles noires de la texture ; jamais au-dessus d'une lampe.
+- Les creux et saillies prennent les matériaux pixel art de la carte (posés
+  en coordonnées monde : le fond d'un creux et le devant d'une plinthe ont les
+  pixels de la grille), sans ombre portée. La surface plane est percée des
+  creux ; sa collision reste pleine (aucun accroc, navmesh inchangé).
+- Déterministe (graine : identifiant de la carte), jamais sur les endroits de
+  jeu (seuils, fenêtres barricadées, évacuation, station, apparitions,
+  escaliers, objets muraux). Densités par matériau : `SurfaceRelief.FLOOR`,
+  `WALL`, `CEIL` ; clé `relief` d'une carte de l'éditeur (0 à 2). Cartes en
+  grille, cartes de l'éditeur, fond du menu : même code (docs/MAP_AUTHORING.md
+  § 7).
+- Coût (BUNKER K-7, mesures du 2026-10-12, `sh tools/perf.sh map_tour`) :
+  6 400 → 32 000 triangles d'architecture, tous sans ombre, fusionnés par
+  matériau et par tuile de rendu de 16 m (ajoutés au maillage du sol ou du
+  plafond de la tuile quand le matériau est le même) ; laboratoire 143 → 174
+  appels de dessin, 280 → 253 img/s (GPU 3,0 → 3,4 ms, seuil 150) ;
+  construction de la carte ≈ +0,3 s (repérage, découpe et faces, en
+  GDScript). Les creux rectangulaires (carreaux, dalles) sont construits d'un
+  bloc (un fond, quatre parois).
+
+**Planches des barricades** (`Barricade.plank_mesh`) : quatre modèles de
+planche cubique tirés de la graine de la fenêtre (longueur ±10 cm, un cube
+de haut ou d'épaisseur en plus — l'épaisseur vers le dehors —, bouts éclatés
+en escalier, le rang du milieu entier), bois brun veiné (longs traits
+sombres, nœud cerclé, fente, bois de bout sombre), têtes de clous près des
+bouts. Toujours à plat sur la grille au repos (décalages et chevauchements
+plutôt que des angles) ; arrachage et pose inchangés ; un MultiMesh par
+modèle employé (« Planks », « Planks<n> »).
+
 ### Contour noir en jeu (scripts/game/screen_outline.gd)
 
 La planche dessine un trait noir d'environ 1 cm autour des pièces. Choix

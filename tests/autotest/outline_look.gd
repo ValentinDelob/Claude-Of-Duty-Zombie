@@ -27,7 +27,13 @@ var outline: ScreenOutline
 func run() -> void:
 	timeout_sec = 240
 	var keep := Settings.outline
+	# Carte SANS le relief des surfaces (SurfaceRelief : creux et saillies
+	# voulus, donc des traits voulus) : la mesure « grande surface plane »
+	# porte sur une vraie surface plane. Le relief n'existe qu'à la
+	# construction : remis aussitôt la carte construite.
+	SurfaceRelief.enabled = false
 	p = await H.start_solo_game(self, "bunker_k7")
+	SurfaceRelief.enabled = true
 	if p == null:
 		return
 	game = Game.instance

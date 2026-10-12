@@ -79,7 +79,9 @@ var _pending := false
 func _ready() -> void:
 	_rng.seed = 7031
 	_build_environment()
+	_plan_relief()
 	_build_corridor()
+	_emit_relief()
 	_commit_batches()
 	_build_props()
 	_build_lights()
@@ -112,10 +114,97 @@ func _append(key: String, mesh: Mesh, xf: Transform3D) -> void:
 
 
 ## Boîte de taille `size` centrée en `pos` (dimensions multiples de 5 cm).
+## Avec le relief : ses six faces, percées des creux du relief.
 func _box(key: String, size: Vector3, pos: Vector3) -> void:
+	if _relief != null:
+		var lo := pos - size * 0.5
+		var hi := pos + size * 0.5
+		for n: Vector3i in [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0), Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]:
+			_relief.box_face(n, lo, hi, func(p: Array, nn: Vector3) -> void: _face(key, p, nn))
+		return
 	var m := BoxMesh.new()
 	m.size = size
 	_append(key, m, Transform3D(Basis.IDENTITY, pos))
+
+
+## Rectangle `p` (sens direct vu de la normale `n`) ajouté au lot `key`.
+func _face(key: String, p: Array, n: Vector3) -> void:
+	if not _batches.has(key):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_batches[key] = st
+	var st: SurfaceTool = _batches[key]
+	for i in [0, 2, 1, 0, 3, 2]:
+		st.set_normal(n)
+		st.set_uv(Vector2(i & 1, i >> 1))
+		st.add_vertex(p[i])
+
+
+# ------------------------------------------------------------------ relief
+
+## Relief des surfaces du couloir (SurfaceRelief, comme les cartes) :
+## carreaux manquants et flaques au sol, faïence abîmée, plinthe et
+## couvre-joint aux murs, ossature et dalles tombées au plafond. Pas de
+## creux devant les portes ni derrière les objets muraux, pas de dalle
+## tombée près des néons.
+var _relief: SurfaceRelief
+
+
+func _plan_relief() -> SurfaceRelief:
+	var rel := SurfaceRelief.new()
+	rel.seed = SurfaceRelief.seed_of("menu_backdrop")
+	_relief = rel
+	var w := HALF_W
+	var wo := w + 0.2
+	var in_floor := func(x: float, z: float) -> bool:
+		return (absf(x) < w and z > Z_FAR and z < Z_NEAR) or (absf(x) > w and absf(x) < CROSS_HALF and z > CROSS_Z1 and z < CROSS_Z0)
+	# Devant les portes (fond, salle latérale) et sous le premier plan.
+	var near_door := func(x: float, z: float) -> bool:
+		return z < Z_FAR + 1.2 or (x > w - 1.0 and z > -4.9 and z < -2.9) or z > Z_NEAR - 0.6
+	rel.plan_floor("tiles", 0.0, Rect2(-CROSS_HALF, Z_FAR, CROSS_HALF * 2.0, Z_NEAR - Z_FAR),
+		func(x: float, z: float) -> bool: return in_floor.call(x, z) and not near_door.call(x, z))
+	var neons := [-0.6, -3.4, -6.5, -9.8, -12.8]
+	var off_neon := func(x: float, z: float) -> bool:
+		for zn: float in neons:
+			if absf(x) < 0.4 and absf(z - zn) < 0.8:
+				return false
+		return true
+	rel.plan_ceiling("ceiling", H, Rect2(-w, Z_FAR, w * 2.0, Z_NEAR - Z_FAR),
+		func(x: float, z: float) -> bool: return absf(x) < w and z > Z_FAR and z < Z_NEAR and off_neon.call(x, z), off_neon, "", 0.05)
+	# Murs du couloir (faïence) : objets muraux et porte latérale réservés.
+	var wall_free := func(x: float, z: float) -> bool:
+		if x > 0.0:
+			return not ((z > -4.7 and z < -3.1) or (z > -2.2 and z < -1.0) or (z > -10.9 and z < -9.5) or z < -14.3)
+		return not ((z > -11.0 and z < -9.8) or (z > -13.0 and z < -11.6))
+	for s: float in [-1.0, 1.0]:
+		var n := Vector3i(-int(s), 0, 0)
+		rel.plan_wall("wall_lab", n, s * w, CROSS_Z0, Z_NEAR, 0.0, H, 0.0, wall_free)
+		rel.plan_wall("wall_lab", n, s * w, Z_FAR, CROSS_Z1, 0.0, H, 0.0, wall_free)
+		# Couloir transversal (mur peint).
+		rel.plan_wall("wall", Vector3i(0, 0, 1), CROSS_Z1, s * wo, s * CROSS_HALF, 0.0, 2.4, 0.0, Callable())
+		rel.plan_wall("wall", Vector3i(0, 0, -1), CROSS_Z0, s * wo, s * CROSS_HALF, 0.0, 2.4, 0.0, Callable())
+	return rel
+
+
+## Faces du relief : un maillage sans ombre par matériau.
+func _emit_relief() -> void:
+	if _relief == null:
+		return
+	var groups := _relief.emit_groups()
+	for key: String in groups:
+		for tag: String in groups[key]:
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = groups[key][tag][0]
+			arrays[Mesh.ARRAY_NORMAL] = groups[key][tag][1]
+			var mesh := ArrayMesh.new()
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var mi := MeshInstance3D.new()
+			mi.name = "Relief_" + key
+			mi.mesh = mesh
+			mi.material_override = SurfaceRelief.material(key)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(mi)
 
 
 ## Boîte donnée par ses deux coins (plus lisible pour l'architecture).
@@ -134,7 +223,7 @@ func _commit_batches() -> void:
 		var mi := MeshInstance3D.new()
 		mi.name = "Static_" + key
 		mi.mesh = (_batches[key] as SurfaceTool).commit()
-		mi.material_override = WorldLook.surface(key)
+		mi.material_override = SurfaceRelief.material(key)
 		add_child(mi)
 	_batches.clear()
 

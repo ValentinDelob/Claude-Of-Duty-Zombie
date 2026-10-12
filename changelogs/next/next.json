@@ -1,0 +1,28 @@
+{
+ "title": {
+  "fr": "Des décors en relief",
+  "en": "Environments with real depth"
+ },
+ "items": [
+  {
+   "fr": "Les sols prennent du relief : carreaux manquants, cassés ou écornés, nids-de-poule, fissures, lames de parquet arrachées et flaques d'eau, vraiment creusés dans le sol, sans jamais faire trébucher ni gêner le passage.",
+   "en": "Floors get real depth: missing, broken or chipped tiles, potholes, cracks, torn-up floorboards and puddles, actually carved into the floor, without ever tripping you up or getting in the way."
+  },
+  {
+   "fr": "Les murs aussi : plinthes et cimaises en saillie, lisse d'acier le long de la faïence du laboratoire, plâtre tombé qui laisse voir les briques, carreaux de faïence arrachés.",
+   "en": "Walls too: raised skirting boards and chair rails, a steel bumper rail along the lab tiles, fallen plaster showing the bricks underneath, tiles torn off the walls."
+  },
+  {
+   "fr": "Les faux plafonds ont leur ossature et quelques dalles tombées.",
+   "en": "Drop ceilings now show their metal grid and a few fallen panels."
+  },
+  {
+   "fr": "Nouvelles planches pour les fenêtres et portes barricadées : bois brun veiné, clous, bouts éclatés, longueurs et épaisseurs différentes.",
+   "en": "New boards on barricaded windows and doors: grainy brown wood, nails, splintered ends, different lengths and thicknesses."
+  },
+  {
+   "fr": "Le relief est le même pour tous les joueurs d'une partie et s'applique tout seul aux cartes créées dans l'éditeur.",
+   "en": "Every player in a match sees the same details, and maps made in the editor get them automatically."
+  }
+ ]
+}
