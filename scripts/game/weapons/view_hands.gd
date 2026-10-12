@@ -18,7 +18,12 @@ extends Node3D
 ##     détente ; foregrip, knife : main gauche) autour d'une poignée
 ##     verticale (axe Y, x = 0, 3,75 cm de large, z de -2,5 à +2,5 cm),
 ##     poing sous y = 0 ;
-##   * pistol_support : main gauche qui enveloppe le poing droit ;
+##   * pistol_grip / pistol_support : prise du pistolet à deux mains (familles
+##     pistolet et revolver), mains MINCES et JOINTES (validée le 2026-10-12,
+##     docs/weapons/img/pistol_grips.png) : main droite autour de la poignée,
+##     main gauche sur le flanc gauche, poignets côte à côte sous la poignée ;
+##     forearm_pistol / forearm_pistol_l : leurs avant-bras DROITS de 3 × 3
+##     cubes (même repère que forearm) ;
 ##   * cradle : paume sous un garde-main (origine : milieu du dessous), doigts
 ##     qui montent sur le flanc droit, pouce à gauche ;
 ##   * throw_r / throw_l : main du lancer (grenade centrée) et pince ;
@@ -40,13 +45,11 @@ const ELBOW_L := Vector3(-0.19, -0.2, 0.3)
 const ELBOW_R_CAM := Vector3(0.14, -0.3, 0.2)
 const ELBOW_L_CAM := Vector3(-0.06, -0.32, 0.22)
 ## Pistolet tenu à deux mains : direction du poignet vers le coude (repère
-## de l'arme). Comme sur la prise validée le 2026-10-12 (hands_m1911.png),
-## les avant-bras plongent vite hors de l'écran en V, vers le bas et
-## l'extérieur : en visée, seuls les poings (sous la glissière) et les
-## poignets prennent le bas de l'image ; la caméra est plus près que sur la
-## planche (cran à 0,4 m, champ de 72°) : pente plus forte que la planche.
-const PISTOL_ARM_R := Vector3(0.6, -1.4, 0.15)
-const PISTOL_ARM_L := Vector3(-0.6, -1.4, 0.15)
+## de l'arme), celle de la prise validée le 2026-10-12 (pistol_grips.png,
+## « inclinés vers l'arrière ») : avant-bras droits, vers le bas et
+## l'arrière, à peine écartés.
+const PISTOL_ARM_R := Vector3(0.25, -1.0, 0.55)
+const PISTOL_ARM_L := Vector3(-0.25, -1.0, 0.55)
 ## Longueur de l'avant-bras, du coude au poignet (24 cubes de 1,25 cm).
 const ARM_LEN := 0.3
 ## La manche continue derrière le coude (haut du bras) sur cette fraction de
@@ -54,7 +57,7 @@ const ARM_LEN := 0.3
 ## qui flotte, même quand la main gauche descend au rechargement).
 const SLEEVE_BACK := 0.9
 ## Pièces du modèle des mains.
-const PIECES := ["grip", "pistol_support", "foregrip", "cradle", "forearm", "forearm_l", "knife", "throw_r", "throw_l", "bat_r", "bat_l"]
+const PIECES := ["grip", "pistol_grip", "pistol_support", "forearm_pistol", "forearm_pistol_l", "foregrip", "cradle", "forearm", "forearm_l", "knife", "throw_r", "throw_l", "bat_r", "bat_l"]
 
 var hand_r: Node3D
 var hand_l: Node3D
@@ -141,20 +144,19 @@ func setup(mid: String, team: Color) -> void:
 		elbow_l_off = inv * ELBOW_L_CAM
 	# Arme à manche fin tenue à deux poings (batte) : poings « bat_r » / « bat_l ».
 	var stick: bool = WeaponModels.info(mid, "support_fist", false)
-	# Pistolet tenu à deux mains : la main gauche enveloppe la droite.
-	var pistol: bool = support.z > grip.z - 0.08 and not stick
+	var pistol := is_pistol_hold(mid)
 	# Main droite : poing fermé sur la poignée, avant-bras vers le bas-droite.
 	var gxf := Transform3D(Basis(Vector3.RIGHT, deg_to_rad(ga)), grip)
-	var rname := "bat_r" if stick else "grip"
+	var rname := "bat_r" if stick else ("pistol_grip" if pistol else "grip")
 	if pistol:
-		# Prise validée (docs/weapons/img/hands_m1911.png) : avant-bras en V
-		# étroit qui descendent sous la glissière, cran et guidon dégagés.
+		# Prise validée (pistol_grips.png) : mains minces et jointes,
+		# avant-bras droits vers le bas et l'arrière.
 		elbow_r = gxf * wrist(rname) + PISTOL_ARM_R.normalized() * ARM_LEN
 	hand_r = Node3D.new()
 	hand_r.name = "HandR"
 	add_child(hand_r)
 	hand_r.add_child(piece_node(rname, team, gxf))
-	hand_r.add_child(piece_node("forearm", team, arm_xf(elbow_r, gxf * wrist(rname))))
+	hand_r.add_child(piece_node("forearm_pistol" if pistol else "forearm", team, arm_xf(elbow_r, gxf * wrist(rname))))
 	# Main gauche : sur le garde-main, la poignée avant ou la main droite.
 	var lxf: Transform3D
 	var pname := "cradle"
@@ -180,11 +182,22 @@ func setup(mid: String, team: Color) -> void:
 	hand_l.name = "HandL"
 	add_child(hand_l)
 	hand_l.add_child(piece_node(pname, team, lxf))
-	arm_l = piece_node("forearm_l", team)
+	arm_l = piece_node("forearm_pistol_l" if pistol else "forearm_l", team)
 	arm_l.name = "ArmL"
 	add_child(arm_l)
 	left_pose = Transform3D.IDENTITY
 	update_arm()
+
+
+## Pistolet tenu à deux mains (familles pistolet et revolver, ou main d'appui
+## posée sur la poignée) : prise mince et jointe (pistol_grip,
+## pistol_support, forearm_pistol*). Pas la batte (deux poings sur le manche).
+static func is_pistol_hold(mid: String) -> bool:
+	if WeaponModels.info(mid, "support_fist", false):
+		return false
+	if String(WeaponModels.spec(mid).get("family", "")) in ["pistol", "revolver"]:
+		return true
+	return WeaponModels.anchor(mid, "support").z > WeaponModels.anchor(mid, "grip").z - 0.08
 
 
 ## Place la main gauche (left_pose) et oriente son avant-bras du coude au poignet.

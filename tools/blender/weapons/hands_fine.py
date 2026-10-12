@@ -17,7 +17,10 @@
 #     z de -2,5 à +2,5 cm, 3,75 cm de large), poing sous y = 0, index le
 #     long du flanc droit et pulpe devant la détente, pouce gauche vers
 #     l'avant ;
-#   * pistol_support : main gauche qui enveloppe le poing droit (même repère) ;
+#   * pistol_grip, pistol_support : prise du pistolet à deux mains, mains
+#     minces et jointes (validée le 2026-10-12, pistol_grips.png), même
+#     repère que grip ; forearm_pistol, forearm_pistol_l : leurs avant-bras
+#     droits de 3 × 3 cubes (même repère que forearm) ;
 #   * foregrip, knife : main gauche autour d'un manche vertical, quatre doigts ;
 #   * bat_r, bat_l : poings serrés sur un manche rond de 2,5 cm centré en 0 ;
 #   * cradle : paume sous un garde-main (origine : milieu du dessous), doigts
@@ -129,22 +132,77 @@ def fist(h, g, side, index_on_trigger):
     h.wrist(g, 1.0 * s, -4.5, 6.0)
 
 
-def pistol_support(h):
-    """Main gauche qui enveloppe le poing droit (repère de « grip »)."""
-    g = h.start("pistol_support", ODD)
+# ---------------------------------------------------------------------------
+# Prise du pistolet à deux mains (validée le 2026-10-12, planche
+# docs/weapons/img/pistol_grips.png, image du milieu) : mains MINCES et
+# JOINTES. Dos de la main, paume et doigts d'un cube, un doigt par rangée ;
+# les deux poignets côte à côte sous la poignée, sans jour entre eux ;
+# avant-bras DROITS (pièces rigides forearm_pistol / forearm_pistol_l,
+# section de 3 × 3 cubes) qui partent vers le bas et l'arrière.
+# Repère : celui de « grip » (haut de la poignée, sans inclinaison : ViewHands
+# tourne la pièce de grip_angle) ; les indices k sont ceux du repère de l'arme
+# du M1912 (poignée à k = 2,5), d'où le décalage de -2,5 cubes en z.
+# ---------------------------------------------------------------------------
+
+PISTOL = (-0.5, 0.0, -2.5)
+
+
+def pistol_grip(h):
+    """Main droite mince autour de la poignée : index le long de la carcasse,
+    pulpe devant la détente ; majeur, annulaire et auriculaire autour du
+    devant de la poignée ; pouce droit vers l'avant sous la glissière."""
+    g = h.start("pistol_grip", PISTOL)
     F = h.fill
-    for j in range(-8, 0):
-        F(-4, -3, j, j, -4, 2, "glove", g=g)
-        h.paint(-4, j, -4, "-x", "glove_knuckle", g=g)
-    for n, (j0, j1) in enumerate([(-4, -3), (-6, -5), (-8, -7)]):
-        key = finger_key(n + 1)
-        F(-4, 4, j0, j1, -6, -5, key, g=g)
-        F(4, 4, j0, j1, -4, -2, key, g=g)
-    F(-2, -2, -1, -1, -6, 0, "glove", g=g)       # pouce sous le pouce droit
-    F(-3, -3, -2, -1, 0, 2, "glove", g=g)
-    F(-6, -3, -3, -2, 3, 4, "glove", g=g)        # manchette sombre en haut
-    F(-6, -3, -8, -4, 3, 4, "strap", g=g)
-    h.wrist(g, -4.5, -5.0, 5.0)
+    for j in range(-6, 0):
+        F(2, 2, j, j, 0, 4, "glove", g=g)             # dos de la main (1 cube)
+        h.paint(2, j, 0, "+x", "glove_knuckle", g=g)  # jointures
+    F(2, 2, -1, -1, -3, -1, "finger_b", g=g)          # index le long du flanc
+    F(0, 1, -1, -1, -3, -3, "glove_knuckle", g=g)     # pulpe devant la détente
+    for j, key in ((-3, "finger_a"), (-4, "finger_b"), (-5, "finger_a"), (-6, "finger_b")):
+        F(-2, 2, j, j, -1, -1, key, g=g)              # doigts devant la poignée
+        F(-2, -2, j, j, 0, 1, key, g=g)               # bouts sur le flanc gauche
+    F(-2, -2, 0, 0, -2, 2, "glove", g=g)              # pouce droit
+    # Poignet sous et derrière la poignée : (1 ; -4 ; 6) cubes dans le repère
+    # de l'arme du M1912 (planche), ramené dans le repère de la main, que
+    # ViewHands tourne de grip_angle (-15,9°) : (1 ; -4,8 ; 2,3).
+    h.wrist(g, 1.0, -4.8, 2.3)
+
+
+def pistol_support(h):
+    """Main gauche mince (même repère que pistol_grip) : paume d'un cube sur
+    le flanc gauche, doigts d'un cube devant ceux de la main droite, pouce
+    gauche sous le pouce droit."""
+    g = h.start("pistol_support", PISTOL)
+    F = h.fill
+    for j in range(-6, -1):
+        F(-3, -3, j, j, -2, 3, "glove", g=g)
+        h.paint(-3, j, -2, "-x", "glove_knuckle", g=g)
+    for j, key in ((-3, "finger_b"), (-4, "finger_a"), (-5, "finger_b"), (-6, "finger_a")):
+        F(-3, 3, j, j, -2, -2, key, g=g)
+    F(-2, -2, -1, -1, -3, 1, "glove", g=g)            # pouce gauche
+    h.wrist(g, -2.0, -4.8, 2.3)                     # joint au poignet droit
+
+
+def forearm_pistol(h, g, bandage):
+    """Avant-bras droit et mince de la prise du pistolet : du coude (z = 0)
+    au poignet (z = -ARM_LEN), section de 3 × 3 cubes centrée sur l'axe
+    (bracelet d'équipe et peau au poignet), manche du maillot derrière le
+    coude."""
+    h.start(g, (-0.5, -0.5, 0.0))
+    F = h.fill
+    for k in range(-ARM_LEN, 0):
+        n = k + ARM_LEN
+        key = "strap" if n < 2 else ("skin" if n < 4 else "undershirt")
+        F(-1, 1, -1, 1, k, k, key, g=g, f=None)
+    for k in range(0, 14):
+        F(-2, 2, -2, 2, k, k, "piping" if k == 0 else "jersey", g=g, f=1.0)
+    if bandage:
+        for k in range(-14, -11):
+            for i in range(-1, 2):
+                for j in range(-1, 2):
+                    if abs(i) == 1 or abs(j) == 1:
+                        key = "blood_dry" if (i, j, k) in ((1, 1, -13), (0, 1, -12)) else "bandage"
+                        h.put(i, j, k, key, g=g)
 
 
 def bat_fist(h, g, side):
@@ -261,6 +319,7 @@ def forearm(h, g, bandage):
 def b_hands():
     h = Hands("hands", "hands")
     fist(h, "grip", 1, True)
+    pistol_grip(h)
     pistol_support(h)
     fist(h, "foregrip", -1, False)
     fist(h, "knife", -1, False)
@@ -271,6 +330,8 @@ def b_hands():
     throw_l(h)
     forearm(h, "forearm", False)
     forearm(h, "forearm_l", True)
+    forearm_pistol(h, "forearm_pistol", False)
+    forearm_pistol(h, "forearm_pistol_l", True)
     h.info["cube"] = FINE
     h.info["arm_len"] = round(ARM_LEN * FINE, 4)
     return h
@@ -295,8 +356,8 @@ def place(models, it, g, loc=(0, 0, 0), rot=None):
 def render_sheet(h, out):
     os.makedirs(out, exist_ok=True)
     rows = []
-    groups = [["grip", "pistol_support", "foregrip", "knife"], ["bat_r", "bat_l", "cradle", "throw_r"],
-              ["throw_l", "forearm", "forearm_l"]]
+    groups = [["grip", "pistol_grip", "pistol_support", "foregrip"], ["knife", "bat_r", "bat_l", "cradle"],
+              ["throw_r", "throw_l", "forearm", "forearm_l"], ["forearm_pistol", "forearm_pistol_l"]]
     for row in groups:
         imgs = []
         for g in row:

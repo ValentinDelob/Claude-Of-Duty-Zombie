@@ -437,9 +437,18 @@ et exporte.
   pulpe devant la détente), mêmes pièces, repères et points `wrist_<pièce>`
   qu'avant ; avant-bras de 24 cubes (0,3 m) qui s'affine vers le poignet
   (6,25 cm). `weapons_voxel.py` ne les construit plus (`hands` absent de ses
-  `BUILDERS` et de son cache). Prise du pistolet : avant-bras en V qui plongent hors
-  de l'écran sous la glissière (`ViewHands.PISTOL_ARM_R` / `_L`), cran et guidon
-  dégagés au-dessus des mains en visée. Vus de l'œil, les gants restent
+  `BUILDERS` et de son cache). **Prise du pistolet** (pistolets et
+  revolvers, validée le 2026-10-12 : `docs/weapons/img/pistol_grips.png`,
+  image du milieu « inclinés vers l'arrière ») : pièces à part
+  `pistol_grip` / `pistol_support`, mains MINCES et JOINTES (dos, paume et
+  doigts d'un cube, un doigt par rangée ; index le long de la carcasse,
+  pulpe devant la détente ; pouce droit sous la glissière, pouce gauche
+  dessous ; poignets côte à côte sous la poignée, sans jour), et
+  `forearm_pistol` / `forearm_pistol_l`, avant-bras DROITS de 3 × 3 cubes
+  (jamais en escalier : pièces rigides posées comme les autres) vers le bas
+  et l'arrière (`ViewHands.PISTOL_ARM_R` / `_L`) ; cran et guidon dégagés
+  au-dessus des mains en visée. Fusils et mitraillettes gardent leurs
+  poings et avant-bras. Vus de l'œil, les gants restent
   SOMBRES comme sur la planche : talon de la paume et haut de la manchette
   en cuir sombre (le cuir clair n'est que sur les faces qui serrent la
   poignée, le manche ou le garde-main ; le bracelet d'équipe est sous la

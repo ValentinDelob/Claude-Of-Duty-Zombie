@@ -208,8 +208,15 @@ godot --headless --path . --import
   `grip_angle`, en degrés autour de X, négatif : bas de la poignée vers
   l'arrière) ; main gauche en berceau sous le garde-main, ou poing vertical
   sur une poignée avant / le puits du chargeur (MR-40 : `front_grip`) ;
-  pistolets : main gauche qui enveloppe la droite, avant-bras en V qui plongent
-  hors de l'écran sous la glissière (`ViewHands.PISTOL_ARM_R` / `_L`) ; gants
+  pistolets et revolvers (`ViewHands.is_pistol_hold`) : prise à deux mains
+  validée le 2026-10-12 (`docs/weapons/img/pistol_grips.png`, image du
+  milieu) : mains MINCES et JOINTES (`pistol_grip`, `pistol_support` : dos,
+  paume et doigts d'un cube, un doigt par rangée, poignets côte à côte sous
+  la poignée), avant-bras DROITS de 3 × 3 cubes (`forearm_pistol`,
+  `forearm_pistol_l`) vers le bas et l'arrière (`ViewHands.PISTOL_ARM_R` /
+  `_L`, un peu plus raides que sur la planche : la vue FPS en visée a un
+  champ de 72°, la planche 61°) ; fusils et mitraillettes gardent leurs
+  poings et avant-bras ; gants
   sombres vus de l'œil (talon de la paume et haut de la manchette en cuir
   sombre, cuir clair seulement contre la poignée). Contact vérifié par
   `test_view_model_fit` (sommets à moins de 3,2 cm de l'arme, bracelet
@@ -247,7 +254,7 @@ godot --headless --path . --import
 | `law` ÉPROUVETTE | 994 | grosse éprouvette de verre graduée, liquide vert, bouchons de liège |
 | `bat` BATTE | 476 | voir plus haut |
 | `knife` COUTEAU | 110 | lame d'acier à fil clair, garde en croix, manche noir |
-| mains (`hands`) | 5 326 | **fines** (1,25 cm, taille réelle) : 11 pièces |
+| mains (`hands`) | 5 980 | **fines** (1,25 cm, taille réelle) : 15 pièces (dont la prise du pistolet) |
 | grenade (`frag`) | 118 | corps olive 3 × 3 × 3, bande sombre, goupille jaune à part |
 | peluche (`teddy`) | 464 | ours assis de 27 cm, tête à part, nœud rouge, pièce rapiécée |
 

@@ -194,7 +194,8 @@ func test_view_hands_team_color() -> void:
 		assert_eq(m.get_shader_parameter("team"), 1.0, "matériau d'équipe")
 		assert_eq(m.get_shader_parameter("team_color"), col, "couleur du joueur")
 		teams += 1
-	assert_true(teams >= 3, "bracelets et sous-maillots teintés (%d)" % teams)
+	# Pistolet (mains minces) : bracelets portés par les deux avant-bras droits.
+	assert_true(teams >= 2, "bracelets et sous-maillots teintés (%d)" % teams)
 	for mi: MeshInstance3D in h.find_children("leather", "MeshInstance3D", true, false):
 		assert_eq((mi.material_override as ShaderMaterial).get_shader_parameter("team"), 0.0, "gants non teintés")
 	assert_true(WeaponModels.team_material(col, true) == WeaponModels.team_material(col, true), "un matériau par couleur")
