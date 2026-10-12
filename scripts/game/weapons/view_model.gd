@@ -394,26 +394,27 @@ static func rest_transform(mid: String, ak: float) -> Transform3D:
 	return Transform3D(Basis.from_euler(rot), base[0])
 
 
-## Pistolet à la hanche (ViewHands.is_pistol_hold) : l'axe du canon converge
-## sur le réticule (centre de l'écran) à cette distance (m), comme une tenue
-## de hanche classique.
-const PISTOL_HIP_CONVERGE := 10.0
+## Arme à feu à la hanche : l'axe du canon converge sur le réticule (centre
+## de l'écran) à cette distance (m), comme une tenue de hanche classique.
+const HIP_CONVERGE := 10.0
 
 static var _hip_rot_cache: Dictionary = {}
 
 
 ## Rotation de hanche (Euler, rad) du modèle `mid` : HIP_ROT + « hold_rot »
-## ; pistolets et revolvers : tangage et lacet CALCULÉS pour que l'axe du
-## canon (ligne de la bouche, -Z du modèle) passe par le centre de l'écran à
-## PISTOL_HIP_CONVERGE m (le roulis de « hold_rot » est gardé).
+## ; armes à feu (pas le corps à corps ni une arme sans organes de visée) :
+## tangage et lacet CALCULÉS pour que l'axe du canon (ligne de la bouche, -Z
+## du modèle) passe par le centre de l'écran à HIP_CONVERGE m (le roulis de
+## « hold_rot » est gardé).
 static func hip_rot(mid: String) -> Vector3:
 	if _hip_rot_cache.has(mid):
 		return _hip_rot_cache[mid]
 	var rot := HIP_ROT + WeaponModels.anchor(mid, "hold_rot")
-	if ViewHands.is_pistol_hold(mid) and not WeaponModels.info(mid, "no_sights", false):
+	var firearm: bool = String(WeaponModels.spec(mid).get("family", "")) not in ["melee", "round", "hands", "throwable", ""]
+	if firearm and not WeaponModels.info(mid, "no_sights", false) and not WeaponModels.info(mid, "elbows_cam", false):
 		var pos := HIP_POS + WeaponModels.anchor(mid, "hold")
 		var muzzle := WeaponModels.anchor(mid, "muzzle")
-		var target := Vector3(0, 0, -PISTOL_HIP_CONVERGE)
+		var target := Vector3(0, 0, -HIP_CONVERGE)
 		# Quelques itérations : la bouche bouge avec la rotation.
 		for i in 6:
 			var m := pos + Basis.from_euler(rot) * muzzle

@@ -24,8 +24,8 @@ extends RefCounted
 ## ses deux colonnes : repère du poing de ViewHands), "support" (main
 ## d'appui : dessous du garde-main, haut de la poignée avant...), "eject",
 ## pivots des pièces mobiles "pivot_<groupe>", "mag_dir" (sortie du
-## chargeur), "hold" / "hold_rot" (tenue à la hanche ; pistolets et
-## revolvers : seul le roulis de "hold_rot" sert, tangage et lacet sont
+## chargeur), "hold" / "hold_rot" (tenue à la hanche ; armes à feu :
+## seul le roulis de "hold_rot" sert, tangage et lacet sont
 ## calculés pour viser le réticule, ViewModel.hip_rot).
 ##
 ## Les maillages des .glb sont lus une fois (fil principal), puis découpés

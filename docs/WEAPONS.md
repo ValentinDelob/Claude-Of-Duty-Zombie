@@ -216,8 +216,8 @@ godot --headless --path . --import
   `forearm_pistol_l`) vers le bas et l'arrière (`ViewHands.PISTOL_ARM_R` /
   `_L`, un peu plus raides que sur la planche : la vue FPS en visée a un
   champ de 72°, la planche 61°) ; fusils et mitraillettes gardent leurs
-  poings et avant-bras ; à la hanche, l'axe du canon d'un pistolet passe par
-  le réticule à 10 m (`ViewModel.hip_rot`, `PISTOL_HIP_CONVERGE`, vérifié par
+  poings et avant-bras ; à la hanche, l'axe du canon de toute arme à feu passe par
+  le réticule à 10 m (`ViewModel.hip_rot`, `HIP_CONVERGE`, vérifié par
   `hands_look`) ; gants
   sombres vus de l'œil (talon de la paume et haut de la manchette en cuir
   sombre, cuir clair seulement contre la poignée). Contact vérifié par

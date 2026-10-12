@@ -14,8 +14,8 @@ var p: Player
 var pd: PlayerData
 
 const IDS := ["m1911", "cz75", "python", "ak47", "mp40", "mp5k"]
-## Pistolets à la hanche : écart maximal (px) entre le réticule et l'axe du
-## canon à 10 m (ViewModel.PISTOL_HIP_CONVERGE).
+## Armes à feu à la hanche : écart maximal (px) entre le réticule et l'axe du
+## canon à 10 m (ViewModel.HIP_CONVERGE).
 const HIP_TOL_PX := 4.0
 
 
@@ -65,12 +65,9 @@ func run() -> void:
 		await seconds(0.3)
 		# Hanche : l'axe du canon à 10 m de l'œil, tel qu'on le voit (champ de
 		# l'arme) ; pistolets : sur le réticule à quelques px près.
-		var off := barrel_offset_px(v, ViewModel.PISTOL_HIP_CONVERGE)
-		var mid0: String = WeaponDB.stats(id).model
-		if ViewHands.is_pistol_hold(mid0):
+		if not WeaponDB.is_melee(id):
+			var off := barrel_offset_px(v, ViewModel.HIP_CONVERGE)
 			at.check(off.length() <= HIP_TOL_PX, "%s : canon sur le réticule à 10 m à la hanche (écart %.1f px)" % [id, off.length()])
-		else:
-			print("[hands_look] %s : axe du canon à 10 m, écart au réticule à la hanche (%.0f ; %.0f) px" % [id, off.x, off.y])
 		await at.screenshot("hip_" + id)
 		if OS.get_environment("HL_DEBUG") != "":
 			# Mise au point : sans la zone d'équipe, puis sans les avant-bras.
@@ -92,6 +89,8 @@ func run() -> void:
 			for mi: MeshInstance3D in v.hands.find_children("leather", "MeshInstance3D", true, false):
 				mi.material_override = red
 			await at.screenshot("hip_red_" + id)
+		if WeaponDB.is_melee(id):
+			continue  # batte : ni visée ni organes de visée
 		p.input.aim = true
 		await seconds(float(WeaponDB.stats(id).ads_time) + 0.6)
 		var c := p.get_viewport().get_visible_rect().size * 0.5
