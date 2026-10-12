@@ -19,10 +19,11 @@ dépôt.
   - **décor et objets de la carte : 1 cube = 5 cm** (20 par mètre) : une porte
     fait 40 cubes, un mur de 3 m en fait 60. 2 cubes de personnage = 1 cube de
     décor.
-  - **exception validée le 2026-10-12 : armes refaites, 1 cube = 1,25 cm**
-    (80 par mètre, 2 cubes d'arme = 1 cube de personnage) ; seules les armes
-    à feu refaites d'après une arme réelle (« Armes, mains et objets tenus »
-    plus bas) ; les mains FPS et les autres objets tenus restent en 2,5 cm.
+  - **exception validée le 2026-10-12 : armes refaites et mains FPS, 1 cube
+    = 1,25 cm** (80 par mètre, 2 cubes d'arme = 1 cube de personnage) ; les
+    armes à feu refaites d'après une arme réelle et les mains et avant-bras
+    de la vue FPS, à la taille réelle (« Armes, mains et objets tenus » plus
+    bas) ; les autres objets tenus restent en 2,5 cm.
 - **Règle absolue** : rien qui ne soit pas cubique ou pas à l'échelle. Pas de
   courbe, de biseau, de lissage, ni de détail plus fin qu'un cube.
 - Arêtes sur la grille de l'échelle, normales alignées sur les axes, ombrage plat ;
@@ -373,17 +374,18 @@ et exporte.
   création : trop de sang sur la robe (camouflage), bouche pas assez
   béante et badge en escalier (posé à plat sur la taille).
 
-### Armes, mains et objets tenus (tools/blender/weapons/weapons_voxel.py, weapons_fine.py)
+### Armes, mains et objets tenus (tools/blender/weapons/weapons_voxel.py, weapons_fine.py, hands_fine.py)
 
 - Les objets tenus sont en cubes de **2,5 cm** (échelle des personnages,
   § 4.19) : les armes à feu pas encore refaites, la **batte de baseball**, le
-  couteau, les **mains et avant-bras** de la vue FPS, la grenade, la peluche
-  leurre, la cartouche et la grenade de 40 mm tenues au rechargement. Liste,
-  noms, niveaux, triangles : **docs/WEAPONS.md**.
+  couteau, la grenade, la peluche leurre, la cartouche et la grenade de
+  40 mm tenues au rechargement. Les **mains et avant-bras** de la vue FPS et
+  les armes refaites sont en **1,25 cm** (plus bas). Liste, noms, niveaux,
+  triangles : **docs/WEAPONS.md**.
 - **Armes fines** (refonte du 2026-10-12, GAME_CONCEPT § 4.9 et § 4.19) :
   chaque arme est refaite, une à la fois, d'après une **arme réelle** (nom
   affiché proche du vrai), en cubes de **1,25 cm** (deux fois plus fins que
-  les personnages : exception validée ; les mains FPS restent en 2,5 cm).
+  les personnages : exception validée, comme les mains FPS).
   Script : `tools/blender/weapons/weapons_fine.py` (même repère et mêmes
   pièces mobiles que `weapons_voxel.py`, qui ne les construit plus et garde
   leurs entrées de `weapons_voxel.json`) ; fiche validée par arme
@@ -393,9 +395,7 @@ et exporte.
   visée, usure). L'info `cube` (0,0125) du modèle le signale au jeu
   (`WeaponModels.cube`, `is_fine`) : `voxel_check --pas=1.25`, budget de
   5 000 triangles. Le poing droit suit l'inclinaison de la poignée (info
-  `grip_angle`, même axe que `mag_dir`) ; un garde-main de 3 cubes fins
-  (3,75 cm) reçoit la main gauche en berceau étroit (info `narrow_support`,
-  pièce `cradle_narrow` des mains, toujours en 2,5 cm). Faites : **M1912**
+  `grip_angle`, même axe que `mag_dir`). Faites : **M1912**
   (`m1911`, Colt M1911A1, 788 triangles), **MR-40** (`mp40`, MP40, 2 446),
   **KA-74U** (`ak74u`, AKS-74U, 1 392), **KA-47** (`ak47`, AK-47 type 3,
   1 768), **FAMAX F1** (`famas`, FAMAS F1, 2 142).
@@ -430,10 +430,23 @@ et exporte.
   se voir (le chargeur remplit la colonne avant de la poignée d'un pistolet :
   retiré, il laisse le puits vide). Points remarquables, données et pavés
   dans `assets/models/weapons/voxel/weapons_voxel.json`.
-- **Mains** : celles du **joueur de baseball** (personnage unique, même
+- **Mains** (`tools/blender/weapons/hands_fine.py`, validées le 2026-10-12
+  sur la prise à deux mains du M1912 : `docs/weapons/img/hands_m1911.png`) :
+  cubes de **1,25 cm**, à la **taille réelle** d'une main gantée (≈ 9 cm de
+  large, doigts séparés par deux tons de cuir, index le long du flanc et
+  pulpe devant la détente), mêmes pièces, repères et points `wrist_<pièce>`
+  qu'avant ; avant-bras de 24 cubes (0,3 m) qui s'affine vers le poignet
+  (6,25 cm). `weapons_voxel.py` ne les construit plus (`hands` absent de ses
+  `BUILDERS` et de son cache). Prise du pistolet : avant-bras en V étroit
+  sous la glissière (`ViewHands.PISTOL_ARM_R` / `_L`), cran et guidon
+  dégagés au-dessus des mains en visée.
+  ```
+  sh tools/blender.sh tools/blender/weapons/hands_fine.py --export [--sheet DOSSIER]
+  ```
+  Ce sont celles du **joueur de baseball** (personnage unique, même
   palette que son modèle vu par les autres, « Joueur de baseball »
   ci-dessous) : gants de frappe sombres à paume de cuir (phalanges marquées
-  par rangée), bracelet du gant, poignet nu (3 cubes de peau), sous-maillot
+  par rangée), bracelet du gant, poignet nu (2 cubes de peau), sous-maillot
   à manches longues, manche courte crème du maillot à liseré (équipe
   fictive, aucun logo) derrière le coude, bandage taché de sang à plat sur
   l'avant-bras gauche (pièce `forearm_l` : main d'appui, couteau, goupille).
@@ -441,8 +454,7 @@ et exporte.
   `team`, peinte en gris) : `weapon.gdshader` la teinte à la couleur du
   joueur (`WeaponModels.team_material`, même calcul que
   `player_voxel.gdshader`), comme le joueur vu par les autres ; plus de
-  tenue par personnage. Poings, berceau (et berceau étroit des armes
-  fines), mains du lancer et de la batte.
+  tenue par personnage. Poings, berceau, mains du lancer et de la batte.
   Chaque pièce est rigide : les avant-bras ne sont jamais étirés (le
   poignet est posé sur la main, le coude suit la direction).
 - En jeu : `WeaponModels` / `ViewHands` lisent les .glb, `weapon.gdshader`
@@ -452,8 +464,8 @@ et exporte.
 - Contrôles : `voxel_check` à chaque export (armes d'un bloc, objets à
   pièces indépendantes pièce par pièce ; armes fines sur la grille de
   1,25 cm), `tests/test_weapons.gd`,
-  `tests/test_view_model_fit.gd` (mains posées sur l'arme à une diagonale
-  de cube près), `weapon_aim` (ligne de mire à ±1 px), planches
+  `tests/test_view_model_fit.gd` (mains posées sur l'arme : sommets à moins
+  de 3,2 cm, bracelet exclu), `weapon_aim` (ligne de mire à ±1 px), planches
   `--sheet` et captures `weapon_view`, `melee`, `scope`.
 - Cache : `tools/blender/weapons/weapons_voxel_cells.json` (suivi par git) ;
   `--cache` reconstruit à l'identique (armes fines : pas de cache, le

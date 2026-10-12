@@ -80,12 +80,11 @@ Un zombie de la manche 19 (1 950 PV) tombe en 7 balles au corps.
 
 ## Vue FPS
 
-Les mains (cubes de 2,5 cm, communes à toutes les armes) : poing droit sur
-la poignée, qui suit son inclinaison (`grip_angle` ≈ −18°, un cube toutes
-les trois rangées) ; main gauche en **berceau étroit** sous le garde-main
-(`narrow_support`, pièce `cradle_narrow` des mains : paume de deux cubes,
-les doigts et le pouce touchent les flancs du garde-main de 3,75 cm au lieu
-de flotter à 2 cm). Contrôles : mains posées sur l'arme
+Les mains (cubes de 1,25 cm à la taille réelle, communes à toutes les
+armes) : poing droit sur la poignée, qui suit son inclinaison
+(`grip_angle` ≈ −18°, un cube toutes les trois rangées) ; main gauche en
+berceau sous le garde-main de 3,75 cm, doigts qui montent sur le flanc
+droit. Contrôles : mains posées sur l'arme
 (`test_view_model_fit`), cran et guidon au centre à 0,00 px en visée
 (`weapon_aim`), chargeur qui sort dans l'axe de sa courbe et revient
 (`weapon_view`), levier d'armement tiré après un chargeur vide.

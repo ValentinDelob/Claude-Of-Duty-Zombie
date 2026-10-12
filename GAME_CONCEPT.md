@@ -723,14 +723,16 @@ armes de niveau de base ≤ manche + 2) ; statistiques inchangées ;
   l'échelle du décor (2 cubes de personnage = 1 cube de décor).
 - **Échelle du décor et des objets de la carte : 1 cube = 5 cm** (20 cubes par
   mètre) : une porte fait 40 cubes, un mur de 3 m en fait 60.
-- **Troisième échelle, armes refaites : 1 cube = 1,25 cm** (80 cubes par
-  mètre ; exception validée le 2026-10-12) : deux fois plus fine que les
-  personnages, sous-multiple exact des deux autres. Seules les **armes à
-  feu** refaites d'après une arme réelle (§ 4.9) l'utilisent (aujourd'hui
-  M1912, MR-40, KA-74U, KA-47, FAMAX F1) ; les **mains et avant-bras** de la vue FPS, la batte, le couteau,
-  la grenade et les autres objets tenus restent en **2,5 cm**. Mêmes règles
-  que les autres échelles (grille, aucune courbe), vérifiées par
-  `voxel_check --pas=1.25`.
+- **Troisième échelle, armes refaites et mains FPS : 1 cube = 1,25 cm**
+  (80 cubes par mètre ; exception validée le 2026-10-12) : deux fois plus
+  fine que les personnages, sous-multiple exact des deux autres. L'utilisent
+  les **armes à feu** refaites d'après une arme réelle (§ 4.9 ; aujourd'hui
+  M1912, MR-40, KA-74U, KA-47, FAMAX F1) et les **mains et avant-bras** de
+  la vue FPS, à la taille réelle d'une main (≈ 9 cm de large, doigts
+  séparés ; validées le 2026-10-12 sur la prise à deux mains du M1912) ; la
+  batte, le couteau, la grenade et les autres objets tenus restent en
+  **2,5 cm**. Mêmes règles que les autres échelles (grille, aucune courbe),
+  vérifiées par `voxel_check --pas=1.25`.
 - Le **rendu** de référence (planche Gemini) a aussi un **contour noir** autour
   des pièces et un ombrage simple : à reproduire en jeu (❓ contour par shader).
 - Pour appliquer la règle :
@@ -768,7 +770,8 @@ armes de niveau de base ≤ manche + 2) ; statistiques inchangées ;
   leurre et les cartouches tenues ; vus de la même façon par les autres
   joueurs ; vérifiés par `voxel_check`. Armes refaites en cubes de 1,25 cm
   (`tools/blender/weapons/weapons_fine.py`) : ✅ M1912, MR-40, KA-74U,
-  KA-47, FAMAX F1.
+  KA-47, FAMAX F1. ✅ Mains et avant-bras de la vue FPS refaits en cubes de
+  1,25 cm à la taille réelle (`tools/blender/weapons/hands_fine.py`).
 - ✅ **Textures de toutes les surfaces en pixel art**, un pixel = un cube de
   5 cm, dans l'univers hôpital / laboratoire / bunker (textures importées
   d'une carte réduites au même grain).

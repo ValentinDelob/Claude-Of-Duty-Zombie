@@ -1451,8 +1451,9 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
 - **Modèles et vue FPS** : armes, couteau, mains, grenade, peluche leurre
   et cartouches tenues sont des modèles CUBIQUES (cubes de 2,5 cm,
   GAME_CONCEPT §4.19 ; armes refaites d'après une arme réelle : cubes de
-  1,25 cm, `tools/blender/weapons/weapons_fine.py`, info `cube` lue par
-  `WeaponModels.cube` / `is_fine`) construits sous Blender par
+  1,25 cm, `tools/blender/weapons/weapons_fine.py` ; mains FPS : cubes de
+  1,25 cm à la taille réelle, `tools/blender/weapons/hands_fine.py` ; info
+  `cube` lue par `WeaponModels.cube` / `is_fine`) construits sous Blender par
   `tools/blender/weapons/weapons_voxel.py` : `assets/models/weapons/voxel/<id>.glb`
   (un nœud par pièce mobile `wpn__<id>__<groupe>` : `body`, `mag`, `slide`,
   `pump`, `barrels`, `cyl` ; mains : `hand__<pièce>`), couleur par face

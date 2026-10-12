@@ -154,15 +154,15 @@ godot --headless --path . --import
 `tools/voxel_check.gd` lancée à la fin.)
 
 - **Cubes de 2,5 cm** pour les objets tenus (§ 4.19) : armes pas encore
-  refaites, batte, couteau, mains et avant-bras, grenade, peluche leurre,
-  cartouche et grenade de 40 mm tenues au rechargement. **Cubes de
-  1,25 cm** pour les armes refaites (exception validée le 2026-10-12 ;
-  `WeaponModels.cube` / `is_fine` lisent l'info `cube`). Vérifiés par
-  `voxel_check` (armes : d'un bloc, en statique, pièces mobiles comprises
-  sur la même grille, `--pas=1.25` pour les armes fines ; objets à pièces
-  indépendantes : pièce par pièce) et par `tests/test_weapons.gd`
-  (`test_held_models_are_cubic` : seules des armes à feu peuvent être
-  fines).
+  refaites, batte, couteau, grenade, peluche leurre, cartouche et grenade
+  de 40 mm tenues au rechargement. **Cubes de 1,25 cm** pour les armes
+  refaites et les mains et avant-bras de la vue FPS (exception validée le
+  2026-10-12 ; `WeaponModels.cube` / `is_fine` lisent l'info `cube`).
+  Vérifiés par `voxel_check` (armes : d'un bloc, en statique, pièces
+  mobiles comprises sur la même grille, `--pas=1.25` pour les armes fines ;
+  objets à pièces indépendantes, mains comprises : pièce par pièce) et par
+  `tests/test_weapons.gd` (`test_held_models_are_cubic` : seules des armes
+  à feu et les mains peuvent être fines).
 - **Repère** : l'arme pointe vers -Z, origine à la détente ; la colonne de
   cubes x = 0 est centrée sur l'axe du canon (décalage d'un demi-cube), pour
   que guidon et cran soient centrés. **Largeurs paires** (armes fines,
@@ -183,29 +183,35 @@ godot --headless --path . --import
   levier d'armement / verrou `slide`, pompe `pump`, canons basculants
   `barrels` (GARDE-CHASSE), barillet `cyl` (COUPERET). Les rechargements
   existants (`ViewModel._reload_anim`) les animent sans changement.
-- **Mains et bras FPS** (`hands.glb`) : ceux du joueur de baseball, palette
+- **Mains et bras FPS** (`hands.glb`, `tools/blender/weapons/hands_fine.py`,
+  cubes de 1,25 cm à la taille réelle d'une main, validées le 2026-10-12 :
+  `docs/weapons/img/hands_m1911.png`) : ceux du joueur de baseball, palette
   de son modèle vu par les autres : gants de frappe sombres à paume de cuir,
-  poignet nu, sous-maillot à manches longues, manche courte crème du maillot
-  (équipe fictive, sans logo ni numéro), bandage à l'avant-bras gauche
-  (`forearm_l`) ; bracelets, sous-maillot et liseré dans la zone d'équipe
-  (matière `team`), teintée à la couleur du joueur
-  (`WeaponModels.team_material`) ; poings autour d'un manche d'un ou deux
-  cubes, berceau sous un garde-main (et berceau étroit `cradle_narrow` de
-  deux cubes pour le garde-main de 3,75 cm d'une arme fine, info
-  `narrow_support`), main d'appui du pistolet, poings de la batte, mains du
-  lancer ; avant-bras rigide de 12 cubes (jamais étiré : posé du poignet
-  vers le coude).
+  doigts séparés par deux tons, poignet nu, sous-maillot à manches longues,
+  manche courte crème du maillot (équipe fictive, sans logo ni numéro),
+  bandage à l'avant-bras gauche (`forearm_l`) ; bracelets, sous-maillot et
+  liseré dans la zone d'équipe (matière `team`), teintée à la couleur du
+  joueur (`WeaponModels.team_material`) ; poings autour d'une poignée de
+  3,75 cm (index le long du flanc, pulpe devant la détente), berceau sous
+  un garde-main, main d'appui du pistolet, poings de la batte (manche rond
+  de 2,5 cm), mains du lancer ; avant-bras rigide de 24 cubes (0,3 m,
+  jamais étiré : posé du poignet vers le coude). `weapons_voxel.py` ne les
+  construit plus.
+  ```
+  sh tools/blender.sh tools/blender/weapons/hands_fine.py --export [--sheet DOSSIER]
+  ```
 - **Budget** : < 1 500 triangles par arme en cubes de 2,5 cm, < 5 000 par
-  arme fine en cubes de 1,25 cm (contrôlés par `test_weapons`), < 2 000
-  pour l'ensemble des mains ; la vue FPS ajoute la découpe en tranches de
-  5 mm de la partie courbée par la joue de visée.
-- **Tenue des armes fines** : les mains restent en cubes de 2,5 cm ; le
-  poing droit suit l'inclinaison de la poignée (info `grip_angle`, en
-  degrés autour de X, négatif : bas de la poignée vers l'arrière) ; main
-  gauche en berceau étroit sous un garde-main de 3 cubes fins (KA-74U,
-  KA-47 : `narrow_support`), en berceau normal quand l'appui est plus large
-  (FAMAX F1 : bipied replié), ou poing vertical sur le puits du chargeur
-  (MR-40 : `front_grip`).
+  arme fine en cubes de 1,25 cm, < 6 000 pour l'ensemble des mains
+  (contrôlés par `test_weapons`) ; la vue FPS ajoute la découpe en tranches
+  de 5 mm de la partie courbée par la joue de visée.
+- **Tenue** : le poing droit suit l'inclinaison de la poignée (info
+  `grip_angle`, en degrés autour de X, négatif : bas de la poignée vers
+  l'arrière) ; main gauche en berceau sous le garde-main, ou poing vertical
+  sur une poignée avant / le puits du chargeur (MR-40 : `front_grip`) ;
+  pistolets : main gauche qui enveloppe la droite, avant-bras en V étroit
+  sous la glissière (`ViewHands.PISTOL_ARM_R` / `_L`). Contact vérifié par
+  `test_view_model_fit` (sommets à moins de 3,2 cm de l'arme, bracelet
+  exclu).
 
 | Modèle | Triangles | Silhouette |
 |---|---|---|
@@ -214,7 +220,7 @@ godot --headless --path . --import
 | `python` COUPERET | 336 | carénage de canon plat et haut comme une lame de hachoir, gros barillet cubique |
 | `mp40` MR-40 | 2 446 | **fine**, largeurs paires : MP40, boîtier rond bleu-noir de 4 × 4, canon de 2 × 2, arrêtoir d'appui, long puits nervuré, chargeur droit de 32, carcasse en bakélite brun-rouge, crosse dépliée à deux bras |
 | `mp5k` MOUCHERON | 486 | bloc carré sans crosse, poignée avant à ruban sarcelle, chargeur en escalier |
-| `pm63` PUCE | 266 | minuscule, culasse claire apparente, crosse orange repliée à droite |
+| `pm63` PUCE | 278 | minuscule, culasse claire apparente, crosse orange repliée à droite, poignée avant de 10 cm (main à la taille réelle) |
 | `mpl` AGRAFEUSE | 472 | agrafeuse géante : bras supérieur sarcelle à charnière arrière |
 | `spectre` FEU FOLLET | 476 | manchon ajouré dont le cœur luit en vert |
 | `ak74u` KA-74U | 1 392 | **fine** : AKS-74U, booster en cloche, garde-main en lamellé-collé, boîtier embouti à rivets, chargeur courbe orangé-brun, poignée prune, crosse triangulaire repliable |
@@ -239,7 +245,7 @@ godot --headless --path . --import
 | `law` ÉPROUVETTE | 994 | grosse éprouvette de verre graduée, liquide vert, bouchons de liège |
 | `bat` BATTE | 476 | voir plus haut |
 | `knife` COUTEAU | 110 | lame d'acier à fil clair, garde en croix, manche noir |
-| mains (`hands`) | 1 828 | 12 pièces (dont le berceau étroit) |
+| mains (`hands`) | 5 490 | **fines** (1,25 cm, taille réelle) : 11 pièces |
 | grenade (`frag`) | 118 | corps olive 3 × 3 × 3, bande sombre, goupille jaune à part |
 | peluche (`teddy`) | 464 | ours assis de 27 cm, tête à part, nœud rouge, pièce rapiécée |
 
