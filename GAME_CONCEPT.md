@@ -501,6 +501,16 @@ de 2,5 cm** (§ 4.19).
   les armes **de l'arsenal**, pas celles trouvées pendant la partie.
 - La station **recharge aussi les munitions** contre de la ferraille (prix selon
   l'arme).
+- Le **recyclage ne se fait pas à la station** : il se fait dans l'inventaire
+  de partie ([I]), où qu'on soit (§4.12) ; la station le rappelle dans son aide.
+- Interface (maquette validée docs/hub_v2/Station.dc.html) : les armes de
+  l'arsenal rangées par niveau sur un rail, comme l'ARSENAL du hub (filtre
+  CONSTRUCTIBLES / TOUTES), chacune avec son prix et sa durée ; un **effet de
+  rareté** animé derrière l'arme (aucun pour une commune, halo dès la rare,
+  rayons en plus pour légendaire et unique) ; une fiche (statistiques,
+  pièces, prix, manche où elle sera prête, CONSTRUIRE ou la raison du refus) ;
+  la recharge de l'arme en main. La construction en cours se lit sur la carte
+  et la fiche de l'arme (« EN COURS », « PRÊTE · [F] RÉCUPÉRER »).
 - La ferraille est **dépensée dès le lancement** de la construction.
 - La station **travaille seule** : plus une arme est exigeante en ferraille,
   plus la construction est longue, de **1 à 3 manches** au maximum.
@@ -522,7 +532,8 @@ de 2,5 cm** (§ 4.19).
   arme équipée.
 - **Recyclage en partie** : recycler une arme rapporte **50 % de la ferraille**
   nécessaire pour la construire. Recycler un exemplaire construit depuis
-  l'arsenal ne retire pas l'arme de l'arsenal.
+  l'arsenal ne retire pas l'arme de l'arsenal. On recycle depuis
+  l'**inventaire de partie** ([I]), plus à la station de construction.
 - On ne peut **jamais recycler sa dernière arme** (armes en main et
   inventaire ; le couteau et les grenades ne comptent pas, ni une arme encore
   en construction à la station) : « Impossible de recycler votre dernière
@@ -856,7 +867,7 @@ corriger.
 | Prix de construction | 500 × (1 + 0,15 × (niveau − 1)) × rareté (commune 1, rare 1,5, épique 2,2, légendaire 3,2, unique 4), arrondi à 10 : arme de base 500, niveau 10 rare 1 760, niveau 50 unique 16 700 ; pièces non comptées | `BuildRules.price` |
 | Durée de construction | prix < 1 500 : 1 manche, < 4 000 : 2, sinon 3 ; prête à la fin de la manche en cours + durée − 1 (lancée entre deux manches : la suivante compte) | `BuildRules.rounds`, `ready_round` |
 | Recharge des munitions (station) | 30 % du prix de construction de l'arme en main, arrondi à 10 (pistolet de base : 150) | `BuildRules.refill_price` |
-| Recyclage en partie | 50 % du prix de construction, arrondi à 10 ; arme de base (donnée à tous) : 0 ; arme prêtée à terre : impossible ; dernière arme (main + inventaire, hors arme prêtée, couteau, grenades et arme en construction) : impossible, bouton grisé et refus de l'hôte ; depuis l'inventaire ou la station, deux appuis | `BuildRules.recycle_value`, `recycle_refusal` |
+| Recyclage en partie | 50 % du prix de construction, arrondi à 10 ; arme de base (donnée à tous) : 0 ; arme prêtée à terre : impossible ; dernière arme (main + inventaire, hors arme prêtée, couteau, grenades et arme en construction) : impossible, bouton grisé et refus de l'hôte ; depuis l'inventaire de partie seulement (plus à la station), deux appuis | `BuildRules.recycle_value`, `recycle_refusal` |
 | Station de construction | [F] : interface (la partie continue) ou récupération de l'arme prête ; la batte (tenue en main) est listée et construite comme une arme à feu, sans recharge de munitions ; le couteau reste l'attaque séparée, non listé | `BuildStation`, `StationPanel` |
 | Armes de butin possibles | toutes les armes de `WeaponDB` **sauf les armes de base** (pistolet de départ, batte) dont le niveau de base est ≤ manche + 2, tirage uniforme ; niveaux de base de 1 à 50 (`WeaponDB.base_level`, `docs/WEAPONS.md`) | `LootRules` |
 | Pose du butin d'arme | à 1,5 m devant chaque joueur à la fin de la vague (2 armes : écartées), visible de tous, ramassable par son seul propriétaire | `LootSystem` |

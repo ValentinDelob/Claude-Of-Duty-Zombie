@@ -49,24 +49,23 @@ func run() -> void:
 	st.request_build(panel.entries[3])
 	await seconds(0.6)
 	at.check(st.builds.is_empty() and pd.points == 3000, "client : arme trop haute refusée")
-	panel.press_build(2)
+	panel.select_uid(panel.entries[2].uid)
+	panel.press_build()
 	MpHelpers.signal_peer("lance")
 	ok = await until(func(): return not st.local_build().is_empty(), 5.0, "état de construction reçu")
 	at.check(ok and not bool(st.local_build().ready), "client : en construction")
 	if not await MpHelpers.wait_peer(self, "en_cours", 30.0):
 		return
-	at.check(panel.status_text().contains(str(int(st.local_build()["round"]))), "client : manche de fin affichée « %s »" % panel.status_text())
+	await seconds(0.1)
+	at.check(panel.build_label.ends_with(str(int(st.local_build()["round"]))), "client : manche de fin affichée « %s »" % panel.build_label)
 	# Seconde construction : refusée par l'hôte.
 	st.request_build(panel.entries[0])
 	await seconds(0.6)
 	# Dernière arme : l'arme en construction ne compte pas, l'unique arme du
-	# client reste non recyclable (bouton grisé ; demande forcée refusée par
-	# l'hôte, message reçu).
+	# client reste non recyclable (demande forcée refusée par l'hôte, message
+	# reçu).
 	var last_text := BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON)
 	at.check(BuildRules.weapon_count(pd) == 1, "client : une seule arme (%d)" % BuildRules.weapon_count(pd))
-	panel.refresh()
-	var k := panel.recycle_slots.find([0, 0])
-	at.check(k >= 0 and panel.recycle_buttons[k].disabled, "client : dernière arme grisée à la station")
 	game.hud._flash.text = ""
 	game.combat.srv_recycle.rpc_id(1, 0, 0)
 	ok = await until(func(): return game.hud._flash.text == last_text, 5.0, "refus de l'hôte reçu")

@@ -4,10 +4,12 @@ extends AutotestScenario
 ## continue) qui liste l'arsenal du profil avec prix et niveau requis ;
 ## construction refusée sans ferraille et au-dessus du niveau, lancée sinon
 ## (ferraille dépensée aussitôt, une seule à la fois) ; prête à la fin de la
-## bonne manche ; récupération refusée inventaire plein, recyclage depuis
-## l'inventaire, récupération ; recharge des munitions et recyclage à la
-## station ; évacuation : la version améliorée en partie met à jour l'arsenal
-## et l'arme ramassée y entre.
+## bonne manche (carte et fiche de l'arme : EN COURS / PRÊTE) ; récupération
+## refusée inventaire plein, recyclage depuis l'inventaire (plus à la
+## station : aide « ouvre l'inventaire »), récupération par [F] dans
+## l'interface ; recharge des munitions (action « reload ») ; jamais la
+## dernière arme recyclée ; évacuation : la version améliorée en partie met à
+## jour l'arsenal et l'arme ramassée y entre.
 
 var H := AutotestHelpers
 var game: Game
@@ -29,6 +31,14 @@ func _end_round(n: int) -> void:
 	game.rounds.debug_jump_to(n)
 	game.rounds._end_round()
 	await frames(2)
+
+
+## Une invite de la barre contient `t` ?
+static func prompt_has(panel: StationPanel, t: String) -> bool:
+	for d in panel.prompts.describe():
+		if d.contains(t):
+			return true
+	return false
 
 
 func run() -> void:
@@ -67,15 +77,29 @@ func run() -> void:
 	at.check(not tree().paused, "la partie continue")
 	at.check(panel.entries.size() == 4, "armes de base (pistolet, batte) + 2 armes de l'arsenal (%d)" % panel.entries.size())
 	at.check(panel.entries[2].uid == uid, "MP40 de l'arsenal listé")
-	var info: Label = panel.rows[3].get_child(0).get_child(0).get_child(1)
-	at.check(info.text.contains(Lang.t("NIVEAU 9 REQUIS", "LEVEL 9 REQUIRED")) and panel.rows[3].disabled, "M14 niveau 9 : niveau requis, non constructible (%s)" % info.text)
+	await frames(2)
+	at.check(not game.hud._crosshair.visible, "HUD (réticule) masqué sous la station")
+	at.check(panel.filter == StationPanel.BUILDABLE and panel.card_of(panel.entries[3].uid) == null,
+			"CONSTRUCTIBLES : M14 niveau 9 absente")
+	at.check(prompt_has(panel, Lang.t("RECHARGER", "REFILL")) and panel.prompts.help.contains(Settings.action_label("inventory")),
+			"invites : %s · aide « %s »" % [" ".join(panel.prompts.describe()), panel.prompts.help])
+	panel.toggle_filter()
+	var m14_card := panel.card_of(panel.entries[3].uid)
+	at.check(m14_card != null and m14_card.data.locked and String(m14_card.data.price) == Lang.t("NIV. 9 REQUIS", "LVL 9 REQUIRED") \
+			and m14_card.modulate.a < 0.6, "TOUTES : M14 niveau 9 à 50 %, « NIV. 9 REQUIS »")
+	at.check(panel.select_uid(panel.entries[3].uid) and panel.note_label.text == Lang.t("NIV. 9 REQUIS", "LVL 9 REQUIRED") \
+			and not panel.can_build(panel.entries[3]), "fiche de la M14 : %s" % panel.note_label.text)
+	panel.toggle_filter()
 	var price := BuildRules.owned_price(mp40)
-	var price_l: Label = panel.rows[2].get_child(0).get_child(1)
-	at.check(price_l.text.contains(str(price)), "prix du MP40 affiché : %s" % price_l.text)
+	at.check(panel.select_uid(uid), "MP40 choisi")
+	var mp_card := panel.card_of(uid)
+	at.check(mp_card != null and String(mp_card.data.price) == Hub2Style.num(price) and mp_card.data.price_bad,
+			"prix du MP40 affiché, rouge sans ferraille : %s" % mp_card.data.price)
+	at.check(panel.note_label.text == Lang.t("IL MANQUE %s", "%s SHORT") % Hub2Style.num(price), "raison : %s" % panel.note_label.text)
 	await at.screenshot("panel")
 
 	# 2. Sans ferraille : refusé. Au-dessus du niveau : refusé par le serveur.
-	panel.press_build(2)
+	panel.press_build()
 	await frames(5)
 	at.check(st.builds.is_empty() and pd.points == 0, "pas assez de ferraille : rien de lancé")
 	game.session.add_points(1, 5000)
@@ -86,15 +110,21 @@ func run() -> void:
 	# 3. Construction : ferraille dépensée au lancement, une seule à la fois.
 	var r0 := game.rounds.round_n
 	var expect_round := BuildRules.ready_round(r0, game.rounds.phase == RoundManager.Phase.ACTIVE, price)
-	panel.press_build(2)
+	await frames(2)
+	at.check(panel.can_build(mp40) and panel.note_label.text.contains(Hub2Style.num(5000 - price)), "note : %s" % panel.note_label.text)
+	panel.press_build()
 	await until(func(): return st.builds.has(1), 2.0, "construction lancée")
 	at.check(pd.points == 5000 - price, "ferraille dépensée au lancement (%d)" % pd.points)
 	at.check(int(st.builds[1]["round"]) == expect_round and not bool(st.builds[1].ready), "prête à la fin de la manche %d" % expect_round)
 	var built: Dictionary = st.builds[1].w
 	at.check(String(built.uid) == uid and int(built.level) == 3 and int(built.rarity) == OwnedWeapon.Rarity.RARE \
 			and (built.parts as Array).size() == 1, "exemplaire de la version de l'arsenal (uid, niveau, rareté, pièces)")
-	at.check(panel.status_text().contains(str(expect_round)), "état affiché : %s" % panel.status_text())
-	at.check(not panel.can_build(0), "les autres lignes sont grisées")
+	await frames(2)
+	at.check(panel.build_label == Lang.t("EN CONSTRUCTION · MANCHE %d", "BUILDING · ROUND %d") % expect_round,
+			"fiche : %s" % panel.build_label)
+	at.check(String(panel.card_of(uid).data.rounds) == Lang.t("EN COURS", "BUILDING"), "carte : EN COURS")
+	at.check(not panel.can_build(panel.entries[0]) and panel.select_uid(panel.entries[0].uid) \
+			and panel.note_label.text == Lang.t("STATION OCCUPÉE", "STATION BUSY"), "les autres armes : %s" % panel.note_label.text)
 	st.srv_build.rpc_id(1, GameWeapon.from_owned(BaseWeapons.make(WeaponDB.STARTING_WEAPON)))
 	await frames(3)
 	at.check(pd.points == 5000 - price and String(st.builds[1].w.uid) == uid, "une seule construction à la fois")
@@ -118,6 +148,8 @@ func run() -> void:
 	at.check(pd.bag.size() == GameWeapon.BAG and bool(st.builds[1].ready), "inventaire plein : arme gardée à la station")
 	at.check(game.hud._flash.text == InteractionSystem.deny_text(InteractionSystem.BAG_FULL), "message : %s" % game.hud._flash.text)
 	at.check(panel.visible, "l'interface s'ouvre pour s'organiser")
+	at.check(panel.selected_uid == uid and panel.build_label.begins_with(Lang.t("PRÊTE", "READY")) \
+			and String(panel.card_of(uid).data.rounds) == Lang.t("PRÊTE", "READY"), "ouverte sur l'arme prête : %s" % panel.build_label)
 	panel.close()
 
 	# 6. Recyclage depuis l'inventaire (deux appuis), puis récupération.
@@ -133,8 +165,13 @@ func run() -> void:
 	await until(func(): return pd.bag.size() == GameWeapon.BAG - 1, 2.0, "arme recyclée")
 	at.check(pd.points == before + value and value > 0, "recyclage : +%d ferraille (%d)" % [value, pd.points])
 	inv.close()
-	await _use()
-	await until(func(): return not st.builds.has(1), 2.0, "arme récupérée")
+	# [F] dans l'interface ouverte : récupération.
+	panel.open(st)
+	var f := InputEventAction.new()
+	f.action = "interact"
+	f.pressed = true
+	Input.parse_input_event(f)
+	await until(func(): return not st.builds.has(1), 2.0, "arme récupérée ([F] dans l'interface)")
 	var got: Dictionary = pd.bag[pd.bag.size() - 1]
 	at.check(String(got.uid) == uid and int(got.level) == 3, "MP40 de l'arsenal dans l'inventaire")
 	at.check(st.prompt(1).contains(Lang.t("Station", "station")), "station libre")
@@ -149,26 +186,24 @@ func run() -> void:
 	var cost := BuildRules.refill_price(pd.current_weapon())
 	await _use()
 	await until(func(): return panel.visible, 2.0, "interface")
-	at.check(not panel.refill_button.disabled and panel.refill_button.text.contains(str(cost)), "bouton de recharge : %s" % panel.refill_button.text)
-	panel.press_refill()
+	at.check(panel._ammo_price.text == Hub2Style.num(cost) and panel._ammo_line.count == "0 / 0" \
+			and panel._refill_text.text.begins_with(Settings.action_label("reload")),
+			"MUNITIONS : %s %s · %s" % [panel._ammo_line.count, panel._ammo_price.text, panel._refill_text.text])
+	# Touche « reload » réelle (R par défaut).
+	var r := InputEventAction.new()
+	r.action = "reload"
+	r.pressed = true
+	Input.parse_input_event(r)
 	await until(func(): return BuildRules.ammo_full(pd.current_weapon()), 2.0, "munitions rechargées")
 	at.check(pd.points == before - cost, "recharge payée %d" % cost)
 	await until(func(): return int(p.weapons.current().get("mag", 0)) > 0, 2.0, "client : chargeur plein")
 	panel.press_refill()
 	await frames(3)
 	at.check(pd.points == before - cost, "munitions déjà pleines : rien payé")
+	panel.close()
 
-	# 8. Recyclage à la station (arme de base : rien ; deux appuis).
-	var k := panel.recycle_slots.find([0, 0])
-	before = pd.points
-	var hand_n := pd.weapons.size()
-	panel.press_recycle(k)
-	panel.press_recycle(k)
-	await until(func(): return pd.weapons.size() == hand_n - 1, 2.0, "arme en main recyclée")
-	at.check(pd.points == before, "arme de base : ne rapporte rien")
-
-	# 8 bis. Jamais la dernière arme : bouton grisé (station et inventaire),
-	# refus immédiat côté interface et refus du serveur (message).
+	# 8. Jamais la dernière arme : refus du serveur (message) et case grisée
+	# de l'inventaire (le recyclage n'est plus à la station).
 	var keep_hands := pd.weapons.duplicate()
 	var keep_bag := pd.bag.duplicate()
 	pd.weapons = [(pd.weapons if not pd.weapons.is_empty() else pd.bag)[0]]
@@ -176,20 +211,11 @@ func run() -> void:
 	pd.bag = []
 	game.session.sync_inventory(1)
 	await frames(2)
-	panel.refresh()
-	k = panel.recycle_slots.find([0, 0])
 	var last_text := BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON)
-	at.check(panel.recycle_buttons[k].disabled and panel._hint.text.contains(last_text), "station : dernière arme grisée (%s)" % panel.recycle_buttons[k].text)
-	game.hud._flash.text = ""
-	panel.press_recycle(k)
-	panel.press_recycle(k)
-	await frames(3)
-	at.check(pd.weapons.size() == 1 and game.hud._flash.text == last_text, "station : refus immédiat (%s)" % game.hud._flash.text)
 	game.hud._flash.text = ""
 	game.combat.srv_recycle.rpc_id(1, 0, 0)
 	await frames(2)
 	at.check(pd.weapons.size() == 1 and game.hud._flash.text == last_text, "serveur : dernière arme refusée (%s)" % game.hud._flash.text)
-	panel.close()
 	# Mains vides, une seule arme dans l'inventaire.
 	pd.bag = [pd.weapons[0]]
 	pd.weapons = []

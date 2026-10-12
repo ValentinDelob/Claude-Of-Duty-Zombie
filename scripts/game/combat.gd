@@ -726,7 +726,7 @@ func srv_swap(hand: Variant, bag: Variant) -> void:
 
 
 ## Recyclage en partie (GAME_CONCEPT §4.12) d'une arme en main (`row` 0) ou de
-## l'inventaire (`row` 1), depuis le panneau d'inventaire ou la station, à
+## l'inventaire (`row` 1), depuis le panneau d'inventaire (plus à la station), à
 ## tout moment tant que le joueur est debout : l'arme disparaît et rapporte
 ## BuildRules.recycle_value en ferraille (un exemplaire construit depuis
 ## l'arsenal ne quitte jamais l'arsenal du profil). Rechargement annulé si

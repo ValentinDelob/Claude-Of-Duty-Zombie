@@ -261,7 +261,7 @@ func show_center(title: String, sub := "", fade_alpha := 0.0) -> void:
 func _process(delta: float) -> void:
 	_scoreboard_tick()
 	# Après la logique de cette image (qui rallume certains éléments).
-	_hud_under_inventory.call_deferred()
+	_hud_under_menus.call_deferred()
 	# Chaque écriture ci-dessous n'a lieu que si la valeur change (textes,
 	# couleurs du thème, paramètres de shader, dessin du réticule) : même
 	# affichage, sans reformatage ni propagation du thème à chaque image.
@@ -646,20 +646,25 @@ func _build_pause_menu() -> void:
 	add_child(pause_menu)
 
 
-## Éléments du HUD masqués par l'inventaire ouvert (rendus à la fermeture).
+## Éléments du HUD masqués par l'inventaire ou la station ouverts (rendus à
+## la fermeture).
 var _hidden_by_inventory: Array[CanvasItem] = []
 
 
-## Inventaire de partie ouvert : le HUD dessiné sous lui (réticule,
-## munitions, ferraille, arme, invites…) est masqué, comme dans la maquette
-## (InventaireJeu.dc.html : la partie seule derrière le voile) ; la vue
-## « à terre » reste. Vérifié à chaque image : un élément que sa logique
-## rallume pendant ce temps est masqué de nouveau.
-func _hud_under_inventory() -> void:
-	if inventory == null:
-		return
-	if inventory.visible:
-		var stop := inventory.get_index()
+## Inventaire de partie ou station de construction ouverts : le HUD dessiné
+## sous eux (réticule, munitions, ferraille, arme, invites…) est masqué, comme
+## dans les maquettes (InventaireJeu.dc.html, Station.dc.html : la partie
+## seule derrière le voile) ; la vue « à terre » reste. Vérifié à chaque
+## image : un élément que sa logique rallume pendant ce temps est masqué de
+## nouveau.
+func _hud_under_menus() -> void:
+	var top: Control = null
+	if station_panel and station_panel.visible:
+		top = station_panel
+	elif inventory and inventory.visible:
+		top = inventory
+	if top:
+		var stop := top.get_index()
 		for c in get_children():
 			if c.get_index() >= stop:
 				break
@@ -679,7 +684,8 @@ func _scoreboard_tick() -> void:
 	if GameState.state == GameState.State.GAME_OVER:
 		return
 	var show_board := Input.is_action_pressed("scoreboard") and not pause_menu.visible \
-		and not (inventory and inventory.visible) and not _vote_masks("scoreboard")
+		and not (inventory and inventory.visible) and not (station_panel and station_panel.visible) \
+		and not _vote_masks("scoreboard")
 	if show_board and not scoreboard.visible:
 		scoreboard.refresh()
 	scoreboard.visible = show_board
