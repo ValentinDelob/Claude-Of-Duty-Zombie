@@ -67,3 +67,9 @@ Correspondance des adresses `/_blob/<id>` des maquettes :
 
 Scripts de rendu : `tools/blender/hub_renders/` (armes, ennemis, joueur),
 `tools/blender/samples/` (échantillons), `tools/blender/scientist/` (Dr Brown).
+
+## Écrans en partie (validés le 2026-10-12)
+| Fichier | Écran |
+|---|---|
+| `InventaireJeu.dc.html` | Inventaire de partie (touche I) : EN MAIN (3, touches 1-2-3), SAC À DOS (4), PIÈCES TROUVÉES, fiche avec comparaison à l'arme en main (+ vert / − rouge), recyclage (ferraille), « LA PARTIE CONTINUE » ; fond = la partie, assombrie |
+| `Evacuation.dc.html` | Vote d'évacuation : cadre compact à gauche, ÉVACUATION + temps + barre, une ligne par joueur avec son choix en face (CONTINUER jaune, ÉVACUER turquoise, EN ATTENTE gris = pas encore voté, non sélectionnable), deux choix F1 CONTINUER / F2 ÉVACUER (manette : croix gauche / droite), vote depuis n'importe où ; repère « ÉVACUATION · N m » au-dessus de la porte quand on a voté ÉVACUER |

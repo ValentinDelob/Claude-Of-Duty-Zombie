@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Partie · Inventaire</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <!-- La partie continue derrière -->
+  <img src="/_blob/92057f91395d6002cbc09d7b4e5f0160" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(8, 9, 11, 0.55), rgba(8, 9, 11, 0.85))"></div>
+
+  <!-- En-tête -->
+  <header style="position: absolute; left: 40px; right: 40px; top: 28px; display: flex; align-items: center; gap: 24px">
+    <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 30px; font-weight: 700; letter-spacing: 0.1em">INVENTAIRE</h1>
+    <span style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(10, 11, 13, 0.62); border: 1px solid rgba(255, 255, 255, 0.08)">
+      <span style="width: 8px; height: 8px; background: #C9C7BE; transform: rotate(45deg)"></span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700">1 240</span>
+      <span style="font-size: 13px; color: rgba(242, 240, 234, 0.6)">ferraille</span>
+    </span>
+    <span style="flex: 1"></span>
+    <span style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(255, 107, 87, 0.12); border: 1px solid rgba(255, 107, 87, 0.5); font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #FF8A78">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #FF6B57"></span>LA PARTIE CONTINUE · MANCHE 12
+    </span>
+  </header>
+
+  <main style="position: absolute; left: 40px; right: 40px; top: 92px; bottom: 64px; display: flex; gap: 24px">
+    <section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 18px">
+
+      <!-- En main -->
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; align-items: baseline; gap: 12px">
+          <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.16em">EN MAIN</h2>
+          <span style="font-size: 13px; color: rgba(242, 240, 234, 0.55)">Touches 1 · 2 · 3 en partie</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+          <sc-for list="{{hands}}" as="s" hint-placeholder-count="3">
+            <button onClick="{{s.pick}}" style="{{s.style}}">
+              <span style="{{s.rarLine}}"></span>
+              <span style="position: absolute; top: 8px; left: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: rgba(242, 240, 234, 0.45)">{{s.key}}</span>
+              <sc-if value="{{s.full}}" hint-placeholder-val="{{true}}">
+                <img src="{{s.img}}" alt="" style="width: 100%; height: 84px; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.6))">
+                <span style="display: flex; justify-content: space-between; align-items: baseline">
+                  <span style="font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700">{{s.name}}</span>
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.7)">NIV. {{s.lvl}}</span>
+                </span>
+                <span style="{{s.rarStyle}}">{{s.rar}}</span>
+              </sc-if>
+              <sc-if value="{{s.empty}}" hint-placeholder-val="{{false}}">
+                <span style="flex: 1; display: flex; align-items: center; justify-content: center; font-family: 'Chakra Petch', sans-serif; font-size: 13px; letter-spacing: 0.12em; color: rgba(242, 240, 234, 0.4)">LIBRE</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- Sac à dos -->
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; align-items: baseline; gap: 12px">
+          <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.16em">SAC À DOS</h2>
+          <span style="font-size: 13px; color: rgba(242, 240, 234, 0.55)">Armes ramassées · gardées si tu évacues</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+          <sc-for list="{{bag}}" as="s" hint-placeholder-count="4">
+            <button onClick="{{s.pick}}" style="{{s.styleSmall}}">
+              <span style="{{s.rarLine}}"></span>
+              <sc-if value="{{s.isNew}}" hint-placeholder-val="{{false}}">
+                <span style="position: absolute; top: 8px; right: 8px; padding: 1px 6px; background: #F5C542; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.12em">NEUF</span>
+              </sc-if>
+              <sc-if value="{{s.full}}" hint-placeholder-val="{{true}}">
+                <img src="{{s.img}}" alt="" style="width: 100%; height: 58px; object-fit: contain; filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.6))">
+                <span style="font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700">{{s.name}}</span>
+                <span style="display: flex; justify-content: space-between"><span style="{{s.rarStyle}}">{{s.rar}}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(242, 240, 234, 0.7)">NIV. {{s.lvl}}</span></span>
+              </sc-if>
+              <sc-if value="{{s.empty}}" hint-placeholder-val="{{false}}">
+                <span style="flex: 1; display: flex; align-items: center; justify-content: center; font-family: 'Chakra Petch', sans-serif; font-size: 13px; letter-spacing: 0.12em; color: rgba(242, 240, 234, 0.4)">LIBRE</span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- Pièces -->
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; align-items: baseline; gap: 12px">
+          <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.16em">PIÈCES TROUVÉES</h2>
+          <span style="font-size: 13px; color: rgba(242, 240, 234, 0.55)">Choisis une pièce puis une arme pour la monter</span>
+        </div>
+        <div style="display: flex; gap: 12px">
+          <sc-for list="{{parts}}" as="p" hint-placeholder-count="2">
+            <button style="{{p.style}}">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 700">{{p.name}}</span>
+              <span style="font-size: 13px; color: {{p.color}}">{{p.mod}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fiche -->
+    <aside style="width: 360px; flex-shrink: 0; display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.72); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+      <div style="{{sel.headStyle}}">
+        <span style="{{sel.rarStyle}}">{{sel.rar}} · {{sel.cls}}</span>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px">
+          <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 30px; font-weight: 700; line-height: 1">{{sel.name}}</h2>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.7)">NIV. {{sel.lvl}}</span>
+        </div>
+        <sc-if value="{{sel.comparing}}" hint-placeholder-val="{{true}}">
+          <span style="display: block; margin-top: 8px; font-size: 13px; color: rgba(242, 240, 234, 0.65)">Comparé à <span style="color: #F2F0EA; font-weight: 600">{{sel.vs}}</span> (en main)</span>
+        </sc-if>
+      </div>
+      <div style="padding: 14px 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <sc-for list="{{sel.stats}}" as="st" hint-placeholder-count="6">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
+            <span style="width: 30px; height: 30px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" role="img" aria-label="{{st.label}}"><path d="{{st.d}}"></path></svg>
+            </span>
+            <span style="display: flex; flex-direction: column; min-width: 0">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: rgba(242, 240, 234, 0.5)">{{st.label}}</span>
+              <span style="display: flex; align-items: baseline; gap: 6px; white-space: nowrap">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">{{st.value}}</span>
+                <span style="{{st.modStyle}}">{{st.mod}}</span>
+              </span>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">PIÈCES · {{sel.partsLine}}</span>
+        <sc-for list="{{sel.slots}}" as="p" hint-placeholder-count="2">
+          <div style="{{p.style}}"><span style="font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 700; color: {{p.color}}">{{p.name}}</span><span style="font-size: 12px; color: {{p.modColor}}">{{p.mod}}</span></div>
+        </sc-for>
+      </div>
+      <div style="margin-top: auto; padding: 14px 18px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center">
+        <span style="font-size: 13px; color: rgba(242, 240, 234, 0.65)">Recycler cette arme</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: #F2F0EA">+{{sel.scrap}} ferraille</span>
+      </div>
+    </aside>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="{{help}}" items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'b0' };
+  }
+  renderVals() {
+    const RAR = { c: ['COMMUNE', '#C9C7BE'], r: ['RARE', '#4D9BFF'], e: ['ÉPIQUE', '#B56CFF'], l: ['LÉGENDAIRE', '#FF9A1F'] };
+    const SLOTS = { c: 1, r: 2, e: 3, l: 3 };
+    const IMG = { m1911: '/_blob/ed8a57fdd004b309f0c5567595ee180e', python: '/_blob/3d106fb115dca8c8713b595b21d2f34e', spectre: '/_blob/a038df1bbc5fc8e11bb800c3e9e54fcc', stakeout: '/_blob/8b19808681271fea88592c2d0e4b691a', olympia: '/_blob/1872714484066f6416ad7bb97500f690' };
+    const CLS = { pistol: 'PISTOLET', revolver: 'REVOLVER', smg: 'MITRAILLETTE', shotgun: 'FUSIL À POMPE' };
+    // dégâts, cadence, précision, portée, chargeur, recharge
+    const W = {
+      h0: { name: 'PÉTOIRE', m: 'm1911', cls: 'pistol', r: 'c', lvl: 1, st: [110, 400, 70, 25, 8, 1.6], parts: [] },
+      h1: { name: 'COUPERET', m: 'python', cls: 'revolver', r: 'r', lvl: 12, st: [880, 180, 82, 35, 6, 2.8], parts: [['Canon rayé', '+8 % dégâts']] },
+      h2: { name: 'FEU FOLLET', m: 'spectre', cls: 'smg', r: 'e', lvl: 14, st: [210, 780, 61, 22, 32, 2.1], parts: [] },
+      b0: { name: 'BALAI', m: 'stakeout', cls: 'shotgun', r: 'r', lvl: 13, st: [1300, 95, 38, 13, 6, 3.1], parts: [], isNew: true },
+      b1: { name: 'GARDE-CHASSE', m: 'olympia', cls: 'shotgun', r: 'c', lvl: 11, st: [1120, 80, 35, 12, 2, 2.6], parts: [] }
+    };
+    const selId = this.state.sel;
+    const sel = W[selId];
+    const vsId = selId[0] === 'b' ? 'h0' : null;
+    const vs = vsId ? W[vsId] : null;
+    const slot = (id, key) => {
+      const w = W[id], on = id === selId, cmp = id === vsId;
+      const base = 'position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px 14px 12px 17px; text-align: left; cursor: pointer; color: #F2F0EA; font-family: inherit; backdrop-filter: blur(12px); ';
+      const look = 'background: ' + (on ? 'rgba(245, 197, 66, 0.12)' : 'rgba(10, 11, 13, 0.62)') + '; border: 1px ' + (w ? 'solid ' : 'dashed ') + (on ? '#F5C542' : cmp ? 'rgba(242, 240, 234, 0.55)' : 'rgba(255, 255, 255, 0.1)');
+      return {
+        key, full: !!w, empty: !w, isNew: w && w.isNew,
+        name: w ? w.name : '', lvl: w ? w.lvl : '', img: w ? IMG[w.m] : '', rar: w ? RAR[w.r][0] : '',
+        rarStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: ' + (w ? RAR[w.r][1] : '#fff'),
+        rarLine: 'position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + (w ? RAR[w.r][1] : 'transparent'),
+        style: base + 'height: 168px; box-sizing: border-box; ' + look,
+        styleSmall: base + 'height: 134px; box-sizing: border-box; ' + look,
+        pick: () => w && this.setState({ sel: id })
+      };
+    };
+    const hands = [slot('h0', '1'), slot('h1', '2'), slot('h2', '3')];
+    const bag = [slot('b0'), slot('b1'), slot('b2'), slot('b3')];
+    const ICONS = ['M12 2l2.4 6.9L21 9l-5.2 4.3L17.6 21 12 17l-5.6 4 1.8-7.7L3 9l6.6-.1z', 'M13 2L4 14h7l-1 8 9-12h-7z', 'M12 2v5M12 17v5M2 12h5M17 12h5M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6', 'M2 12h19M15 6l6 6-6 6M2 7v10', 'M5 21V9l2-5 2 5v12zM10 21V9l2-5 2 5v12zM15 21V9l2-5 2 5v12z', 'M20 12a8 8 0 1 1-2.3-5.7M20 3v5h-5'];
+    const LABELS = ['DÉGÂTS', 'CADENCE', 'PRÉCISION', 'PORTÉE', 'CHARGEUR', 'RECHARGE'];
+    const UNITS = ['', '/min', ' %', ' m', '', ' s'];
+    const num = (n, i) => i === 5 ? n.toFixed(1).replace('.', ',') : Math.round(n).toLocaleString('fr-FR');
+    const stats = LABELS.map((label, i) => {
+      const v = sel.st[i];
+      const d = vs ? v - vs.st[i] : 0;
+      const good = i === 5 ? d < 0 : d > 0;
+      return {
+        label, d: ICONS[i], value: num(v, i) + UNITS[i],
+        mod: !vs || Math.abs(d) < 0.05 ? '' : (d > 0 ? '+ ' : '− ') + num(Math.abs(d), i),
+        modStyle: 'font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 700; color: ' + (good ? '#4FE3C1' : '#FF6B57')
+      };
+    });
+    const n = SLOTS[sel.r];
+    const slots = Array.from({ length: n }, (_, i) => sel.parts[i]
+      ? { name: sel.parts[i][0], mod: sel.parts[i][1], color: '#F2F0EA', modColor: '#4FE3C1', style: 'display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.05)' }
+      : { name: 'Emplacement libre', mod: '', color: 'rgba(242, 240, 234, 0.5)', modColor: '', style: 'display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border: 1px dashed rgba(255, 255, 255, 0.18)' });
+    const parts = [['Ressort vif', '+6 % cadence', true], ['Crosse lestée', '−4 % maniement', false]].map(([name, mod, good]) => ({
+      name, mod, color: good ? '#4FE3C1' : '#FF6B57',
+      style: 'display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px; min-width: 190px; cursor: pointer; font-family: inherit; color: #F2F0EA; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1)'
+    }));
+    const inBag = selId[0] === 'b';
+    return {
+      hands, bag, parts,
+      sel: {
+        name: sel.name, lvl: sel.lvl, rar: RAR[sel.r][0], cls: CLS[sel.cls], comparing: !!vs, vs: vs ? vs.name : '',
+        rarStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: ' + RAR[sel.r][1],
+        headStyle: 'padding: 18px 18px 14px; border-top: 3px solid ' + RAR[sel.r][1],
+        stats, slots, partsLine: sel.parts.length + ' / ' + n, scrap: 20 + sel.lvl * 5
+      },
+      help: inBag ? 'Choisis une arme en main pour l’échanger avec ' + sel.name + '.' : 'Choisis une arme du sac pour l’échanger.',
+      prompts: [{ k: 'A', l: inBag ? 'ÉQUIPER' : 'ÉCHANGER' }, { k: 'X', l: 'RECYCLER' }, { k: 'Y', l: 'PIÈCES' }, { k: 'I', l: 'FERMER' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

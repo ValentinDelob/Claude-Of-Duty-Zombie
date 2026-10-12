@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Partie · Vote d'évacuation</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+@keyframes evBob { 0%, 100% { transform: translate(-50%, 0) } 50% { transform: translate(-50%, -5px) } }
+.ev-bob { animation: evBob 1.4s ease-in-out infinite }
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/92057f91395d6002cbc09d7b4e5f0160" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+
+  <!-- Repère de la porte (quand mon choix est ÉVACUER) -->
+  <sc-if value="{{showDoor}}" hint-placeholder-val="{{false}}">
+    <div class="ev-bob" style="position: absolute; left: 718px; top: 262px; display: flex; flex-direction: column; align-items: center; gap: 4px">
+      <span style="padding: 4px 10px; background: rgba(6, 22, 19, 0.85); border: 1px solid #4FE3C1; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; color: #4FE3C1">ÉVACUATION · 18 m</span>
+      <svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><path d="M1 1h16L9 11z" fill="#4FE3C1"></path></svg>
+    </div>
+  </sc-if>
+
+  <!-- Viseur et HUD minimal -->
+  <div aria-hidden="true" style="position: absolute; left: 636px; top: 356px; width: 8px; height: 8px; border: 2px solid rgba(242, 240, 234, 0.8)"></div>
+  <div style="position: absolute; right: 28px; bottom: 24px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700">6 <span style="font-size: 16px; color: rgba(242, 240, 234, 0.6)">/ 42</span></span>
+    <span style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: #4D9BFF">COUPERET</span>
+  </div>
+
+  <!-- Cadre de vote, à gauche -->
+  <section aria-label="Vote d’évacuation" style="position: absolute; left: 24px; top: 150px; width: 300px; display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.72); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-left: 3px solid #4FE3C1">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 12px 14px 8px">
+      <span style="font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.14em">ÉVACUATION</span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700">1:42</span>
+    </div>
+    <div style="height: 2px; margin: 0 14px 6px; background: rgba(255, 255, 255, 0.1)"><div style="width: 85%; height: 100%; background: #4FE3C1"></div></div>
+
+    <ul style="margin: 0; padding: 4px 0; list-style: none">
+      <sc-for list="{{players}}" as="p" hint-placeholder-count="3">
+        <li style="{{p.row}}">
+          <span style="width: 8px; height: 8px; flex-shrink: 0; background: {{p.color}}"></span>
+          <span style="flex: 1; min-width: 0; font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 600">{{p.name}}</span>
+          <span style="{{p.voteStyle}}">{{p.vote}}</span>
+        </li>
+      </sc-for>
+    </ul>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px 14px 12px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+      <sc-for list="{{choices}}" as="c" hint-placeholder-count="2">
+        <button onClick="{{c.pick}}" style="{{c.style}}">
+          <kbd style="min-width: 26px; height: 20px; box-sizing: border-box; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; background: rgba(242, 240, 234, 0.92); color: #0B0B0C; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700">{{c.key}}</kbd>
+          <span style="{{c.labelStyle}}">{{c.label}}</span>
+        </button>
+      </sc-for>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mine: 'wait' };
+  }
+  renderVals() {
+    const mine = this.state.mine;
+    const V = { stay: ['CONTINUER', '#F5C542'], leave: ['ÉVACUER', '#4FE3C1'], wait: ['EN ATTENTE', 'rgba(242, 240, 234, 0.5)'] };
+    const team = [['Valentin', '#E8C547', mine, true], ['Mehdi', '#4D9BFF', 'leave', false], ['Sarah_K', '#FF6B8A', 'stay', false]];
+    const players = team.map(([name, color, v, me]) => ({
+      name: me ? name + ' (toi)' : name, color, vote: V[v][0],
+      voteStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: ' + V[v][1],
+      row: 'display: flex; align-items: center; gap: 10px; padding: 7px 14px; background: ' + (me ? 'rgba(255, 255, 255, 0.05)' : 'transparent')
+    }));
+    const choices = [['F1', 'stay'], ['F2', 'leave']].map(([key, v]) => ({
+      key, label: V[v][0],
+      pick: () => this.setState({ mine: v }),
+      labelStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: ' + (mine === v ? V[v][1] : 'rgba(242, 240, 234, 0.75)'),
+      style: 'display: flex; align-items: center; gap: 10px; padding: 4px 6px; cursor: pointer; font-family: inherit; background: ' + (mine === v ? 'rgba(255, 255, 255, 0.07)' : 'transparent') + '; border: none; border-left: 2px solid ' + (mine === v ? V[v][1].replace('0.5', '0.9') : 'transparent')
+    }));
+    return { players, choices, showDoor: mine === 'leave' };
+  }
+}
+</script>
+</body>
+</html>
