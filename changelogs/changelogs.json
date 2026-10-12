@@ -3018,6 +3018,33 @@
     "en": "A brand-new construction station",
     "fr": "Une toute nouvelle station de construction"
    }
+  },
+  "v0.2.1-snapshot.739": {
+   "channel": "snapshot",
+   "date": "2026-10-12",
+   "images": [],
+   "items": [
+    {
+     "en": "Five weapons rebuilt from real firearms, cube by cube, with new names and new stats: the starting pistol becomes the M1912 (formerly PÉTOIRE), the BRISE-OS becomes the KA-74U, the CIGALE becomes the FAMAX F1 and the CRÉCELLE becomes the MR-40.",
+     "fr": "Cinq armes refaites d'après de vraies armes, cube par cube, avec de nouveaux noms et de nouvelles stats : le pistolet de départ devient le M1912 (ex-PÉTOIRE), le BRISE-OS devient la KA-74U, la CIGALE devient le FAMAX F1 et la CRÉCELLE devient la MR-40."
+    },
+    {
+     "en": "New assault rifle: the KA-47, available from level 23.",
+     "fr": "Nouveau fusil d'assaut : la KA-47, disponible à partir du niveau 23."
+    },
+    {
+     "en": "New on-screen hands, finer, in dark gloves; pistols are now held with both hands, and at the hip every weapon finally aims right at the crosshair.",
+     "fr": "De nouvelles mains à l'écran, plus fines, avec des gants sombres ; le pistolet se tient désormais à deux mains, et à la hanche chaque arme vise enfin pile le réticule."
+    },
+    {
+     "en": "A collapsible DETAILS sheet (D key or right stick click) in the hub ARSENAL, the match inventory and the construction station: every stat of the weapon and the real firearm it is based on.",
+     "fr": "Une fiche DÉTAILS dépliable (touche D ou clic du stick droit) dans l'ARSENAL du hub, l'inventaire de partie et la station de construction : toutes les stats de l'arme et l'arme réelle dont elle s'inspire."
+    }
+   ],
+   "title": {
+    "en": "Five weapons rebuilt from scratch and a DETAILS sheet",
+    "fr": "Cinq armes refaites de A à Z et une fiche DÉTAILS"
+   }
   }
  }
 }
