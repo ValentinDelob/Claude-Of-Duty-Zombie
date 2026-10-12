@@ -635,7 +635,8 @@ func _build_pause_menu() -> void:
 func _scoreboard_tick() -> void:
 	if GameState.state == GameState.State.GAME_OVER:
 		return
-	var show_board := Input.is_action_pressed("scoreboard") and not pause_menu.visible
+	var show_board := Input.is_action_pressed("scoreboard") and not pause_menu.visible \
+		and not (inventory and inventory.visible)
 	if show_board and not scoreboard.visible:
 		scoreboard.refresh()
 	scoreboard.visible = show_board

@@ -68,7 +68,7 @@ func run() -> void:
 	# 2. [I] ouvre ; l'arme choisie deux fois s'équipe et devient l'arme tenue.
 	await key(KEY_I)
 	at.check(inv.visible, "[I] : inventaire ouvert")
-	at.check(inv._hint.text.contains("I : fermer"), "invite du panneau : %s" % inv._hint.text)
+	at.check(" ".join(inv.prompts.describe()).contains("I FERMER"), "invites du panneau : %s" % [inv.prompts.describe()])
 	inv.press(InventoryPanel.ROW_BAG, 0)
 	inv.press(InventoryPanel.ROW_BAG, 0)
 	await until(func(): return pd.weapons.size() == hands0 + 1 and pd.slot == hands0, 2.0, "arme équipée et tenue")
@@ -87,6 +87,24 @@ func run() -> void:
 	at.check(not inv.visible, "croix haut (focus sur l'inventaire) : fermé")
 	await pad(JOY_BUTTON_DPAD_UP)
 	at.check(inv.visible, "croix haut : rouvert")
+	# X : recyclage de l'arme montrée, premier appui = confirmation demandée.
+	var hands_n := pd.weapons.size()
+	await pad(JOY_BUTTON_X)
+	at.check(inv._recycle_armed and inv.recycle_label.text == Lang.t("Confirmer le recyclage", "Confirm recycling"),
+			"X : confirmation du recyclage (%s)" % inv.recycle_label.text)
+	at.check(pd.weapons.size() == hands_n, "X une fois : rien de recyclé")
+	# Tab (PIÈCES au clavier) tenu : pas de tableau des scores par-dessus.
+	var tab := InputEventKey.new()
+	tab.physical_keycode = KEY_TAB
+	tab.keycode = KEY_TAB
+	tab.pressed = true
+	Input.parse_input_event(tab)
+	await frames(3)
+	at.check(not game.hud.scoreboard.visible, "Tab tenu : pas de tableau des scores sous l'inventaire")
+	var tab_up := tab.duplicate() as InputEventKey
+	tab_up.pressed = false
+	Input.parse_input_event(tab_up)
+	await frames(2)
 	await pad(JOY_BUTTON_B)
 	at.check(not inv.visible, "B : fermé")
 
@@ -105,7 +123,7 @@ func run() -> void:
 	at.check(not inv.visible, "touche réaffectée : I n'ouvre plus")
 	await key(KEY_K)
 	at.check(inv.visible, "touche réaffectée : K ouvre")
-	at.check(inv._hint.text.contains("K : fermer"), "invite à jour : %s" % inv._hint.text)
+	at.check(" ".join(inv.prompts.describe()).contains("K FERMER"), "invite à jour : %s" % [inv.prompts.describe()])
 	at.check(LootSystem.msg_text(LootSystem.MSG_PICKED, "MP40").contains("K"), "message de ramassage à jour")
 	await key(KEY_K)
 	at.check(not inv.visible, "K : fermé")

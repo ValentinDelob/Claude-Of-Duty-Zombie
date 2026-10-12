@@ -198,7 +198,7 @@ func run() -> void:
 	var inv2 := game.hud.inventory
 	inv2.open()
 	inv2.press(1, 0)
-	at.check(inv2.recycle_button.disabled and inv2.recycle_button.text == last_text.to_upper(), "inventaire : %s" % inv2.recycle_button.text)
+	at.check(inv2.recycle_label.text == last_text and inv2.recycle_value_label.text == "", "inventaire : %s" % inv2.recycle_label.text)
 	inv2.recycle_selected()
 	inv2.recycle_selected()
 	await frames(3)
