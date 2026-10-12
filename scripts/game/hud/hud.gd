@@ -45,6 +45,9 @@ var _round: RoundCounter
 var _downed: DownedOverlay
 var scoreboard: Scoreboard
 var pause_menu: PauseMenu
+## Fenêtre d'évacuation : cadre de vote (à gauche) et repère de la porte.
+var evac_panel: EvacVotePanel
+var evac_marker: EvacDoorMarker
 ## Dernières valeurs écrites (_process n'écrit que ce qui change).
 ## AMMO_UNSET : rien d'écrit encore ; AMMO_HIDDEN : compteur masqué.
 const AMMO_UNSET := -2
@@ -180,6 +183,15 @@ func _ready() -> void:
 	# Vision floue « à terre » : sous tout le HUD (qui reste net).
 	add_child(_downed.blur)
 	move_child(_downed.blur, 0)
+
+	# Vote d'évacuation (maquette Evacuation.dc.html) : repère au-dessus de la
+	# porte, cadre de vote à gauche ; chacun suit Game.evac à chaque image.
+	evac_marker = EvacDoorMarker.new()
+	evac_marker.setup(game)
+	add_child(evac_marker)
+	evac_panel = EvacVotePanel.new()
+	evac_panel.setup(game)
+	add_child(evac_panel)
 
 	scoreboard = Scoreboard.new()
 	scoreboard.setup(game)
@@ -591,7 +603,7 @@ static func weapon_info_text(w: Dictionary) -> String:
 func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("inventory") or not GameState.is_in_game():
 		return
-	if pause_menu == null or pause_menu.visible:
+	if pause_menu == null or pause_menu.visible or _vote_masks("inventory", event):
 		return
 	# Station de construction ouverte : [I] la ferme.
 	if station_panel and station_panel.visible:
@@ -635,7 +647,8 @@ func _build_pause_menu() -> void:
 func _scoreboard_tick() -> void:
 	if GameState.state == GameState.State.GAME_OVER:
 		return
-	var show_board := Input.is_action_pressed("scoreboard") and not pause_menu.visible
+	var show_board := Input.is_action_pressed("scoreboard") and not pause_menu.visible \
+			and not _vote_masks("scoreboard")
 	if show_board and not scoreboard.visible:
 		scoreboard.refresh()
 	scoreboard.visible = show_board
@@ -647,7 +660,6 @@ func _scoreboard_tick() -> void:
 ## détaillés au retour au hub, dans le récapitulatif (Hub2RecapPanel,
 ## Recap.dc.html).
 func show_match_end(r: MatchResult) -> void:
-	set_evac_status("")
 	if inventory:
 		inventory.close()
 	if station_panel:
@@ -658,29 +670,17 @@ func show_match_end(r: MatchResult) -> void:
 		Audio.play_2d("heartbeat", 0.0, 0.0)
 
 
-var _evac_label: Label
-
-
-## Fenêtre d'évacuation (EvacDoor) : compte à rebours et votes ("" : masqué).
-func set_evac_status(text: String) -> void:
-	if _evac_label == null:
-		if text == "":
-			return
-		_evac_label = UiStyle.label("", 22, Color(0.55, 1.0, 0.6))
-		_evac_label.anchor_left = 0.5
-		_evac_label.anchor_right = 0.5
-		_evac_label.offset_left = -500
-		_evac_label.offset_right = 500
-		_evac_label.offset_top = 110
-		_evac_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		add_child(_evac_label)
-	_evac_label.text = text
-	_evac_label.visible = text != ""
-
-
-## Texte du bandeau d'évacuation affiché ("" : aucun ; tests).
-func evac_status() -> String:
-	return _evac_label.text if _evac_label and _evac_label.visible else ""
+## Fenêtre d'évacuation : une commande d'un vote (Settings.VOTE_ACTIONS) ne
+## sert qu'au vote, jamais à une action du HUD qui la partage (inventaire,
+## tableau des scores) ; `held` : vote enfoncé (action maintenue), sinon
+## appuyé par `event`.
+func _vote_masks(action: String, event: InputEvent = null) -> bool:
+	if game == null or game.evac == null or not game.evac.local_can_vote():
+		return false
+	var active := {}
+	for v in Settings.VOTE_ACTIONS:
+		active[v] = event.is_action_pressed(v) if event else Input.is_action_pressed(v)
+	return PlayerInput.masked_by_vote(action, Settings.vote_shared, true, active)
 
 
 ## Fin de partie : tableau récapitulatif.

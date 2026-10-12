@@ -9,10 +9,57 @@ const LEAVE := EvacRules.Vote.LEAVE
 const READY := EvacRules.Vote.READY
 
 
-func test_vote_alterne() -> void:
-	assert_eq(EvacRules.next_vote(EvacRules.Vote.NONE), LEAVE, "premier appui : partir")
-	assert_eq(EvacRules.next_vote(LEAVE), READY)
-	assert_eq(EvacRules.next_vote(READY), LEAVE)
+func test_choix_de_vote() -> void:
+	assert_true(EvacRules.is_choice(READY), "CONTINUER")
+	assert_true(EvacRules.is_choice(LEAVE), "ÉVACUER")
+	assert_false(EvacRules.is_choice(EvacRules.Vote.NONE), "EN ATTENTE ne se choisit pas")
+	for bad in [7, -1, "1", 1.0, null, [2]]:
+		assert_false(EvacRules.is_choice(bad), "valeur réseau refusée : %s" % str(bad))
+	assert_eq(EvacRules.vote_text(READY), Lang.t("CONTINUER", "CONTINUE"))
+	assert_eq(EvacRules.vote_text(LEAVE), Lang.t("ÉVACUER", "EVACUATE"))
+	assert_eq(EvacRules.vote_text(EvacRules.Vote.NONE), Lang.t("EN ATTENTE", "WAITING"))
+
+
+func test_appuis_de_vote() -> void:
+	assert_eq(PlayerInput.pick_vote(true, false), READY, "F1 / croix gauche : CONTINUER")
+	assert_eq(PlayerInput.pick_vote(false, true), LEAVE, "F2 / croix droite : ÉVACUER")
+	assert_eq(PlayerInput.pick_vote(false, false), EvacRules.Vote.NONE, "aucun appui")
+	assert_eq(PlayerInput.pick_vote(true, true), EvacRules.Vote.NONE, "les deux à la fois : ambigu, ignoré")
+
+
+func test_lignes_du_cadre() -> void:
+	# Joueur local (2) d'abord, puis l'ordre de l'équipe ; le mort (4) n'a pas
+	# de ligne ; un vote illisible compte comme « en attente ».
+	var rows := EvacRules.vote_rows({1: LEAVE, 3: READY, 5: 9}, {1: A, 2: D, 3: A, 4: X, 5: A}, 2, [1, 2, 3, 4])
+	assert_eq(rows.map(func(r): return r.pid), [2, 1, 3, 5])
+	assert_eq(rows.map(func(r): return r.vote), [EvacRules.Vote.NONE, LEAVE, READY, EvacRules.Vote.NONE])
+	assert_eq(rows.map(func(r): return r.me), [true, false, false, false])
+	assert_eq(EvacRules.vote_rows({}, {1: X}, 1, [1]), [], "local mort : spectateur, aucune ligne")
+	assert_eq(EvacRules.vote_rows({}, {1: A}, 9, []).size(), 1, "joueur local inconnu : les votants seuls")
+	assert_eq(EvacVotePanel.row_name("Valentin", true), "Valentin" + Lang.t(" (toi)", " (you)"))
+	assert_eq(EvacVotePanel.row_name("Mehdi", false), "Mehdi")
+	assert_eq(EvacVotePanel.vote_color(READY), Color("F5C542"), "CONTINUER jaune")
+	assert_eq(EvacVotePanel.vote_color(LEAVE), Color("4FE3C1"), "ÉVACUER turquoise")
+	assert_eq(EvacVotePanel.vote_color(EvacRules.Vote.NONE).a, 0.5, "EN ATTENTE gris")
+
+
+func test_repere_de_la_porte() -> void:
+	var view := Vector2(1280, 720)
+	var half := Vector2(100, 50)
+	var on := EvacDoorMarker.place(Vector2(718, 300), false, view, half)
+	assert_true(on.on_screen and on.pos == Vector2(718, 300), "à l'écran : sur la porte")
+	var right := EvacDoorMarker.place(Vector2(3000, 360), false, view, half)
+	assert_false(right.on_screen)
+	assert_eq(right.pos, Vector2(1180, 360), "à droite hors de l'écran : collé au bord droit")
+	assert_true(right.dir.is_equal_approx(Vector2.RIGHT), "flèche vers la droite")
+	var back := EvacDoorMarker.place(Vector2(400, 360), true, view, half)
+	assert_false(back.on_screen, "derrière la caméra : jamais à l'écran")
+	assert_eq(back.pos, Vector2(1180, 360), "derrière, à gauche du point projeté : bord opposé")
+	var center_back := EvacDoorMarker.place(Vector2(640, 360), true, view, half)
+	assert_eq(center_back.pos, Vector2(640, 670), "droit derrière : en bas de l'écran")
+	assert_eq(EvacDoorMarker.bob(0.0), 0.0)
+	assert_near(EvacDoorMarker.bob(EvacDoorMarker.BOB_PERIOD * 0.5), -EvacDoorMarker.BOB_PX, 0.001, "mi-course : 5 px plus haut")
+	assert_near(EvacDoorMarker.bob(EvacDoorMarker.BOB_PERIOD), 0.0, 0.001)
 
 
 func test_tous_prets_reprise() -> void:
@@ -45,7 +92,8 @@ func test_joueur_parti_pendant_la_fenetre() -> void:
 	var life := {1: A, 3: A}
 	assert_eq(EvacRules.prune_votes(votes, life), {1: LEAVE, 3: LEAVE}, "vote de l'absent oublié")
 	assert_eq(EvacRules.decide(votes, life, {1: true, 3: true}, 60.0), EvacRules.EVACUATE, "on n'attend jamais un absent")
-	assert_eq(EvacRules.tally(votes, life, {1: true, 3: true}), {"voters": 2, "leave": 2, "ready": 0, "in_zone": 2})
+	assert_eq(EvacRules.vote_rows(EvacRules.prune_votes(votes, life), life, 1, [1, 2, 3]).map(func(r): return r.pid), [1, 3],
+			"cadre : plus de ligne pour l'absent")
 	# Hôte seul restant.
 	assert_eq(EvacRules.decide({1: LEAVE, 2: LEAVE}, {1: A}, {1: true}, 60.0), EvacRules.EVACUATE, "hôte seul : il part")
 	assert_eq(EvacRules.decide({2: READY}, {1: A}, {1: true}, 60.0), EvacRules.NONE, "seul le vote de l'absent : on attend l'hôte")
@@ -65,11 +113,8 @@ func test_a_terre_mort_reanime() -> void:
 func test_votes_qui_changent_et_sortie_de_zone() -> void:
 	var life := {1: A, 2: A}
 	assert_eq(EvacRules.decide({1: LEAVE, 2: LEAVE}, life, {1: true, 2: false}, 60.0), EvacRules.NONE, "sorti de la zone après avoir voté : on attend")
-	assert_eq(EvacRules.decide({1: READY, 2: LEAVE}, life, {1: true, 2: true}, 60.0), EvacRules.NONE, "vote changé en « prêt » : ni départ ni reprise")
-	var v := EvacRules.Vote.NONE
-	for i in 5:
-		v = EvacRules.next_vote(v)
-	assert_eq(v, LEAVE, "appuis répétés : alternance stable (5 appuis : partir)")
+	assert_eq(EvacRules.decide({1: READY, 2: LEAVE}, life, {1: true, 2: true}, 60.0), EvacRules.NONE, "vote changé en CONTINUER : ni départ ni reprise")
+	assert_eq(EvacRules.decide({1: READY, 2: READY}, life, {1: true, 2: true}, 60.0), EvacRules.RESUME, "l'autre aussi passe à CONTINUER : reprise")
 
 
 func test_fin_du_temps_au_moment_du_vote() -> void:
@@ -89,13 +134,10 @@ func test_zone_de_la_porte() -> void:
 
 
 func test_affichage() -> void:
-	var t := EvacRules.tally({1: LEAVE, 2: READY}, {1: A, 2: A, 3: X}, {1: true, 2: true})
-	assert_eq(t, {"voters": 2, "leave": 1, "ready": 1, "in_zone": 2})
 	assert_eq(EvacRules.clock_text(119.2), "2:00")
+	assert_eq(EvacRules.clock_text(102.0), "1:42", "temps de la maquette")
 	assert_eq(EvacRules.clock_text(61.0), "1:01")
 	assert_eq(EvacRules.clock_text(-3.0), "0:00")
-	var s := EvacRules.status_text(90.0, t, LEAVE)
-	assert_true(s.contains("1:30") and s.contains("1/2"), s)
 
 
 func test_resultat_de_partie() -> void:

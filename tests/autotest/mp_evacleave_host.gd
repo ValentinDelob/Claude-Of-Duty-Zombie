@@ -1,7 +1,7 @@
 extends AutotestScenario
 ## [MP] Hôte : client parti pendant la fenêtre d'évacuation (GAME_CONCEPT.md
-## §4.5). Le client vote « partir » puis sort de la zone ; l'hôte vote
-## « partir » dans la zone : il attend le client. Le client quitte la partie :
+## §4.5). Le client vote ÉVACUER puis sort de la zone ; l'hôte vote
+## ÉVACUER dans la zone : il attend le client. Le client quitte la partie :
 ## son vote est oublié et l'hôte, seul restant, s'évacue aussitôt (personne
 ## n'attend un absent).
 
@@ -42,16 +42,13 @@ func run() -> void:
 	MpHelpers.signal_peer("ouverte")
 	if not await MpHelpers.wait_peer(self, "sorti", 30.0):
 		return
-	var ok: bool = await until(func(): return int(door.votes.get(cid, 0)) == EvacRules.Vote.LEAVE and not door.in_zone(client.srv_origin()), 5.0, "client : « partir » puis hors de la zone")
-	at.check(ok, "hôte : le client a voté « partir » puis est sorti de la zone")
+	var ok: bool = await until(func(): return int(door.votes.get(cid, 0)) == EvacRules.Vote.LEAVE and not door.in_zone(client.srv_origin()), 5.0, "client : ÉVACUER puis hors de la zone")
+	at.check(ok, "hôte : le client a voté ÉVACUER puis est sorti de la zone")
 	var p := game.local_player
 	p.bot_controlled = true
 	p.teleport_to(door.global_position + door.global_basis.z * 1.6 + Vector3.UP * 0.05)
 	await frames(3)
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 2.0, "hôte : porte visée")
-	p.input.interact_pressed = true
-	await until(func(): return int(door.votes.get(1, 0)) == EvacRules.Vote.LEAVE, 2.0, "vote de l'hôte")
+	await H.evac_vote(self, p, EvacRules.Vote.LEAVE)
 	await seconds(1.0)
 	at.check(door.is_open and GameState.state != GameState.State.GAME_OVER, "hôte : client hors de la zone, on l'attend")
 	MpHelpers.signal_peer("attente")

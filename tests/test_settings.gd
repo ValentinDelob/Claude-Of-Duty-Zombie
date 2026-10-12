@@ -148,11 +148,17 @@ func test_default_pad_layout() -> void:
 	}
 	for a in expect:
 		assert_eq(p[a], [expect[a]], "%s : un bouton, deuxième case vide" % a)
+	# Un bouton unique par action, sauf les votes d'évacuation : croix gauche /
+	# droite partagées d'origine avec les armes 1 et 3 (Settings.VOTE_ACTIONS).
 	var seen := {}
 	for a in Settings.REBINDABLE:
 		assert_eq(p[a].size(), 1)
+		if a in Settings.VOTE_ACTIONS:
+			continue
 		assert_false(seen.has(p[a][0]), "%s : bouton unique" % a)
 		seen[p[a][0]] = true
+	assert_eq(p.vote_continue, p.weapon_1, "VOTE CONTINUER : croix gauche (ARME 1)")
+	assert_eq(p.vote_evacuate, p.weapon_3, "VOTE ÉVACUER : croix droite (ARME 3)")
 	assert_true(_has_pad_button("jump", JOY_BUTTON_A), "A / Croix saute")
 	assert_true(_has_pad_axis("fire", JOY_AXIS_TRIGGER_RIGHT, 1.0), "RT / R2 tire")
 	assert_true(_has_pad_axis("move_forward", JOY_AXIS_LEFT_Y, -1.0), "stick gauche vers le haut : avancer")
@@ -602,10 +608,15 @@ func test_reset_bindings() -> void:
 	assert_eq(Settings.shared_with("jump", "joy:%d" % JOY_BUTTON_X), ["interact"])
 	Settings.reset_bindings()
 	assert_eq(Settings.shared_with("jump", _k(KEY_SPACE)), [], "par défaut : aucun partage")
+	# Seul partage d'origine : croix gauche / droite, armes 1 / 3 et votes
+	# d'évacuation (la croix ne sert qu'au vote pendant la fenêtre).
+	var by_design := {"weapon_1": ["vote_continue"], "vote_continue": ["weapon_1"],
+		"weapon_3": ["vote_evacuate"], "vote_evacuate": ["weapon_3"]}
 	for a in Settings.REBINDABLE:
 		for pad in [false, true]:
 			for c in Settings.bindings_of(a, pad):
-				assert_eq(Settings.shared_with(a, c), [], "par défaut : %s seule sur %s" % [c, a])
+				var want: Array = by_design.get(a, []) if pad else []
+				assert_eq(Settings.shared_with(a, c), want, "par défaut : %s sur %s" % [c, a])
 	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.bindings, Settings.default_bindings())
 	@warning_ignore("static_called_on_instance")

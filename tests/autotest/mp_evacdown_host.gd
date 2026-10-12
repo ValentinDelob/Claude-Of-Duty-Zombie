@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## [MP] Hôte : joueur à terre puis mort pendant la fenêtre d'évacuation
-## (GAME_CONCEPT.md §4.5, §4.6). Le client vote « partir » dans la zone,
+## (GAME_CONCEPT.md §4.5, §4.6). Le client vote ÉVACUER dans la zone,
 ## l'hôte aussi ; le client tombe à terre : l'équipe l'attend ; il succombe
 ## (spectateur) : l'équipe part avec lui. Fin de partie « évacuation réussie »
 ## chez les deux, et le client rapporte l'arme trouvée qu'il avait en main
@@ -45,18 +45,16 @@ func run() -> void:
 	if not await until(func(): return door.is_open, 3.0, "porte ouverte"):
 		return
 	MpHelpers.signal_peer("ouverte")
-	var ok: bool = await until(func(): return int(door.votes.get(cid, 0)) == EvacRules.Vote.LEAVE, 20.0, "vote « partir » du client")
-	at.check(ok, "hôte : vote « partir » du client reçu")
-	# L'hôte entre dans la zone et vote « partir » ; le client tombe d'abord.
+	var ok: bool = await until(func(): return int(door.votes.get(cid, 0)) == EvacRules.Vote.LEAVE, 20.0, "vote ÉVACUER du client")
+	at.check(ok, "hôte : vote ÉVACUER du client reçu")
+	# L'hôte entre dans la zone et vote ÉVACUER ; le client tombe d'abord.
 	game.downed.srv_down(cid)
 	at.check(cpd.life == PlayerData.Life.DOWNED, "hôte : client à terre")
 	var p := game.local_player
 	p.bot_controlled = true
 	p.teleport_to(door.global_position + door.global_basis.z * 1.6 + door.global_basis.x * 1.0 + Vector3.UP * 0.05)
 	await frames(3)
-	H.aim_at(p, door.interact_point())
-	await until(func(): return game.interact.focused == door, 2.0, "hôte : porte visée")
-	p.input.interact_pressed = true
+	await H.evac_vote(self, p, EvacRules.Vote.LEAVE)
 	await until(func(): return int(door.votes.get(1, 0)) == EvacRules.Vote.LEAVE, 2.0, "vote de l'hôte")
 	await seconds(1.0)
 	at.check(door.is_open and GameState.state != GameState.State.GAME_OVER, "hôte : client à terre dans la zone, l'équipe l'attend")
