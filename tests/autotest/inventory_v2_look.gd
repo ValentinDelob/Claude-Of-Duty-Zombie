@@ -50,6 +50,8 @@ func run() -> void:
 		var d := " ".join(inv.prompts.describe())
 		at.check(d.contains(Lang.t("ÉQUIPER", "EQUIP")) and d.contains(Lang.t("I FERMER", "I CLOSE")), "invites : %s" % d)
 		await seconds(0.4)
+		at.check(not game.hud._crosshair.visible and not game.hud._ammo.is_visible_in_tree(),
+				"HUD (réticule, munitions) masqué sous l'inventaire (%s)" % lang)
 		await at.screenshot(lang)
 		if lang == "fr":
 			# Manette : A / X / Y et la croix haut (touche d'inventaire réelle).
@@ -67,6 +69,8 @@ func run() -> void:
 		at.check(" ".join(inv.prompts.describe()).contains(Lang.t("ÉCHANGER", "SWAP")), "arme en main : ÉCHANGER")
 		await at.screenshot(lang + "_hand")
 		inv.close()
+		await frames(2)
+		at.check(game.hud._crosshair.visible and game.hud._ammo.is_visible_in_tree(), "HUD rendu à la fermeture (%s)" % lang)
 		inv._seen.clear()
 	# 130 % : rien ne sort de l'écran.
 	Settings.language = "fr"

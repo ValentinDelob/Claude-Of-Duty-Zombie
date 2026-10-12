@@ -248,6 +248,8 @@ func show_center(title: String, sub := "", fade_alpha := 0.0) -> void:
 
 func _process(delta: float) -> void:
 	_scoreboard_tick()
+	# Après la logique de cette image (qui rallume certains éléments).
+	_hud_under_inventory.call_deferred()
 	# Chaque écriture ci-dessous n'a lieu que si la valeur change (textes,
 	# couleurs du thème, paramètres de shader, dessin du réticule) : même
 	# affichage, sans reformatage ni propagation du thème à chaque image.
@@ -630,6 +632,35 @@ func _build_pause_menu() -> void:
 	pause_menu = PauseMenu.new()
 	pause_menu.setup(game)
 	add_child(pause_menu)
+
+
+## Éléments du HUD masqués par l'inventaire ouvert (rendus à la fermeture).
+var _hidden_by_inventory: Array[CanvasItem] = []
+
+
+## Inventaire de partie ouvert : le HUD dessiné sous lui (réticule,
+## munitions, ferraille, arme, invites…) est masqué, comme dans la maquette
+## (InventaireJeu.dc.html : la partie seule derrière le voile) ; la vue
+## « à terre » reste. Vérifié à chaque image : un élément que sa logique
+## rallume pendant ce temps est masqué de nouveau.
+func _hud_under_inventory() -> void:
+	if inventory == null:
+		return
+	if inventory.visible:
+		var stop := inventory.get_index()
+		for c in get_children():
+			if c.get_index() >= stop:
+				break
+			var ci := c as CanvasItem
+			if ci == null or not ci.visible or ci == _downed or (_downed and ci == _downed.blur):
+				continue
+			ci.visible = false
+			_hidden_by_inventory.append(ci)
+	elif not _hidden_by_inventory.is_empty():
+		for ci in _hidden_by_inventory:
+			if is_instance_valid(ci):
+				ci.visible = true
+		_hidden_by_inventory.clear()
 
 
 func _scoreboard_tick() -> void:
