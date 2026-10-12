@@ -83,6 +83,7 @@ func after_each() -> void:
 	for k in _saved:
 		Settings.set(k, _saved[k])
 	Hub2Screen.last_screen = "lab"
+	Hub2WeaponDetails.reset_session()
 
 
 func _open(pr: PlayerProfile) -> CountingHub:
@@ -265,6 +266,123 @@ func test_stat_lines_base_value_plus_part_modifier() -> void:
 	assert_true(String(bat[0].value) != "—")
 
 
+## Ligne `key` de la fiche complète ({} : absente).
+func _detail(lines: Array, key: String) -> Dictionary:
+	for l in lines:
+		if l.key == key:
+			return l
+	return {}
+
+
+func _keys(lines: Array) -> Array:
+	return lines.map(func(l): return l.key)
+
+
+func test_detail_lines_firearm_base_plus_parts() -> void:
+	var nb := String.chr(0xA0)
+	# MÉTRONOME (fusil d'assaut semi-auto) : crosse (recul +25 %), réserve +20 %.
+	var w := _w("m14", 5, 1, [WeaponPart.create("part_recoil", 3, {"recoil": 0.25}),
+		WeaponPart.create("part_reserve", 2, {"reserve": 0.2})])
+	var lines := Hub2ArsenalView.detail_lines(w)
+	assert_eq(_keys(lines), ["head_mult", "fire_mode", "recoil", "ads_time", "reserve", "penetration", "move_mult"],
+			"lignes d'une arme à feu sans plombs ni explosion, ordre d'affichage")
+	assert_eq(_detail(lines, "head_mult").label, "TIR À LA TÊTE")
+	assert_eq(_detail(lines, "head_mult").value, "×" + nb + "2,5")
+	assert_eq(_detail(lines, "fire_mode").value, "SEMI-AUTO")
+	var rc := _detail(lines, "recoil")
+	assert_eq(rc.value, "2,2°", "recul de BASE en degrés")
+	assert_eq(rc.mod, "− 0,4", "pièce : recul ÷ 1,25 (2,2 -> 1,76), sans unité")
+	assert_true(rc.good, "recul plus faible : turquoise")
+	assert_eq(_detail(lines, "ads_time").value, "0,22" + nb + "s")
+	var rs := _detail(lines, "reserve")
+	assert_eq(rs.value, "96")
+	assert_eq(rs.mod, "+ 19", "réserve 96 × 1,2 = 115")
+	assert_true(rs.good)
+	assert_eq(_detail(lines, "penetration").value, "2" + nb + "zombies")
+	assert_eq(_detail(lines, "move_mult").value, "95" + nb + "%", "mobilité en %")
+	for k in ["head_mult", "ads_time", "penetration", "move_mult"]:
+		assert_eq(_detail(lines, k).mod, "", "aucune pièce n'y touche : %s" % k)
+	assert_true(_detail(lines, "ref").is_empty(), "pas de référence réelle tant que l'arme n'est pas refaite")
+	# Malus de recul (−20 %) : recul plus fort, rouge.
+	var bad := _detail(Hub2ArsenalView.detail_lines(_w("m14", 5, 1, [WeaponPart.create("part_recoil", 3, {"recoil": -0.2})])), "recoil")
+	assert_true(String(bad.mod).begins_with("+ ") and not bad.good, "recul plus fort : « + » rouge (%s)" % bad.mod)
+	# Niveau : la valeur de base suit les dégâts seulement (rien ici ne change).
+	assert_eq(_detail(Hub2ArsenalView.detail_lines(_w("m14", 30, 1)), "reserve").value, "96")
+
+
+func test_detail_fire_modes_shotgun_explosive_reference() -> void:
+	var nb := String.chr(0xA0)
+	var mode := func(id: String) -> String:
+		return _detail(Hub2ArsenalView.detail_lines(_w(id, 1, 0)), "fire_mode").value
+	assert_eq(mode.call("m16"), "RAFALE DE 3")
+	assert_eq(mode.call("mp40"), "AUTO")
+	assert_eq(mode.call("cz75"), "SEMI-AUTO")
+	assert_eq(mode.call("stakeout"), "POMPE", "réarmement à la pompe (cycle)")
+	assert_eq(mode.call("l96a1"), "VERROU", "culasse à verrou (cycle)")
+	# Fusil à pompe : plombs ; explosifs : zone, sans plombs.
+	var sg := Hub2ArsenalView.detail_lines(_w("olympia", 3, 0))
+	assert_eq(_detail(sg, "pellets").value, "8")
+	assert_eq(_detail(sg, "penetration").value, "1" + nb + "zombie", "singulier")
+	assert_true(_detail(sg, "splash_radius").is_empty())
+	var gl := Hub2ArsenalView.detail_lines(_w("china_lake", 38, 0))
+	assert_eq(_detail(gl, "splash_radius").label, "ZONE D'EXPLOSION")
+	assert_eq(_detail(gl, "splash_radius").value, "3" + nb + "m")
+	assert_true(_detail(gl, "pellets").is_empty())
+	assert_eq(_detail(Hub2ArsenalView.detail_lines(_w("law", 50, 0)), "splash_radius").value, "3,5" + nb + "m")
+	# Référence réelle : seulement si elle existe, pleine largeur, en dernier.
+	assert_eq(WeaponDB.real_ref("m1911"), "Colt M1911A1")
+	assert_eq(WeaponDB.real_ref("mp40"), "")
+	var pistol := Hub2ArsenalView.detail_lines(BaseWeapons.make("m1911"))
+	var ref: Dictionary = pistol[pistol.size() - 1]
+	assert_eq(ref.key, "ref")
+	assert_eq(ref.value, "Réf. Colt M1911A1")
+	assert_true(ref.wide)
+
+
+func test_detail_lines_melee() -> void:
+	var nb := String.chr(0xA0)
+	var bat := Hub2ArsenalView.detail_lines(BaseWeapons.make("bat"))
+	assert_eq(_keys(bat), ["energy", "swings", "lunge_range", "targets", "move_mult"],
+			"corps à corps : ni tir à la tête, ni mode de tir, ni recul, ni réserve…")
+	assert_eq(_detail(bat, "energy").label, "ÉNERGIE PAR COUP")
+	assert_eq(_detail(bat, "energy").value, "15")
+	assert_eq(_detail(bat, "swings").value, "1,25", "75 coups par minute")
+	assert_eq(_detail(bat, "lunge_range").value, "3" + nb + "m")
+	assert_eq(_detail(bat, "targets").value, "2" + nb + "zombies")
+	assert_eq(_detail(bat, "move_mult").value, "100" + nb + "%")
+	# Cadence +10 % : 75 -> 83 coups par minute, + 0,13 coup par seconde.
+	var fast := _detail(Hub2ArsenalView.detail_lines(_w("bat", 1, 0, [WeaponPart.create("part_fire_rate", 2, {"fire_rate": 0.1})])), "swings")
+	assert_eq(fast.mod, "+ 0,13")
+	assert_true(fast.good)
+
+
+func test_detail_english_and_mod_rules() -> void:
+	var nb := String.chr(0xA0)
+	assert_eq(Hub2ArsenalView.format_detail_mod("recoil", 0.01), "", "nul une fois arrondi : rien")
+	assert_eq(Hub2ArsenalView.format_detail_mod("reserve", 0.4), "")
+	assert_eq(Hub2ArsenalView.format_detail_mod("ads_time", -0.05), "− 0,05")
+	assert_true(Hub2ArsenalView.detail_good("ads_time", -0.05), "mise en joue plus courte : mieux")
+	assert_false(Hub2ArsenalView.detail_good("recoil", 0.3), "recul plus fort : moins bien")
+	assert_true(Hub2ArsenalView.detail_good("reserve", 10.0))
+	Settings.language = "en"
+	var lines := Hub2ArsenalView.detail_lines(_w("m14", 5, 1, [WeaponPart.create("part_recoil", 3, {"recoil": 0.25})]))
+	assert_eq(_detail(lines, "head_mult").label, "HEADSHOT")
+	assert_eq(_detail(lines, "head_mult").value, "×" + nb + "2.5")
+	assert_eq(_detail(lines, "recoil").value, "2.2°")
+	assert_eq(_detail(lines, "recoil").mod, "− 0.4")
+	assert_eq(_detail(lines, "ads_time").value, "0.22" + nb + "s")
+	assert_eq(_detail(lines, "move_mult").value, "95%")
+	assert_eq(_detail(lines, "move_mult").label, "MOBILITY")
+	assert_eq(_detail(Hub2ArsenalView.detail_lines(_w("m16", 12, 0)), "fire_mode").value, "3-ROUND BURST")
+	assert_eq(_detail(Hub2ArsenalView.detail_lines(_w("stakeout", 4, 0)), "fire_mode").value, "PUMP-ACTION")
+	assert_eq(_detail(Hub2ArsenalView.detail_lines(_w("l96a1", 27, 0)), "fire_mode").value, "BOLT-ACTION")
+	assert_eq(_detail(Hub2ArsenalView.detail_lines(_w("bat", 1, 0)), "swings").label, "SWINGS PER SECOND")
+	var pistol := Hub2ArsenalView.detail_lines(BaseWeapons.make("m1911"))
+	assert_eq(pistol[pistol.size() - 1].value, "Ref. Colt M1911A1")
+	assert_eq(Hub2WeaponDetails.toggle_text(false), "DETAILS")
+	assert_eq(Hub2WeaponDetails.toggle_text(true), "HIDE")
+
+
 func test_preview_lines_before_after() -> void:
 	var w := _w("m14", 10, 2)
 	var p := WeaponPart.create("part_fire_rate", 4, {"fire_rate": 0.1, "reload": -0.25})
@@ -416,6 +534,57 @@ func test_panel_rail_cards_and_sheet() -> void:
 	assert_eq(p.filter, "usable")
 	assert_false(24 in p.rail.levels, "UTILISABLES : sans le niveau 24")
 	assert_eq(p.chips.size(), 4)
+
+
+## Fiche complète dans le panneau : fermée au départ, D / R3 / invite / clic
+## l'ouvrent et la ferment, état retenu d'une arme à l'autre (session), la
+## fiche ouverte reste dans le panneau (elle défile), invite DÉTAILS / MASQUER.
+func test_panel_details_toggle() -> void:
+	var hub := await _open(demo_profile())
+	var p: Hub2ArsenalPanel = hub.panels.arsenal
+	var d := p.details
+	assert_true(d != null and d.visible, "fiche d'arme : composant DÉTAILS")
+	assert_false(d.open, "fermée au départ")
+	assert_false(d.body.visible)
+	assert_eq(d.title.text, "DÉTAILS")
+	assert_true(" ".join(hub.prompts.describe()).contains("D DÉTAILS"), "invite : %s" % " ".join(hub.prompts.describe()))
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_D
+	key.pressed = true
+	assert_true(hub.handle_event(key), "D : consommé")
+	await wait_frames(2)
+	assert_true(d.open and d.body.visible, "D : ouverte")
+	assert_eq(d.title.text, "MASQUER")
+	assert_eq(d.cells.size(), 7, "COUPERET : sept lignes (sans plombs ni zone)")
+	assert_true(" ".join(hub.prompts.describe()).contains("D MASQUER"), "invite : %s" % " ".join(hub.prompts.describe()))
+	# Ouverte : la fiche reste dans le panneau (elle défile), le panneau dans l'écran.
+	var screen := Rect2(Vector2.ZERO, Vector2(1280, 720))
+	assert_true(screen.grow(1.0).encloses(p.aside.get_global_rect()), "fiche dans l'écran : %s" % p.aside.get_global_rect())
+	assert_true(p.aside.get_global_rect().grow(1.0).encloses(p.aside_scroll.get_global_rect()), "zone qui défile dans la fiche")
+	# Autre arme : toujours ouverte (session).
+	_nav(p.selected_card(), "ui_down")
+	await wait_frames(2)
+	assert_true(p.details != d and p.details.open, "état retenu d'une arme à l'autre")
+	d = p.details
+	# Manette : R3 ferme ; invite cliquée et clic sur le titre rouvrent / referment.
+	Settings.using_pad = true
+	hub.refresh_prompts()
+	assert_true(" ".join(hub.prompts.describe()).contains("RS MASQUER"), "invite manette : %s" % " ".join(hub.prompts.describe()))
+	assert_true(_pad_event(hub, JOY_BUTTON_RIGHT_STICK))
+	assert_false(d.open, "R3 : fermée")
+	p.on_prompt(Hub2Input.DETAILS)
+	assert_true(d.open, "invite cliquée : ouverte")
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = true
+	d.title._gui_input(mb)
+	assert_false(d.open, "clic sur le titre : fermée")
+	assert_false(Hub2WeaponDetails.is_open_for(Hub2ArsenalPanel.DETAILS_SCREEN))
+	# Onglet PIÈCES : pas de fiche d'arme, D ne fait rien.
+	p.set_tab(Hub2ArsenalPanel.PARTS)
+	await wait_frames(2)
+	assert_true(p.details == null)
+	assert_false(p.toggle_details())
 
 
 func test_install_remove_recycle() -> void:
