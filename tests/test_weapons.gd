@@ -13,7 +13,18 @@ const REAL_NAMES := ["M1911", "M1911A1", "1911", "CZ75", "CZ", "PYTHON", "COLT",
 	"HK21", "HK", "OLYMPIA", "STAKEOUT", "SPAS-12", "SPAS", "HS10", "DRAGUNOV", "L96A1", "L96", "CHINA", "LAKE",
 	"LAW", "M72", "BERETTA", "GLOCK", "REMINGTON", "WINCHESTER", "BROWNING", "WALTHER", "KALASHNIKOV", "HECKLER",
 	"KOCH", "STEYR", "BARRETT", "MOSSBERG", "BENELLI", "SIG", "UZI", "THOMPSON", "RUGER", "TAURUS", "SMITH",
-	"WESSON", "LUGER", "MAUSER", "ENFIELD", "SKS", "SVD", "MAC-10", "TEC-9"]
+	"WESSON", "LUGER", "MAUSER", "ENFIELD", "SKS", "SVD", "MAC-10", "TEC-9",
+	"AK47", "AKS", "AKS74U", "AKM", "MAS", "MP41", "MP44"]
+
+## Armes refaites d'après une arme réelle (refonte du 2026-10-12, fiches
+## docs/weapons/<id>.md) : id -> [nom affiché FR = EN, référence réelle].
+const REMADE := {
+	"m1911": ["M1912", "Colt M1911A1"],
+	"mp40": ["MR-40", "MP40"],
+	"ak74u": ["KA-74U", "AKS-74U"],
+	"ak47": ["KA-47", "AK-47 type 3"],
+	"famas": ["FAMAX F1", "FAMAS F1"],
+}
 
 
 func test_every_weapon_has_required_fields() -> void:
@@ -51,6 +62,77 @@ func test_starting_weapon() -> void:
 	var shots := ceili(150.0 / float(s.damage))
 	assert_true(shots >= 5 and shots <= 8, "pistolet de départ : %d balles au corps en manche 1" % shots)
 	assert_true(WeaponDB.MELEE_DAMAGE >= 150, "couteau : un coup en manche 1")
+
+
+## Armes refaites (fiches validées le 2026-10-12) : nom proche du vrai, le
+## même en anglais, référence réelle dans la fiche DÉTAILS, modèle fin.
+func test_remade_weapons() -> void:
+	for id in REMADE:
+		var fr: String = REMADE[id][0]
+		assert_eq(String(WeaponDB.stats(id).name), fr, "%s : nom affiché" % id)
+		assert_eq(String(WeaponDB.EN_NAMES.get(fr, "")), fr, "%s : même nom en anglais" % id)
+		assert_eq(WeaponDB.real_ref(id), REMADE[id][1], "%s : référence réelle" % id)
+		assert_false(fr in REAL_NAMES or fr.replace("-", "") in REAL_NAMES, "%s : jamais le nom exact" % id)
+		assert_true(WeaponModels.is_fine(id), "%s : arme fine (1,25 cm)" % id)
+	# Olympia : fiche et modèle prêts, pas encore validée (ni nom, ni référence).
+	assert_eq(WeaponDB.real_ref("olympia"), "")
+	assert_false(WeaponModels.is_fine("olympia"), "olympia : pas encore intégrée")
+
+
+## Largeurs paires (weapons_fine.py, `even=True` : MR-40) : l'axe du canon
+## passe ENTRE deux colonnes de cubes (x = 0), pavés sans décalage d'un
+## demi-cube, arêtes sur la grille de 1,25 cm ; largeurs impaires (KA-74U) :
+## colonne centrale sur l'axe, arêtes décalées d'un demi-cube.
+func test_even_width_fine_model() -> void:
+	var c := WeaponModels.CUBE_FINE
+	for row in [["mp40", 0.0], ["ak74u", 0.5]]:
+		var id: String = row[0]
+		for part in WeaponModels.spec(id).parts:
+			var ctr: Vector3 = part[2]
+			var sz: Vector3 = part[1]
+			for e in [ctr.x - sz.x * 0.5, ctr.x + sz.x * 0.5]:
+				var n: float = e / c - float(row[1])
+				assert_near(n, roundf(n), 0.001, "%s : arête x = %.5f m sur la grille" % [id, e])
+	for a in ["sight", "front", "muzzle"]:
+		assert_near(WeaponModels.anchor("mp40", a).x, 0.0, 0.00001, "MR-40 : %s sur l'axe" % a)
+	# Le canon (pavé qui porte la bouche) fait 2 colonnes, centrées sur x = 0.
+	var m := WeaponModels.anchor("mp40", "muzzle") + Vector3(0, 0, 0.003)
+	var found := 0
+	for part in WeaponModels.spec("mp40").parts:
+		if AABB(part[2] - part[1] * 0.5, part[1]).has_point(m):
+			found += 1
+			assert_near(part[2].x, 0.0, 0.00001, "MR-40 : canon centré sur l'axe")
+			assert_near(part[1].x, 2.0 * c, 0.00001, "MR-40 : canon de 2 cubes de large")
+	assert_eq(found, 1, "MR-40 : un pavé à la bouche du canon")
+
+
+## Statistiques des fiches validées (docs/weapons/<id>.md).
+func test_remade_weapon_stats() -> void:
+	var want := {
+		"mp40": {"class": "smg", "base_level": 1, "damage": 90, "rpm": 540, "mag": 32, "reserve": 192, "reload": 2.4,
+			"spread_hip": 3.0, "bloom": 0.25, "recoil": 0.8, "recoil_side": 0.4, "recoil_recover": 0.6, "range": 18.0,
+			"penetration": 1, "ads_time": 0.18},
+		"ak74u": {"class": "smg", "base_level": 19, "damage": 100, "rpm": 700, "mag": 30, "reserve": 180, "reload": 2.4,
+			"spread_hip": 2.8, "bloom": 0.35, "recoil": 1.3, "recoil_side": 0.55, "recoil_recover": 0.55, "range": 28.0,
+			"penetration": 2, "ads_time": 0.2},
+		"ak47": {"class": "rifle", "base_level": 23, "damage": 140, "head_mult": 2.5, "rpm": 600, "mag": 30, "reserve": 210,
+			"reload": 2.6, "spread_hip": 2.8, "bloom": 0.4, "recoil": 1.6, "recoil_side": 0.6, "recoil_recover": 0.5,
+			"range": 40.0, "penetration": 3, "move_mult": 0.95, "ads_time": 0.24, "ads_zoom": 0.75, "sound": "rifle_fire"},
+		"famas": {"class": "rifle", "base_level": 26, "damage": 100, "rpm": 950, "mag": 25, "reserve": 175, "reload": 2.8,
+			"spread_hip": 2.4, "bloom": 0.35, "recoil": 1.0, "recoil_side": 0.4, "recoil_recover": 0.6, "range": 38.0,
+			"penetration": 2, "ads_time": 0.22, "ads_zoom": 0.75},
+	}
+	for id in want:
+		var s := WeaponDB.stats(id)
+		assert_true(bool(s.auto), "%s : automatique" % id)
+		for k in want[id]:
+			var v: Variant = want[id][k]
+			if k == "base_level":
+				assert_eq(WeaponDB.base_level(id), v, "%s : niveau de base" % id)
+			elif v is float:
+				assert_near(float(s[k]), v, 0.0001, "%s : %s" % [id, k])
+			else:
+				assert_eq(s[k], v, "%s : %s" % [id, k])
 
 
 func test_removed_weapons() -> void:

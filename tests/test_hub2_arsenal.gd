@@ -331,7 +331,8 @@ func test_detail_fire_modes_shotgun_explosive_reference() -> void:
 	assert_eq(_detail(Hub2ArsenalView.detail_lines(_w("law", 50, 0)), "splash_radius").value, "3,5" + nb + "m")
 	# Référence réelle : seulement si elle existe, pleine largeur, en dernier.
 	assert_eq(WeaponDB.real_ref("m1911"), "Colt M1911A1")
-	assert_eq(WeaponDB.real_ref("mp40"), "")
+	assert_eq(WeaponDB.real_ref("mp40"), "MP40", "MR-40 refaite d'après le MP40")
+	assert_eq(WeaponDB.real_ref("galil"), "", "pas encore refaite")
 	var pistol := Hub2ArsenalView.detail_lines(BaseWeapons.make("m1911"))
 	var ref: Dictionary = pistol[pistol.size() - 1]
 	assert_eq(ref.key, "ref")

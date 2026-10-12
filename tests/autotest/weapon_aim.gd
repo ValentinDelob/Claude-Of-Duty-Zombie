@@ -110,9 +110,13 @@ func run() -> void:
 	# 1 + 2. Visée et tir précis, arme par arme.
 	var worst_px := 0.0
 	var wi := -1
+	# WA_ONLY (ids séparés par des virgules) : ces armes seulement (mise au point).
+	var only := OS.get_environment("WA_ONLY")
 	for id in WeaponDB.WEAPONS:
 		wi += 1
 		if not mine(wi):
+			continue
+		if only != "" and not id in only.split(","):
 			continue
 		if WeaponDB.is_melee(id):
 			continue  # batte : ni visée ni tir (coups : scénario melee)
