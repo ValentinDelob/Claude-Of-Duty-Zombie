@@ -22,6 +22,20 @@ const COL_RIGHT := 28.0
 const COL_TOP := 108.0
 ## Flou de l'ombre portée du héros (niveau de mipmap de son rendu).
 const SHADOW_LOD := 5.0
+## Entrées CONTRATS / ÉCHANGES à l'échelle des autres écrans du hub v2
+## (demande du 2026-10-12 : elles étaient trop grandes ; Main.dc.html mis à
+## jour) : padding 14 18, écart 14, carré d'icône 40 px (dessin 22 px), titre
+## Chakra Petch 20 px 700 0.08em (comme « CONTRATS TEMPORAIRES »), ligne
+## Barlow 14 px, écart de 12 px entre les deux entrées (grilles du hub).
+const CARD_PAD_V := 14.0
+const CARD_PAD_H := 18.0
+const CARD_GAP := 14.0
+const ICON_BOX := 40.0
+const ICON_GLYPH := 22.0
+const TITLE_SIZE := 20.0
+const TITLE_TRACKING := 0.08
+const SUB_SIZE := 14.0
+const ENTRIES_GAP := 12.0
 
 var hero: TextureRect
 var hero_shadow: TextureRect
@@ -44,12 +58,14 @@ var line_text := ""
 class LineIcon extends Control:
 	var paths: Array = []
 	var color := Hub2Style.INK
+	## Côté du dessin (px de la maquette ; viewBox 24).
+	var icon_px := 28.0
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		var k := Hub2Style.px(28) / 24.0
+		var k := Hub2Style.px(icon_px) / 24.0
 		var o := (size - Vector2(24, 24) * k) * 0.5
 		var w := maxf(2.0 * k, 1.0)
 		for p in paths:
@@ -160,41 +176,46 @@ func build() -> void:
 	lm.add_child(line_label)
 	lb.box.add_child(lm)
 	# CONTRATS : toujours jaune (entrée principale), anneaux quand prêt.
-	contracts_button = _card(col, Lang.t("CONTRATS", "CONTRACTS"), true)
+	var entries := VBoxContainer.new()
+	entries.add_theme_constant_override("separation", int(Hub2Style.px(ENTRIES_GAP)))
+	entries.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entries.name = "Entries"
+	col.add_child(entries)
+	contracts_button = _card(entries, Lang.t("CONTRATS", "CONTRACTS"), true)
 	contracts_button.pressed.connect(func(): hub.call("open", "contracts"))
 	story_label = contracts_button.get_meta("sub")
 	var right: HBoxContainer = contracts_button.get_meta("row")
 	ready_box = VBoxContainer.new()
-	ready_box.add_theme_constant_override("separation", int(Hub2Style.px(4)))
+	ready_box.add_theme_constant_override("separation", int(Hub2Style.px(3)))
 	ready_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	ready_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tag := Hub2Box.new()
 	tag.flat(Hub2Style.YELLOW)
-	tag.pad(4, 10)
+	tag.pad(3, 8)
 	tag.size_flags_horizontal = Control.SIZE_SHRINK_END
 	ready_tag = Hub2Text.new()
-	ready_tag.setup("", Hub2Style.CHAKRA, 700, 13, Hub2Style.INK, 0.12)
+	ready_tag.setup("", Hub2Style.CHAKRA, 700, 12, Hub2Style.INK, 0.12)
 	tag.add_child(ready_tag)
 	ready_box.add_child(tag)
-	ready_sub = Hub2Style.label("", Hub2Style.BARLOW, 400, 13, Hub2Style.text_a(0.6))
+	ready_sub = Hub2Style.label("", Hub2Style.BARLOW, 400, 12, Hub2Style.text_a(0.6))
 	ready_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	ready_box.add_child(ready_sub)
 	right.add_child(ready_box)
 	active_label = Hub2Text.new()
-	active_label.setup("", Hub2Style.MONO, 500, 14, Hub2Style.YELLOW)
+	active_label.setup("", Hub2Style.MONO, 500, 13, Hub2Style.YELLOW)
 	active_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	right.add_child(active_label)
 	rings = Hub2PulseRings.new()
 	rings.scale_to = Vector2(1.12, 1.35)
 	contracts_button.add_child(rings)
-	exchanges_button = _card(col, Lang.t("ÉCHANGES", "EXCHANGES"), false)
+	exchanges_button = _card(entries, Lang.t("ÉCHANGES", "EXCHANGES"), false)
 	exchanges_button.pressed.connect(func(): hub.call("open", "exchanges"))
 	(exchanges_button.get_meta("sub") as Label).text = Lang.t("Des objets précis contre vos échantillons",
 			"Specific items for your samples")
 	exchanges_button.hint = Lang.t("Le catalogue de Dr Brown : un objet précis contre des échantillons.",
 			"Dr Brown's catalogue: a specific item for samples.")
 	exchanges_label = Hub2Text.new()
-	exchanges_label.setup("", Hub2Style.MONO, 500, 14, Hub2Style.TEAL)
+	exchanges_label.setup("", Hub2Style.MONO, 500, 13, Hub2Style.TEAL)
 	exchanges_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	(exchanges_button.get_meta("row") as HBoxContainer).add_child(exchanges_label)
 	contracts_button.focus_neighbor_bottom = contracts_button.get_path_to(exchanges_button)
@@ -268,18 +289,19 @@ func _fit() -> void:
 	col.offset_bottom = top + h
 
 
-## Entrée du LABO (<a> de la maquette) : padding 18 22, écart 18, carré
-## d'icône 52 px, titre Chakra Petch 24 px 700 0.1em, ligne Barlow 15 px 80 %.
+## Entrée du LABO (<a> de la maquette) : padding 14 18, écart 14, carré
+## d'icône 40 px, titre Chakra Petch 20 px 700 0.08em, ligne Barlow 14 px
+## 80 % ; liseré 1 px (jaune pour CONTRATS) comme les cartes du hub.
 ## Métadonnées : "row" (rangée, pour la partie droite), "sub" (ligne).
 func _card(parent: Control, title: String, yellow: bool) -> Hub2Button:
 	var b := Hub2Button.new()
 	if yellow:
-		b.box.glass(Hub2Style.YELLOW_TINT, Hub2Style.YELLOW, 2.0)
+		b.box.glass(Hub2Style.YELLOW_TINT, Hub2Style.YELLOW, 1.0)
 	else:
 		b.box.glass(Hub2Style.GLASS, Hub2Style.white_a(0.12), 1.0)
-	b.box.pad(18, 22)
+	b.box.pad(CARD_PAD_V + 1.0, CARD_PAD_H + 1.0)  # liseré 1 px + padding
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", int(Hub2Style.px(18)))
+	row.add_theme_constant_override("separation", int(Hub2Style.px(CARD_GAP)))
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	b.add_content(row)
 	var icon := Hub2Box.new()
@@ -293,20 +315,22 @@ func _card(parent: Control, title: String, yellow: bool) -> Hub2Button:
 		icon.flat(Hub2Style.teal_a(0.14), Hub2Style.teal_a(0.5), 1.0)
 		glyph.color = Hub2Style.TEAL
 		glyph.paths = [[Vector2(4, 8), Vector2(18, 8), Vector2(14, 4)], [Vector2(20, 16), Vector2(6, 16), Vector2(10, 20)]]
-	icon.custom_minimum_size = Hub2Style.pxv(52, 52)
+	glyph.icon_px = ICON_GLYPH
+	icon.custom_minimum_size = Hub2Style.pxv(ICON_BOX, ICON_BOX)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	icon.add_child(glyph)
 	row.add_child(icon)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", int(Hub2Style.px(4)))
+	v.add_theme_constant_override("separation", int(Hub2Style.px(2)))
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(v)
 	var t := Hub2Text.new()
-	t.setup(title, Hub2Style.CHAKRA, 700, 24, Hub2Style.TEXT, 0.1)
+	t.setup(title, Hub2Style.CHAKRA, 700, TITLE_SIZE, Hub2Style.TEXT, TITLE_TRACKING)
+	t.name = "Title"
 	v.add_child(t)
-	var sub := Hub2Style.label("", Hub2Style.BARLOW, 400, 15, Hub2Style.text_a(0.8))
+	var sub := Hub2Style.label("", Hub2Style.BARLOW, 400, SUB_SIZE, Hub2Style.text_a(0.8))
 	sub.clip_text = true
 	sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	v.add_child(sub)

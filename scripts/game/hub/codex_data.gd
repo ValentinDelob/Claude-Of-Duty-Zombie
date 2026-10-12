@@ -9,7 +9,9 @@ extends RefCounted
 ## Fiche normalisée : {id (type d'ennemi de XpRules), name {fr, en}, text
 ## {fr, en}, round (manche d'apparition, ≥ 1), samples [sorte...], xp_ref
 ## (type de XpRules dont l'XP sert de référence tant que `id` n'a pas son
-## propre barème ; "" : aucun), planned (ennemi prévu, pas encore en jeu)}.
+## propre barème ; "" : aucun), planned (ennemi prévu, pas encore en jeu),
+## weak, tip (facultatifs, {fr, en} ou {} : point faible et conseil de la
+## page DÉTAILS du codex, CodexDetails ; jamais de chiffre dedans)}.
 ## L'XP n'est JAMAIS écrite dans le fichier : elle se lit dans XpRules (xp()).
 ##
 ## Groupes facultatifs (« groups », hub v2, docs/hub_v2/Codex.dc.html) :
@@ -108,7 +110,8 @@ static func family_line(e: Dictionary) -> String:
 ## première de ses fiches), toute autre fiche = sa propre carte ; triées par
 ## manche d'apparition (ordre du fichier à égalité). Carte : {id, members
 ## [ids], name, text, round (la plus petite), samples (réunis), category
-## (XpRules, celle de la première fiche), xp_min, xp_max (XpRules)}.
+## (XpRules, celle de la première fiche), xp_min, xp_max (XpRules), weak, tip
+## (du groupe ou de la fiche, {} si absents)}.
 func cards() -> Array[Dictionary]:
 	var in_group := {}
 	for g in groups:
@@ -119,20 +122,20 @@ func cards() -> Array[Dictionary]:
 	for e in entries:
 		var g: Dictionary = in_group.get(e.id, {})
 		if g.is_empty():
-			out.append(_card(e.id, [e], e.name, e.text))
+			out.append(_card(e.id, [e], e.name, e.text, e))
 		elif not done.has(g.id):
 			done[g.id] = true
 			var list: Array = []
 			for m in g.members:
 				list.append(_by_id[m])
-			out.append(_card(g.id, list, g.name, g.text))
+			out.append(_card(g.id, list, g.name, g.text, g))
 	for i in out.size():
 		out[i]["order"] = i
 	out.sort_custom(func(a, b): return a.round < b.round or (a.round == b.round and a.order < b.order))
 	return out
 
 
-func _card(id: String, list: Array, name: Dictionary, text: Dictionary) -> Dictionary:
+func _card(id: String, list: Array, name: Dictionary, text: Dictionary, src: Dictionary) -> Dictionary:
 	var members := PackedStringArray()
 	var samples := PackedStringArray()
 	var r := ROUND_MAX
@@ -148,7 +151,21 @@ func _card(id: String, list: Array, name: Dictionary, text: Dictionary) -> Dicti
 		xmin = x if xmin < 0 else mini(xmin, x)
 		xmax = maxi(xmax, x)
 	return {"id": id, "members": members, "name": name, "text": text, "round": r, "samples": samples,
-		"category": category(list[0]), "xp_min": maxi(xmin, 0), "xp_max": xmax}
+		"category": category(list[0]), "xp_min": maxi(xmin, 0), "xp_max": xmax,
+		"weak": src.get("weak", {}), "tip": src.get("tip", {})}
+
+
+## Texte facultatif {fr, en} de la clé `key` de `e` : {} s'il est absent ;
+## illisible : {} et avertissement (la fiche reste).
+func _optional_text(e: Dictionary, key: String, where: String) -> Dictionary:
+	if not e.has(key):
+		return {}
+	var t: Variant = e.get(key)
+	if not t is Dictionary or not t.get("fr") is String or not t.get("en") is String \
+			or String(t.fr).strip_edges() == "" or String(t.en).strip_edges() == "":
+		_warn(where + " : « %s » doit avoir un texte fr et en (ignoré)" % key)
+		return {}
+	return {"fr": String(t.fr), "en": String(t.en)}
 
 
 ## Catégorie de XpRules d'une fiche (celle de `xp_ref` pour un ennemi prévu).
@@ -268,6 +285,8 @@ func _group(g: Dictionary, where: String, used: Dictionary) -> Dictionary:
 			return {}
 		members.append(mid)
 	out.members = members
+	out.weak = _optional_text(g, "weak", where)
+	out.tip = _optional_text(g, "tip", where)
 	return out
 
 
@@ -318,4 +337,6 @@ func _entry(e: Dictionary, where: String) -> Dictionary:
 		_warn(where + " : « planned » doit être vrai ou faux")
 		return {}
 	out.planned = p
+	out.weak = _optional_text(e, "weak", where)
+	out.tip = _optional_text(e, "tip", where)
 	return out

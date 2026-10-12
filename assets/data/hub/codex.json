@@ -1,7 +1,7 @@
 {
 	"format": "hub_codex",
 	"version": 1,
-	"_doc": "Codex du hub (GAME_CONCEPT 4.17, docs/HUB_PLAN.md 3.10). Une fiche par type d'ennemi, dans l'ordre d'affichage. id = type d'ennemi de XpRules (l'XP affichée vient de XpRules, jamais d'ici) ; xp_ref : type de référence de XpRules tant que l'ennemi n'a pas son propre barème (ennemis prévus). round : manche à partir de laquelle il peut apparaître (indice montré sur la fiche inconnue). samples : sortes d'échantillons (LootRules.SAMPLES). planned : ennemi prévu, pas encore dans le jeu. groups : fiches réunies en UNE carte au bestiaire du hub v2 (id, name, text, members).",
+	"_doc": "Codex du hub (GAME_CONCEPT 4.17, docs/HUB_PLAN.md 3.10). Une fiche par type d'ennemi, dans l'ordre d'affichage. id = type d'ennemi de XpRules (l'XP affichée vient de XpRules, jamais d'ici) ; xp_ref : type de référence de XpRules tant que l'ennemi n'a pas son propre barème (ennemis prévus). round : manche à partir de laquelle il peut apparaître (indice montré sur la fiche inconnue). samples : sortes d'échantillons (LootRules.SAMPLES). planned : ennemi prévu, pas encore dans le jeu. groups : fiches réunies en UNE carte au bestiaire du hub v2 (id, name, text, members). weak, tip (facultatifs, fiche ou groupe) : point faible et conseil de la page DÉTAILS du codex (CodexDetails), SANS aucun chiffre : les chiffres viennent des règles du jeu.",
 	"enemies": [
 		{
 			"id": "walker",
@@ -51,7 +51,9 @@
 				"en": "The neighbourhood dogs raided the wrong lab bin. They hunt in packs and never bring the ball back."
 			},
 			"round": 5,
-			"samples": ["dog_fang", "dog_fur", "dog_collar"]
+			"samples": ["dog_fang", "dog_fur", "dog_collar"],
+			"weak": {"fr": "Fragiles : quelques balles suffisent, le tout est de les toucher.", "en": "Fragile: a few bullets do it, the hard part is hitting them."},
+			"tip": {"fr": "Dos au mur, dans un coin : ils ne pourront venir que de face. Et ne reste pas collé à un chien qui meurt.", "en": "Back to the wall, in a corner: they can only come from the front. And don’t hug a dying dog."}
 		},
 		{
 			"id": "brancardier",
@@ -62,6 +64,8 @@
 			},
 			"round": 10,
 			"samples": ["brancard_strap", "brancard_bracelet"],
+			"weak": {"fr": "La tête. Et les murs : s’il en percute un pendant sa charge, il reste sonné.", "en": "The head. And walls: if he rams one while charging, he’s left dazed."},
+			"tip": {"fr": "Quand il gratte le sol, place-toi devant un mur et écarte-toi de sa ligne au dernier moment.", "en": "When he scrapes the floor, stand in front of a wall and sidestep at the last moment."},
 			"xp_ref": "miniboss"
 		},
 		{
@@ -73,6 +77,8 @@
 			},
 			"round": 20,
 			"samples": ["nurse_vocal_cords", "nurse_syringe", "nurse_badge"],
+			"weak": {"fr": "La gorge et la tête : touchée là pendant sa grande inspiration, elle s’étrangle.", "en": "The throat and the head: hit there during her deep breath, she chokes."},
+			"tip": {"fr": "Dès qu’elle prend sa respiration, vise la gorge ou mets un mur entre vous deux.", "en": "As soon as she takes a breath, aim for the throat or put a wall between you."},
 			"xp_ref": "miniboss"
 		},
 		{
@@ -83,7 +89,9 @@
 				"en": "The head of surgery never lost a patient on the table. He doesn't intend to start with you. Aim for the heart beating in his chest, and stay out of scalpel range."
 			},
 			"round": 15,
-			"samples": ["surgeon_scalpel", "surgeon_heart"]
+			"samples": ["surgeon_scalpel", "surgeon_heart"],
+			"weak": {"fr": "Le cœur mutant qui bat dans sa poitrine. Sa tête ne compte pas plus que le reste.", "en": "The mutant heart beating in his chest. His head counts no more than the rest."},
+			"tip": {"fr": "Recule pendant son combo au scalpel et esquive sur le côté quand il arme son lancer.", "en": "Back off during his scalpel combo and dodge sideways when he winds up a throw."}
 		}
 	],
 	"groups": [
@@ -94,7 +102,9 @@
 				"fr": "Marcheurs, rampants, coureurs : le tout-venant de la quarantaine. Plus nombreux et plus solides à chaque manche.",
 				"en": "Walkers, crawlers, runners: the everyday riff-raff of the quarantine. More of them, and tougher, every round."
 			},
-			"members": ["walker", "crawler", "runner", "sprinter"]
+			"members": ["walker", "crawler", "runner", "sprinter"],
+			"weak": {"fr": "La tête : chaque arme y fait plus de dégâts.", "en": "The head: every weapon deals more damage there."},
+			"tip": {"fr": "Ne te laisse pas encercler : recule en tirant et garde toujours une sortie.", "en": "Don’t get surrounded: back off while shooting and always keep a way out."}
 		}
 	]
 }

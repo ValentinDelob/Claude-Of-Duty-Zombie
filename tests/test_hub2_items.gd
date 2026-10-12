@@ -391,6 +391,117 @@ func test_codex_screen() -> void:
 	assert_eq(Array(hub.prompts.describe()), ["A DÉTAILS", "B RETOUR"])
 
 
+## Page DÉTAILS : A sur la carte choisie (animation), B / Échap, D, clic sur
+## « DÉTAILS ▾ » / « RETOUR ▴ », invite, carte inconnue verrouillée, autre
+## carte gardée ouverte, refermée en quittant l'onglet.
+func test_codex_details_navigation() -> void:
+	Settings.using_pad = true
+	var hub := await _open("codex", _profile())
+	var cx: Hub2CodexPanel = hub.panels.codex
+	cx.cards.brancardier.grab_focus()
+	await wait_frames(1)
+	assert_eq(cx.selected_id, "brancardier")
+	assert_false(cx.details_open)
+	assert_eq(cx.details_toggle.text, "DÉTAILS")
+	assert_true(_find(cx._detail, "Sheet") != null and _find(cx._detail, "Text") != null, "fiche de la maquette")
+	# Une autre carte pressée : choisie, pas de bascule.
+	cx.cards.dog.pressed.emit()
+	assert_eq(cx.selected_id, "dog")
+	assert_false(cx.details_open, "presser une autre carte la choisit seulement")
+	cx.cards.brancardier.pressed.emit()
+	assert_eq(cx.selected_id, "brancardier")
+	assert_false(cx.details_open)
+	# A sur la carte choisie : animation puis page DÉTAILS.
+	cx.cards.brancardier.pressed.emit()
+	assert_true(cx.details_open and cx.anim_running, "bascule animée")
+	assert_eq(Array(hub.prompts.describe()), ["A B RETOUR"], "invite de la page ouverte")
+	assert_eq(cx.details_toggle.text, "RETOUR")
+	await wait_frames(2)
+	var slide: Control = _find(cx._detail, "Slide")
+	assert_true(slide.modulate.a < 1.0, "en cours : le contenu s'efface (%.2f)" % slide.modulate.a)
+	await wait_seconds(Hub2CodexPanel.ANIM_OUT + Hub2CodexPanel.ANIM_IN + 0.15)
+	assert_false(cx.anim_running, "animation finie")
+	assert_eq(slide.modulate.a, 1.0)
+	assert_true(_find(cx._detail, "DetailsPage") != null and _find(cx._detail, "Sheet") == null, "la page remplace la fiche")
+	assert_true(_find(cx._detail, "Title") != null, "le nom reste")
+	var charge := _find(cx._detail, "Row_charge")
+	assert_eq((_find(charge, "Value") as Label).text, "%d dégâts" % BrancardRules.CHARGE_DAMAGE, "dégâts lus dans BrancardRules")
+	assert_eq((_find(_find(cx._detail, "Row_kills"), "Value") as Label).text, "7", "éliminations du profil")
+	assert_true(_find(cx._detail, "Loot_brancard_strap") != null, "échantillons avec leur rendu")
+	var d := _texts(cx._detail, [])
+	assert_true("CE QU’IL TE FAIT" in d and "POINT FAIBLE" in d and "CONSEIL" in d, str(d))
+	# Autre carte, page ouverte : ses détails ; inconnue : verrouillée.
+	cx.cards.nurse.grab_focus()
+	await wait_frames(1)
+	assert_true(cx.details_open, "la page reste ouverte")
+	assert_eq((_find(cx._detail, "LockedText") as Label).text, "Rencontre-le pour en savoir plus.")
+	assert_true(_find(cx._detail, "Row_scream") == null, "inconnue : aucun chiffre")
+	# B : retour animé à la fiche, l'écran reste le CODEX.
+	hub.back()
+	assert_false(cx.details_open)
+	assert_eq(hub.current_id, "codex", "B referme la page sans quitter l'onglet")
+	assert_eq(Array(hub.prompts.describe()), ["A DÉTAILS", "B RETOUR"])
+	await wait_seconds(Hub2CodexPanel.ANIM_OUT + Hub2CodexPanel.ANIM_IN + 0.15)
+	assert_true(_find(cx._detail, "Sheet") != null and _find(cx._detail, "DetailsPage") == null)
+	# D (clavier) et R3 (manette) : bascule.
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_D
+	ev.pressed = true
+	assert_true(hub.handle_event(ev), "D consommé")
+	assert_true(cx.details_open, "D : page DÉTAILS")
+	var r3 := InputEventJoypadButton.new()
+	r3.button_index = JOY_BUTTON_RIGHT_STICK
+	r3.pressed = true
+	assert_true(hub.handle_event(r3))
+	assert_false(cx.details_open, "R3 : retour")
+	# Clic sur « DÉTAILS ▾ », puis invite cliquée.
+	cx.details_toggle.clicked.emit()
+	assert_true(cx.details_open, "clic sur DÉTAILS")
+	hub._on_prompt_clicked(Hub2CodexPanel.PROMPT_CLOSE)
+	assert_false(cx.details_open, "invite A B RETOUR cliquée")
+	# Échanger avant la fin de l'animation : état cohérent.
+	cx.toggle_details()
+	cx.toggle_details()
+	await wait_seconds(Hub2CodexPanel.ANIM_OUT + Hub2CodexPanel.ANIM_IN + 0.15)
+	assert_false(cx.details_open or cx.anim_running)
+	assert_true(_find(cx._detail, "Sheet") != null, "double bascule : la fiche")
+	# Quitter l'onglet : refermée.
+	cx.toggle_details()
+	hub.open("lab")
+	assert_false(cx.details_open, "refermée en quittant l'onglet")
+	hub.open("codex")
+	assert_eq(Array(hub.prompts.describe()), ["A DÉTAILS", "B RETOUR"])
+
+
+func test_codex_details_english_and_scale() -> void:
+	Settings.language = "en"
+	var hub := await _open("codex", _profile())
+	var cx: Hub2CodexPanel = hub.panels.codex
+	cx.cards.dog.grab_focus()
+	await wait_frames(1)
+	cx.set_details(true, false)
+	await wait_frames(2)
+	var d := _texts(cx._detail, [])
+	assert_true("WHAT IT DOES TO YOU" in d and "LOOT" in d and "TIP" in d, str(d))
+	assert_eq((_find(_find(cx._detail, "Row_bite"), "Value") as Label).text, "%d damage" % DogRules.BITE_DAMAGE)
+	Settings.menu_ui_scale = 1.3
+	await wait_frames(5)
+	cx = hub.panels.codex
+	cx.cards.dog.grab_focus()
+	await wait_frames(1)
+	cx.set_details(true, false)
+	await wait_frames(3)
+	_assert_inside(hub, "page DÉTAILS à 130 %")
+	for n in ["Row_bite", "Row_part", "Row_weapon"]:
+		var row: Control = _find(cx._detail, n)
+		var aside := cx.detail_scroll.get_global_rect()
+		assert_true(row != null and row.get_global_rect().size.x <= aside.size.x + 1.0, "%s dans la fiche" % n)
+		for l in ["Label", "Value", "Note"]:
+			var lab := _find(row, l) as Label
+			if lab:
+				assert_true(lab.get_visible_line_count() == lab.get_line_count(), "%s %s : toutes les lignes visibles" % [n, l])
+
+
 func test_codex_tab_badge_before_visit() -> void:
 	var pr := _profile()
 	pr.codex.add_kills("surgeon", 1)
