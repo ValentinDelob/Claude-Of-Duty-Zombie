@@ -45,8 +45,8 @@ const ELBOW_L_CAM := Vector3(-0.06, -0.32, 0.22)
 ## l'extérieur : en visée, seuls les poings (sous la glissière) et les
 ## poignets prennent le bas de l'image ; la caméra est plus près que sur la
 ## planche (cran à 0,4 m, champ de 72°) : pente plus forte que la planche.
-const PISTOL_ARM_R := Vector3(0.9, -1.6, 0.4)
-const PISTOL_ARM_L := Vector3(-0.9, -1.6, 0.4)
+const PISTOL_ARM_R := Vector3(0.6, -1.4, 0.15)
+const PISTOL_ARM_L := Vector3(-0.6, -1.4, 0.15)
 ## Longueur de l'avant-bras, du coude au poignet (24 cubes de 1,25 cm).
 const ARM_LEN := 0.3
 ## La manche continue derrière le coude (haut du bras) sur cette fraction de

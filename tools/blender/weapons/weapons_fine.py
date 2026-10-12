@@ -230,7 +230,7 @@ def b_m1911():
     it.info["slide_travel"] = 0.03
     it.info["cube"] = FINE
     it.anchors["ads"] = [0.0, 0.0, 0.4]
-    it.anchors["hold"] = [-0.06, 0.15, 0.35]
+    it.anchors["hold"] = [-0.06, 0.12, 0.25]
     it.anchors["hold_rot"] = [0.0, 0.32, -0.08]
     # Points d'attache des pièces visibles (docs/weapons/m1911.md).
     it.a("att_muzzle", 0, 2.5, -11)
