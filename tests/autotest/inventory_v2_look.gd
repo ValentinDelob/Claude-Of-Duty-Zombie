@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## @rendu : inventaire de partie v2 (docs/hub_v2/InventaireJeu.dc.html),
-## ajout en cours : captures à comparer à la maquette (mêmes armes : PÉTOIRE,
+## ajout en cours : captures à comparer à la maquette (mêmes armes : M1912,
 ## COUPERET avec une pièce, FEU FOLLET en main ; BALAI NEUF et GARDE-CHASSE
 ## dans le sac ; deux pièces trouvées ; 1 240 de ferraille, manche 12), en
 ## français, en anglais et à 130 % (TAILLE DES MENUS). Vérifie aussi que rien
@@ -44,7 +44,7 @@ func run() -> void:
 		await frames(3)
 		at.check(at.get_viewport().gui_get_focus_owner() == inv.bag_buttons[0], "focus sur l'arme NEUVE (%s)" % lang)
 		at.check(inv.inspected_slot() == [InventoryPanel.ROW_BAG, 0] and inv.compared_hand([1, 0]) == 0,
-				"fiche : BALAI comparé à PÉTOIRE (%s)" % lang)
+				"fiche : BALAI comparé à M1912 (%s)" % lang)
 		at.check(inv.bag_buttons[0].is_new and inv.bag_buttons[1].is_new, "NEUF sur les armes du sac (%s)" % lang)
 		at.check(inv._bag_grid.columns == 4, "100 % : sac sur quatre colonnes")
 		var d := " ".join(inv.prompts.describe())

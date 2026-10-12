@@ -41,8 +41,8 @@ func run() -> void:
 	pd = game.session.local_data()
 	var wc := p.weapons
 
-	# 1. M1911 entamé (5/80) : rechargement puis changement à mi-course.
-	await equip(["m1911", "mp40"], 5, 80)
+	# 1. M1911 entamé (5/60) : rechargement puis changement à mi-course.
+	await equip(["m1911", "mp40"], 5, 60)
 	var dur := game.combat.reload_time(1, pd.weapons[0])
 	p.input.reload = true
 	await seconds(dur * 0.4)
@@ -55,8 +55,8 @@ func run() -> void:
 	at.check(pd.slot == 1, "serveur : MP40 en main")
 	# Au-delà de l'échéance du rechargement annulé : rien ne se remplit.
 	await seconds(dur + 0.3)
-	at.check(ammo(0) == [5, 80], "M1911 inchangé côté client : %s" % [ammo(0)])
-	at.check(srv_ammo(0) == [5, 80], "M1911 inchangé côté serveur : %s" % [srv_ammo(0)])
+	at.check(ammo(0) == [5, 60], "M1911 inchangé côté client : %s" % [ammo(0)])
+	at.check(srv_ammo(0) == [5, 60], "M1911 inchangé côté serveur : %s" % [srv_ammo(0)])
 	var mp40 := WeaponDB.new_instance("mp40")
 	at.check(ammo(1) == [int(mp40.mag), int(mp40.reserve)], "MP40 intact : %s" % [ammo(1)])
 	at.check(not wc.is_reloading(), "MP40 : pas de rechargement hérité")
@@ -68,7 +68,7 @@ func run() -> void:
 	at.check(int(wc.current().mag) == 5, "M1911 toujours à 5 au retour")
 	p.input.reload = true
 	await seconds(dur + 0.3)
-	at.check(ammo(0) == [8, 77] and srv_ammo(0) == [8, 77], "rechargement complet après le retour : %s / %s" % [ammo(0), srv_ammo(0)])
+	at.check(ammo(0) == [7, 58] and srv_ammo(0) == [7, 58], "rechargement complet après le retour : %s / %s" % [ammo(0), srv_ammo(0)])
 
 	# 3. Fusil à pompe (1/30) : changement à mi-course, cartouches poussées gardées.
 	await equip(["stakeout", "m1911"], 1, 30)

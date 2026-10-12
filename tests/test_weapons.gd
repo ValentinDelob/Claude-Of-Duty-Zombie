@@ -1,12 +1,14 @@
 extends TestCase
-## Table d'armes (docs/WEAPONS.md) : champs requis, noms originaux FR / EN
-## (aucun nom de fabricant ni de modèle réel), niveaux de base répartis de
-## 1 à 50 selon la puissance, batte de baseball (arme de base de corps à
-## corps), valeurs « pap » en sommeil, modèles cubiques (cubes de 2,5 cm).
+## Table d'armes (docs/WEAPONS.md) : champs requis, noms FR / EN originaux
+## ou proches du vrai (jamais le nom exact d'un fabricant ni d'un modèle
+## réel), niveaux de base répartis de 1 à 50 selon la puissance, batte de
+## baseball (arme de base de corps à corps), valeurs « pap » en sommeil,
+## modèles cubiques (cubes de 2,5 cm ; armes fines : 1,25 cm).
 
-## Mots interdits dans un nom d'arme : fabricants et modèles réels
-## (GAME_CONCEPT §4.9, §6).
-const REAL_NAMES := ["M1911", "1911", "CZ75", "CZ", "PYTHON", "COLT", "MP40", "MP5K", "MP5", "PM63", "MPL", "SPECTRE",
+## Mots interdits dans un nom d'arme : fabricants et désignations exactes
+## des modèles réels (GAME_CONCEPT §4.9, §6). Un nom PROCHE du vrai est
+## permis (M1912 pour le Colt M1911A1), le vrai jamais.
+const REAL_NAMES := ["M1911", "M1911A1", "1911", "CZ75", "CZ", "PYTHON", "COLT", "MP40", "MP5K", "MP5", "PM63", "MPL", "SPECTRE",
 	"AK74U", "AK74u", "AK", "AK-74", "M14", "M16", "COMMANDO", "FN", "FAL", "G11", "GALIL", "FAMAS", "AUG", "RPK",
 	"HK21", "HK", "OLYMPIA", "STAKEOUT", "SPAS-12", "SPAS", "HS10", "DRAGUNOV", "L96A1", "L96", "CHINA", "LAKE",
 	"LAW", "M72", "BERETTA", "GLOCK", "REMINGTON", "WINCHESTER", "BROWNING", "WALTHER", "KALASHNIKOV", "HECKLER",
@@ -37,8 +39,14 @@ func test_every_weapon_has_required_fields() -> void:
 func test_starting_weapon() -> void:
 	var s := WeaponDB.stats(WeaponDB.STARTING_WEAPON)
 	assert_eq(WeaponDB.STARTING_WEAPON, "m1911")
-	assert_eq(int(s.mag), 8)
-	assert_eq(int(s.reserve), 80)
+	# M1912 (Colt M1911A1 réel, docs/weapons/m1911.md) : 7 coups, 10 chargeurs.
+	assert_eq(int(s.mag), 7)
+	assert_eq(int(s.reserve), 70)
+	assert_eq(int(s.damage), 30)
+	assert_eq(int(s.rpm), 360)
+	assert_false(bool(s.auto), "semi-automatique")
+	assert_near(float(s.reload), 1.7, 0.001)
+	assert_near(float(s.range), 22.0, 0.001)
 	# Pistolet de départ peu efficace (manche 1, 150 PV) : 5 à 8 balles.
 	var shots := ceili(150.0 / float(s.damage))
 	assert_true(shots >= 5 and shots <= 8, "pistolet de départ : %d balles au corps en manche 1" % shots)
@@ -53,9 +61,14 @@ func test_removed_weapons() -> void:
 		assert_false(WeaponDB.WEAPONS[id].has("wall_cost") or WeaponDB.WEAPONS[id].has("box"), "%s : ni mur ni boîte" % id)
 
 
-## Noms originaux : uniques, en français et en anglais, sans aucun nom de
-## fabricant ni de modèle réel (mot à mot).
+## Noms : uniques, en français et en anglais, originaux ou PROCHES du vrai
+## (refonte du 2026-10-12 : armes refaites d'après une arme réelle, comme
+## M1912 pour le Colt M1911A1), mais jamais un nom exact de fabricant ni de
+## modèle réel (mot à mot : M1911 reste interdit, M1912 est permis).
 func test_original_names() -> void:
+	# Le nom proche du vrai n'est pas le vrai.
+	assert_eq(String(WeaponDB.stats("m1911").name), "M1912")
+	assert_false("M1912" in REAL_NAMES)
 	var seen_fr := {}
 	var seen_en := {}
 	for id in WeaponDB.WEAPONS:
@@ -147,8 +160,10 @@ func test_special_mechanics() -> void:
 	assert_eq(steps.size(), 4, "3 cartouches + pompe")
 
 
-## Budget de triangles d'un modèle d'arme cubique (docs/WEAPONS.md).
+## Budget de triangles d'un modèle d'arme cubique (docs/WEAPONS.md) ; armes
+## fines (cubes de 1,25 cm, weapons_fine.py) : TRI_BUDGET_FINE.
 const TRI_BUDGET := 1500
+const TRI_BUDGET_FINE := 5000
 
 
 func test_models_and_anchors() -> void:
@@ -160,9 +175,12 @@ func test_models_and_anchors() -> void:
 		assert_true(sp.parts.size() >= 5, "%s : au moins 5 pavés" % id)
 		for a in ["muzzle", "sight", "grip", "support"]:
 			assert_true(sp.anchors.has(a), "%s : point %s" % [id, a])
-		assert_true(sp.anchors.muzzle.z < -0.15, "%s : bouche du canon devant" % id)
+		# Arme fine : taille réelle (M1912 : bouche à 13,75 cm de la détente).
+		var front_min := -0.12 if WeaponModels.is_fine(mid) else -0.15
+		assert_true(sp.anchors.muzzle.z < front_min, "%s : bouche du canon devant (%.3f m)" % [id, sp.anchors.muzzle.z])
 		var tris := WeaponModels.triangles(mid)
-		assert_true(tris > 0 and tris <= TRI_BUDGET, "%s : %d triangles (budget %d)" % [id, tris, TRI_BUDGET])
+		var budget := TRI_BUDGET_FINE if WeaponModels.is_fine(mid) else TRI_BUDGET
+		assert_true(tris > 0 and tris <= budget, "%s : %d triangles (budget %d)" % [id, tris, budget])
 		# Un maillage par matière (quelques appels de dessin).
 		var mats := {}
 		for g in WeaponModels.raw(mid):
@@ -201,13 +219,25 @@ func test_sight_line() -> void:
 		assert_true(WeaponModels.anchor(mid, "muzzle").y < rear.y, "%s : bouche sous la ligne de mire" % id)
 
 
-## Tous les objets tenus sont cubiques (cubes de 2,5 cm, VoxelCheck) : armes
-## d'un bloc, objets à pièces indépendantes (mains, grenade, peluche,
-## cartouches) pièce par pièce.
+## Tous les objets tenus sont cubiques (VoxelCheck) : cubes de 2,5 cm, sauf
+## les armes fines (1,25 cm, exception validée le 2026-10-12, info « cube »
+## de leur modèle) ; armes d'un bloc, objets à pièces indépendantes (mains,
+## grenade, peluche, cartouches) pièce par pièce. Seules des ARMES à feu
+## peuvent être fines : mains, batte, couteau et objets lancés restent en
+## 2,5 cm.
 func test_held_models_are_cubic() -> void:
 	var ids: Array = WeaponModels.SPECS.keys()
 	ids.append_array([WeaponModels.HANDS, WeaponModels.FRAG, WeaponModels.TEDDY])
+	var fine := 0
 	for mid in ids:
 		var articulated: bool = mid in [WeaponModels.HANDS, WeaponModels.FRAG, WeaponModels.TEDDY] or WeaponModels.SPECS.get(mid, "") == "round"
-		var rep := VoxelCheck.check_file(ProjectSettings.globalize_path(WeaponModels.DIR + mid + ".glb"), 1 if articulated else 0, 1.0, WeaponModels.CUBE)
-		assert_true(bool(rep.get("ok", false)), "%s : modèle cubique (%s)" % [mid, rep.get("fr", rep.get("error", ""))])
+		var cube := WeaponModels.cube(mid)
+		if WeaponModels.is_fine(mid):
+			fine += 1
+			assert_false(articulated or WeaponDB.is_melee(mid) or not WeaponDB.exists(mid), "%s : seules les armes à feu sont fines" % mid)
+		else:
+			assert_near(cube, WeaponModels.CUBE, 0.00001, "%s : cubes de 2,5 cm" % mid)
+		var rep := VoxelCheck.check_file(ProjectSettings.globalize_path(WeaponModels.DIR + mid + ".glb"), 1 if articulated else 0, 1.0, cube)
+		assert_true(bool(rep.get("ok", false)), "%s : modèle cubique en cubes de %.2f cm (%s)" % [mid, cube * 100.0, rep.get("fr", rep.get("error", ""))])
+	assert_true(WeaponModels.is_fine("m1911"), "M1912 : arme fine (1,25 cm)")
+	assert_true(fine >= 1, "au moins une arme fine")

@@ -87,7 +87,7 @@ func run() -> void:
 	var box: MysteryBox = game.interact.get_obj("box")
 	at.check(box != null, "caisse présente")
 	if box:
-		await equip(["m1911"], 5, 80)
+		await equip(["m1911"], 5, 60)
 		box.force_result = "decoy"
 		box.srv_use(1)
 		var ok: bool = await until(func(): return box.state == MysteryBox.State.READY, MysteryBox.ROLL_TIME + 3.0, "tirage de la caisse")
@@ -104,13 +104,13 @@ func run() -> void:
 	# 2. Mise à terre pendant le rechargement (auto-réanimation de test : on
 	# reste en partie en solo).
 	game.downed.solo_self_revive = true
-	await equip(["m1911", "mp40"], 5, 80)
+	await equip(["m1911", "mp40"], 5, 60)
 	var d2 := await start_reload()
 	game.combat.debug_invulnerable = false
 	game.combat.damage_player(1, 500, p.global_position + Vector3(1, 1, 0))
 	game.combat.debug_invulnerable = true
 	await until(func(): return pd.life == PlayerData.Life.DOWNED, 2.0, "joueur à terre")
 	await stopped("mise à terre")
-	await unchanged("mise à terre", "m1911", [5, 80], d2)
+	await unchanged("mise à terre", "m1911", [5, 60], d2)
 
 
