@@ -2,7 +2,7 @@
 # chaque arme reprend une ARME RÉELLE de référence (fiche docs/weapons/<id>.md,
 # nom affiché proche du vrai), en cubes DEUX FOIS PLUS PETITS que les
 # personnages (exception validée le 2026-10-12 : 1,25 cm, sous-multiple
-# exact de 2,5 cm ; les mains de la vue FPS restent en 2,5 cm).
+# exact de 2,5 cm ; les mains de la vue FPS aussi, hands_fine.py).
 #
 #   sh tools/blender.sh tools/blender/weapons/weapons_fine.py [ids...] [--sheet DOSSIER] [--export] [--no-check]
 #
@@ -224,7 +224,7 @@ def b_m1911():
     n = math.sqrt(sum(x * x for x in d))
     it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
     it.info["mag_len"] = round(n * FINE, 4)
-    # Vue FPS : le poing droit (cubes de 2,5 cm, ViewHands) suit l'inclinaison
+    # Vue FPS : le poing droit (hands_fine.py, ViewHands) suit l'inclinaison
     # de la poignée (même axe que la sortie du chargeur, environ 16°).
     it.info["grip_angle"] = -round(math.degrees(math.atan2(d[2], -d[1])), 1)
     it.info["slide_travel"] = 0.03
@@ -347,9 +347,8 @@ def b_ak74u():
     it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
     it.info["mag_len"] = round(n * FINE, 4)
     # Vue FPS : le poing droit suit la poignée (un cube toutes les trois
-    # rangées) ; main gauche en berceau étroit sous le garde-main de 3,75 cm.
+    # rangées).
     it.info["grip_angle"] = -round(math.degrees(math.atan2(1.0, 3.0)), 1)
-    it.info["narrow_support"] = True
     it.info["cube"] = FINE
     it.anchors["ads"] = [0.0, 0.0, 0.3]
     # Points d'attache des pièces visibles (docs/weapons/ak74u.md).
@@ -465,9 +464,8 @@ def b_ak47():
     it.anchors["mag_dir"] = [0.0, round(d[1] / n, 4), round(d[2] / n, 4)]
     it.info["mag_len"] = round(n * FINE, 4)
     # Vue FPS : le poing droit suit la poignée (un cube toutes les trois
-    # rangées) ; main gauche en berceau étroit sous le garde-main de 3,75 cm.
+    # rangées).
     it.info["grip_angle"] = -round(math.degrees(math.atan2(1.0, 3.0)), 1)
-    it.info["narrow_support"] = True
     it.info["cube"] = FINE
     it.anchors["ads"] = [0.0, 0.0, 0.3]
     # Points d'attache des pièces visibles (docs/weapons/ak47.md).
@@ -698,8 +696,7 @@ def b_mp40():
     it.info["mag_len"] = round(21 * FINE, 4)
     # Vue FPS : le poing droit suit la poignée (un cube toutes les cinq
     # rangées) ; la main gauche serre le puits du chargeur, comme sur le vrai
-    # MP40 (poing vertical « foregrip », dont le creux d'un cube de 2,5 cm
-    # entoure le chargeur de 2 cubes fins).
+    # MP40 (poing vertical « foregrip », creux de 3,75 cm autour du puits).
     it.info["grip_angle"] = -round(math.degrees(math.atan2(1.0, 5.0)), 1)
     it.info["front_grip"] = True
     it.info["cube"] = FINE
@@ -963,4 +960,5 @@ def main():
         sys.exit(1)
 
 
-main()
+if __name__ == "__main__":
+    main()

@@ -8,14 +8,12 @@
 #
 # ARMES FINES : les armes refaites d'après une arme réelle (refonte du
 # 2026-10-12, cubes de 1,25 cm, fiches docs/weapons/<id>.md ; aujourd'hui
-# m1911, mp40, ak74u, ak47, famas) sont construites par weapons_fine.py, PAS ici : elles sont absentes
-# de BUILDERS et du cache, et la fusion de weapons_voxel.json garde leurs
-# entrées (seuls les objets reconstruits ici sont remplacés).
+# m1911, mp40, ak74u, ak47, famas) sont construites par weapons_fine.py,
+# PAS ici, de même que les MAINS de la vue FPS (« hands », cubes de 1,25 cm,
+# hands_fine.py) : elles sont absentes de BUILDERS et du cache, et la fusion
+# de weapons_voxel.json garde leurs entrées (seuls les objets reconstruits
+# ici sont remplacés).
 #
-#   - les mains et avant-bras de la vue FPS, ceux du joueur de baseball
-#     (même palette que tools/blender/player/player_voxel.py : gants de
-#     frappe, poignet nu, sous-maillot et liseré dans la zone d'équipe
-#     « team », manche du maillot crème, bandage à l'avant-bras gauche) ;
 #   - la grenade, la peluche leurre, la cartouche et la grenade de 40 mm
 #     tenues pendant les rechargements coup par coup.
 #
@@ -524,7 +522,7 @@ def b_pm63():
     barrel(it, -8, -6, 0, "gun_dark", "nub")
     trigger(it, 0, 0)
     handle(it, 0, 0, 4, "poly", mag="gun_black", mag_ext=2)
-    for j in range(-3, 0):
+    for j in range(-4, 0):  # poignée avant de 10 cm (main à la taille réelle)
         for k in (-6, -5):
             it.put(0, j, k, "poly")
     it.a("support", 0, 0, -5)
@@ -1124,170 +1122,9 @@ def b_knife():
     return it
 
 
-# ---------------------------------------------------------------------------
-# Mains (ViewHands) : poings et avant-bras, chacun dans son repère.
-# Poing : manche vertical (axe Y) en colonne i = 0, cellules k = -1 et 0,
-# poing sous y = 0 ; dos de la main côté `side` (+1 : main droite).
-# ---------------------------------------------------------------------------
-
-def fist(it, g, side=1, index=False, fingers=4):
-    p = it.piece(g, (-0.5, 0.0, 0.0))
-    s = side
-    for j in range(-4, 0):
-        for k in (-1, 0, 1):
-            it.put(s, j, k, "glove" if k != -1 else "glove_knuckle", g=g)
-        it.put(0, j, 1, "glove_palm", g=g)
-    rows = range(-4, -1) if index else range(-4, 0)
-    for j in rows:
-        for i in (-1, 0, 1):
-            it.put(i, j, -2, "glove" if (j % 2) else "glove_knuckle", g=g)
-        it.put(-s, j, -1, "glove_palm", g=g)
-    if index:
-        it.put(s, -1, -2, "glove", g=g)
-        it.put(s, -1, -3, "glove", g=g)
-        it.put(0, -1, -3, "glove_knuckle", g=g)
-    # Pouce sur l'autre flanc, en haut.
-    it.put(-s, -1 if index else 0, 0, "glove_knuckle", g=g)
-    it.put(-s, -1 if index else 0, -1, "glove", g=g)
-    # Poignet : sangle rouge du gant.
-    for c in ((s, -5, 0), (s, -5, 1), (0, -5, 1)):
-        it.put(*c, "strap", g=g)
-    return p
-
-
-def stick_fist(it, g, side):
-    """Poing serré sur un manche fin d'un seul cube (batte) : pièce décalée
-    d'un demi-cube en z pour centrer le trou du manche sur l'axe Y."""
-    it.piece(g, (-0.5, 0.0, -0.5))
-    s = side
-    for j in range(-4, 0):
-        for k in (-1, 0, 1):
-            it.put(s, j, k, "glove" if k != -1 else "glove_knuckle", g=g)
-        it.put(0, j, 1, "glove_palm", g=g)
-        for i in (-1, 0):
-            it.put(i * s, j, -1, "glove" if (j % 2) else "glove_knuckle", g=g)
-        it.put(-s, j, 0, "glove_palm", g=g)
-    it.put(-s, 0, 0, "glove_knuckle", g=g)
-    it.put(-s, 0, 1, "glove", g=g)
-    for c in ((s, -5, 0), (s, -5, 1), (0, -5, 1)):
-        it.put(*c, "strap", g=g)
-
-
-def b_hands():
-    it = Item("hands", "hands", prefix="hand")
-    fist(it, "grip", 1, index=True)
-    fist(it, "foregrip", -1)
-    fist(it, "knife", -1)
-    stick_fist(it, "bat_r", 1)
-    stick_fist(it, "bat_l", -1)
-    # Main d'appui d'un pistolet : enveloppe le poing droit par la gauche et
-    # par l'avant (doigts devant ceux de la main droite).
-    g = "pistol_support"
-    it.piece(g, (-0.5, 0.0, 0.0))
-    for j in range(-4, -1):
-        for k in (-2, -1, 0):
-            it.put(-2, j, k, "glove", g=g)
-        for i in (-2, -1, 0, 1):
-            it.put(i, j, -3, "glove" if j % 2 else "glove_knuckle", g=g)
-    it.put(-2, -1, -1, "glove_knuckle", g=g)
-    it.put(-2, -1, 0, "glove", g=g)
-    for c in ((-2, -5, -1), (-2, -5, 0)):
-        it.put(*c, "strap", g=g)
-    # Berceau : paume sous le garde-main, doigts sur le flanc droit, pouce à gauche.
-    g = "cradle"
-    it.piece(g, (-0.5, 0.0, 0.0))
-    for i in (-1, 0, 1):
-        for k in range(-2, 2):
-            it.put(i, -1, k, "glove_palm", g=g)
-    for k in range(-2, 2):
-        for j in (-1, 0, 1):
-            it.put(2, j, k, "glove" if k % 2 else "glove_knuckle", g=g)
-    for c in ((-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0)):
-        it.put(*c, "glove", g=g)
-    for c in ((-1, -2, 2), (0, -2, 2)):
-        it.put(*c, "strap", g=g)
-    # Berceau ÉTROIT (armes fines en cubes de 1,25 cm, garde-main de 3,75 cm,
-    # info « narrow_support ») : même main, paume de deux cubes (largeur
-    # paire, axe entre les colonnes -1 et 0, sans décalage), les doigts et
-    # le pouce touchent les flancs au lieu de flotter à 2 cm.
-    g = "cradle_narrow"
-    it.piece(g, (0.0, 0.0, 0.0))
-    for i in (-1, 0):
-        for k in range(-2, 2):
-            it.put(i, -1, k, "glove_palm", g=g)
-    for k in range(-2, 2):
-        for j in (-1, 0, 1):
-            it.put(1, j, k, "glove" if k % 2 else "glove_knuckle", g=g)
-    for c in ((-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0)):
-        it.put(*c, "glove", g=g)
-    for c in ((-1, -2, 2), (0, -2, 2)):
-        it.put(*c, "strap", g=g)
-    # Lancer : main droite autour d'une grenade centrée (3 × 3 × 3).
-    g = "throw_r"
-    it.piece(g, (-0.5, -0.5, -0.5))
-    for j in (-1, 0, 1):
-        for k in (-1, 0, 1):
-            it.put(2, j, k, "glove", g=g)
-    for i in (-1, 0, 1):
-        for k in (-1, 0, 1):
-            it.put(i, -2, k, "glove_palm", g=g)
-    for i in (-1, 0, 1):
-        for j in (-1, 0):
-            it.put(i, j, -2, "glove" if j else "glove_knuckle", g=g)
-    it.put(-2, 0, -1, "glove", g=g)
-    it.put(-2, 0, 0, "glove_knuckle", g=g)
-    for c in ((2, -2, 0), (2, -2, 1)):
-        it.put(*c, "strap", g=g)
-    # Main gauche en pince (goupille).
-    g = "throw_l"
-    it.piece(g, (-0.5, 0.0, -0.5))
-    it.box(0, 2, -3, -1, -1, 1, "glove", g=g)
-    it.put(0, -1, -1, "glove_knuckle", g=g)
-    it.put(-1, -1, -1, "glove", g=g)
-    it.put(1, -1, 0, "glove", g=g)
-    it.put(1, -4, 0, "strap", g=g)
-    # Avant-bras : du coude (z = 0) au poignet (z = -12 cubes = 0,3 m), comme
-    # le joueur vu par les autres : poignet nu (3 cubes de peau) au-dessus du
-    # bracelet d'équipe du gant, sous-maillot d'équipe à manches longues,
-    # puis, derrière le coude, la manche courte crème du maillot (plus large,
-    # liseré d'équipe à l'ourlet). Section de 3 × 3 centrée sur l'axe.
-    # « forearm_l » : le même, bandage taché de sang à mi-avant-bras (comme
-    # le modèle vu par les autres, sans surépaisseur).
-    for g in ("forearm", "forearm_l"):
-        it.piece(g, (-0.5, -0.5, 0.0))
-        for k in range(-12, 3):
-            key = "skin" if k <= -10 else "undershirt"
-            it.box(-1, 2, -1, 2, k, k + 1, key, g=g)
-        for k in range(3, 12):
-            key = "piping" if k == 3 else "jersey"
-            # Manche presque toujours hors champ : teinte unie (faces fusionnées,
-            # budget de triangles des mains).
-            it.box(-2, 3, -2, 3, k, k + 1, key, g=g, amp=0.0)
-    # Bandage de l'avant-bras gauche : à plat sur le sous-maillot (même
-    # section : il ne grossit pas le bras, qui passe sous l'arme), deux tours
-    # de gaze sale, taches de sang séché sur le dessus et le flanc.
-    g = "forearm_l"
-    for k in (-7, -6):
-        for i in (-1, 0, 1):
-            for j in (-1, 0, 1):
-                key = "bandage"
-                if (i, j, k) in ((1, 1, -7), (0, 1, -6), (1, 0, -6)):
-                    key = "blood_dry"
-                elif k == -6 and (i + j) % 2 == 0:
-                    key = "bandage_tape"
-                it.put(i, j, k, key, g=g)
-    # Poignets (repère de chaque pièce, cubes) : lus par ViewHands.
-    it.a("wrist_grip", 1.0, -5.0, 1.5)
-    it.a("wrist_foregrip", -1.0, -5.0, 1.5)
-    it.a("wrist_bat_r", 1.0, -5.0, 0.75)
-    it.a("wrist_bat_l", -1.0, -5.0, 0.75)
-    it.a("wrist_knife", -1.0, -5.0, 1.5)
-    it.a("wrist_pistol_support", -2.0, -5.0, -0.5)
-    it.a("wrist_cradle", -0.5, -2.0, 2.5)
-    it.a("wrist_cradle_narrow", 0.0, -2.0, 2.5)
-    it.a("wrist_throw_r", 2.0, -2.0, 1.0)
-    it.a("wrist_throw_l", 1.0, -4.0, 0.5)
-    return it
+# Mains et avant-bras de la vue FPS (« hands ») : cubes de 1,25 cm à la
+# taille réelle d'une main, construits par hands_fine.py (plus ici : ce
+# script ne doit pas écraser hands.glb).
 
 
 # ---------------------------------------------------------------------------
@@ -1373,7 +1210,7 @@ BUILDERS = {
     "l96a1": b_l96a1, "dragunov": b_dragunov,
     "china_lake": b_china_lake, "law": b_law,
     "bat": b_bat, "knife": b_knife,
-    "hands": b_hands, "frag": b_frag, "teddy": b_teddy,
+    "frag": b_frag, "teddy": b_teddy,
     "round_shell": b_round_shell, "round_40mm": b_round_40mm,
 }
 
