@@ -301,6 +301,7 @@ static func material(key: String) -> ShaderMaterial:
 	m.set_shader_parameter("roughness_base", float(d.rough))
 	m.set_shader_parameter("metallic_base", float(d.metal))
 	m.set_shader_parameter("glow", float(d.glow))
+	m.set_shader_parameter("wet", float(WorldLook.WET_SURFACES.get(key, 0.0)))
 	_mats[key] = m
 	return m
 

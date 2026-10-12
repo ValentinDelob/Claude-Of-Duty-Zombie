@@ -23,8 +23,12 @@ const DEV_SCORE := 3.5
 ## le nombre de pixels : 1,3-1,45 ms mesurés dans la fenêtre 1280x720 du
 ## premier lancement (x 2,25), 2,6-2,9 ms en 1920x1080. Le coût n'est pas tout
 ## à fait proportionnel aux pixels : une petite fenêtre sous-estime un peu
-## l'indice (choix prudent).
-const REF_MENU_MS := 2.9
+## l'indice (choix prudent). Refonte de l'éclairage (12/10/2026 : brume
+## volumétrique, flaques LampPool sous les néons, lampe de bureau) : le menu
+## coûte 1,23 fois plus (1,84 -> 2,27 ms mesurés en 1080p par tools/perf.sh
+## boot, avant / après, même machine) : référence relevée d'autant, pour que
+## le préréglage choisi ne change pas.
+const REF_MENU_MS := 3.55
 ## Indice minimal pour MEDIUM (60 fps en 1080p en partie) et pour HIGH.
 const MEDIUM_MIN := 0.9
 const HIGH_MIN := 2.6

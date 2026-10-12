@@ -13,7 +13,7 @@ extends CanvasLayer
 const LAYER := 5
 ## Amplitude du grain pour Settings.film_grain = 1.
 const GRAIN_MAX := 0.085
-const VIGNETTE := 0.32
+const VIGNETTE := 0.42
 const SHADER := preload("res://assets/shaders/film_post.gdshader")
 const SHADER_LOW := preload("res://assets/shaders/film_post_low.gdshader")
 
