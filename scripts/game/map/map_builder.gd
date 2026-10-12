@@ -59,8 +59,10 @@ func build(parent: Node3D) -> void:
 	geo.name = "Geometry"
 	parent.add_child(geo)
 	var tools := {}  # "clé matériau@tuile" -> SurfaceTool
+	relief = plan_relief()
 	_build_floors(tools)
 	_build_walls(tools)
+	_build_relief(geo, tools)
 	for tkey in tools:
 		var st: SurfaceTool = tools[tkey]
 		st.generate_tangents()
@@ -68,11 +70,50 @@ func build(parent: Node3D) -> void:
 		var mi := MeshInstance3D.new()
 		mi.name = "Mesh_%s_%s" % [key, tkey.get_slice("@", 1).get_slice("#", 0)]
 		mi.mesh = st.commit()
-		mi.material_override = materials[key] if materials.has(key) else WorldLook.surface(key)
+		mi.material_override = materials[key] if materials.has(key) else SurfaceRelief.material(key)
 		if tkey.ends_with("#flat"):
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		geo.add_child(mi)
 	_build_collisions(parent)
+
+
+## Relief des surfaces (SurfaceRelief) : creux et saillies, sans ombre, par
+## matériau et par tuile de rendu, construits directement (sommets et
+## normales en tableaux : des dizaines de milliers de faces). Ajoutés au
+## maillage du sol ou du plafond de la même tuile et du même matériau s'il
+## existe (sans ombre lui aussi : aucun appel de dessin en plus), sinon un
+## maillage à part (« Relief_<clé>_<tuile> »).
+func _build_relief(geo: Node3D, tools: Dictionary) -> void:
+	var acc := relief.emit_groups(MapData.CELL * CHUNK)
+	var keys := acc.keys()
+	keys.sort()
+	for key: String in keys:
+		var tiles: Array = (acc[key] as Dictionary).keys()
+		tiles.sort()
+		for t: String in tiles:
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			var v: PackedVector3Array = acc[key][t][0]
+			arrays[Mesh.ARRAY_VERTEX] = v
+			arrays[Mesh.ARRAY_NORMAL] = acc[key][t][1]
+			var tk := "%s@%s#flat" % [key, t]
+			if tools.has(tk):
+				# Mêmes attributs que les faces du SurfaceTool (UV : tangentes).
+				var uv := PackedVector2Array()
+				uv.resize(v.size())
+				arrays[Mesh.ARRAY_TEX_UV] = uv
+				var part := ArrayMesh.new()
+				part.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+				(tools[tk] as SurfaceTool).append_from(part, 0, Transform3D.IDENTITY)
+				continue
+			var mesh := ArrayMesh.new()
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var mi := MeshInstance3D.new()
+			mi.name = "Relief_%s_%s" % [key, t]
+			mi.mesh = mesh
+			mi.material_override = materials[key] if materials.has(key) else SurfaceRelief.material(key)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			geo.add_child(mi)
 
 
 ## SurfaceTool du matériau `key` pour la tuile contenant la cellule `c`.
@@ -87,23 +128,25 @@ func _tool(tools: Dictionary, key: String, c: Vector2i, flat := false) -> Surfac
 	return tools[tkey]
 
 
-## Sol et plafond : une quad par cellule de sol.
+## Sol et plafond : une quad par cellule de sol (moins les creux du relief).
 func _build_floors(tools: Dictionary) -> void:
+	var n := roundi(MapData.CELL / SurfaceRelief.CUBE)
 	for cy in data.height:
 		for cx in data.width:
 			var c := Vector2i(cx, cy)
 			if not data.is_floor(c):
 				continue
-			var x0 := cx * MapData.CELL
-			var z0 := cy * MapData.CELL
-			var x1 := x0 + MapData.CELL
-			var z1 := z0 + MapData.CELL
-			var y := wall_height
-			_quad(_tool(tools, _floor_key(c), c, true), Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3.UP)
-			_quad(_tool(tools, _ceiling_key(c), c, true),Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1), Vector3.DOWN)
+			var r := Rect2i(cx * n, cy * n, n, n)
+			for sub: Rect2i in relief.cut(Vector3i.UP, 0.0, r):
+				var p := SurfaceRelief.quad_pts(Vector3i.UP, 0.0, sub)
+				_quad(_tool(tools, _floor_key(c), c, true), p[0], p[1], p[2], p[3], Vector3.UP)
+			for sub: Rect2i in relief.cut(Vector3i.DOWN, wall_height, r):
+				var p := SurfaceRelief.quad_pts(Vector3i.DOWN, wall_height, sub)
+				_quad(_tool(tools, _ceiling_key(c), c, true), p[0], p[1], p[2], p[3], Vector3.DOWN)
 
 
-## Murs : une face verticale pour chaque côté de mur qui touche du sol.
+## Murs : une face verticale pour chaque côté de mur qui touche du sol
+## (moins les creux du relief).
 func _build_walls(tools: Dictionary) -> void:
 	for cy in data.height:
 		for cx in data.width:
@@ -112,25 +155,132 @@ func _build_walls(tools: Dictionary) -> void:
 				for d in DIRS:
 					var fc: Vector2i = c + d
 					if data.is_floor(fc):
-						_face(_tool(tools, _wall_key(fc), c), c, d, 0.0, wall_height)
+						var w := _wall_rect(c, d)
+						var st := _tool(tools, _wall_key(fc), c)
+						for sub: Rect2i in relief.cut(w[0], w[1], w[2]):
+							var p := SurfaceRelief.quad_pts(w[0], w[1], sub)
+							_quad(st, p[0], p[1], p[2], p[3], Vector3(w[0]))
 
 
-## Face verticale sur le côté `d` de la cellule `c`, de y0 à y1, tournée vers `d`.
-func _face(st: SurfaceTool, c: Vector2i, d: Vector2i, y0: float, y1: float) -> void:
-	var x0 := c.x * MapData.CELL
-	var z0 := c.y * MapData.CELL
-	var x1 := x0 + MapData.CELL
-	var z1 := z0 + MapData.CELL
-	var n := Vector3(d.x, 0, d.y)
-	match d:
-		Vector2i(1, 0):
-			_quad(st, Vector3(x1, y0, z1), Vector3(x1, y0, z0), Vector3(x1, y1, z0), Vector3(x1, y1, z1), n)
-		Vector2i(-1, 0):
-			_quad(st, Vector3(x0, y0, z0), Vector3(x0, y0, z1), Vector3(x0, y1, z1), Vector3(x0, y1, z0), n)
-		Vector2i(0, 1):
-			_quad(st, Vector3(x0, y0, z1), Vector3(x1, y0, z1), Vector3(x1, y1, z1), Vector3(x0, y1, z1), n)
-		Vector2i(0, -1):
-			_quad(st, Vector3(x1, y0, z0), Vector3(x0, y0, z0), Vector3(x0, y1, z0), Vector3(x1, y1, z0), n)
+## Côté `d` de la cellule de mur `c` : [normale (Vector3i), plan (m),
+## rectangle (cubes, repère de SurfaceRelief : u le long du mur, v en hauteur)].
+func _wall_rect(c: Vector2i, d: Vector2i) -> Array:
+	var n := roundi(MapData.CELL / SurfaceRelief.CUBE)
+	var h := roundi(wall_height / SurfaceRelief.CUBE)
+	var plane := (c.x + (1 if d.x > 0 else 0)) * MapData.CELL if d.x != 0 else (c.y + (1 if d.y > 0 else 0)) * MapData.CELL
+	var u := (c.y if d.x != 0 else c.x) * n
+	return [Vector3i(d.x, 0, d.y), plane, Rect2i(u, 0, n, h)]
+
+
+# ------------------------------------------------------------------ relief
+
+## Relief des surfaces de la carte (SurfaceRelief) : graine de la carte,
+## zones réservées autour de chaque marqueur (portes, fenêtres, évacuation,
+## station, apparitions, caisses, pièges... : sa cellule et ses 8 voisines ;
+## lampes : aucune dalle tombée autour), sols, murs et plafonds par matériau.
+var relief: SurfaceRelief
+## Marqueurs contre un mur ou dans un mur (portes, fenêtres, évacuation,
+## station, interrupteur, levier, caisse) : ni creux, ni plinthe, ni cimaise
+## sur le mur à moins d'une cellule.
+const WALL_MARKERS := "123456789W@=GHX"
+
+
+func plan_relief() -> SurfaceRelief:
+	var rel := SurfaceRelief.new()
+	rel.seed = SurfaceRelief.seed_of(def.id if def else "grid")
+	rel.granularity = MapData.CELL
+	if not SurfaceRelief.enabled:
+		return rel
+	var keep := {}
+	var keep_wall := {}
+	var lamps := {}
+	for sym: String in data.markers:
+		# Décor posé (caisses, barils, lits, paillasses, générateur) et
+		# flaques de sang : leur cellule seulement ; lampes : plafond.
+		var r := 0 if (sym in MapDef.BLOCKING_PROPS or sym == ",") else 1
+		for c: Vector2i in data.markers[sym]:
+			if sym == "L":
+				lamps[c] = true
+				continue
+			for dy in range(-r, r + 1):
+				for dx in range(-r, r + 1):
+					keep[c + Vector2i(dx, dy)] = true
+					# Murs : seulement les objets muraux et les ouvertures.
+					if sym in WALL_MARKERS:
+						keep_wall[c + Vector2i(dx, dy)] = true
+	# Tables par cellule (tests rapides) : matériau du sol et du plafond
+	# ("" : pas de sol), zone réservée, lampe.
+	var w := data.width
+	var h := data.height
+	var fkeys := PackedStringArray()
+	var ckeys := PackedStringArray()
+	var kept := PackedByteArray()
+	var lit := PackedByteArray()
+	fkeys.resize(w * h)
+	ckeys.resize(w * h)
+	kept.resize(w * h)
+	lit.resize(w * h)
+	# Sols et plafonds : une zone par matériau.
+	var floor_bb := {}
+	var ceil_bb := {}
+	for cy in h:
+		for cx in w:
+			var c := Vector2i(cx, cy)
+			kept[cy * w + cx] = (1 if keep.has(c) else 0) | (2 if keep_wall.has(c) else 0)
+			lit[cy * w + cx] = 1 if lamps.has(c) else 0
+			if not data.is_floor(c):
+				continue
+			var cr := Rect2(Vector2(c) * MapData.CELL, Vector2.ONE * MapData.CELL)
+			var fk := _floor_key(c)
+			fkeys[cy * w + cx] = fk
+			floor_bb[fk] = (floor_bb[fk] as Rect2).merge(cr) if floor_bb.has(fk) else cr
+			var ck := _ceiling_key(c)
+			ckeys[cy * w + cx] = ck
+			ceil_bb[ck] = (ceil_bb[ck] as Rect2).merge(cr) if ceil_bb.has(ck) else cr
+	var at := func(x: float, z: float) -> int:
+		var cx := floori(x / MapData.CELL)
+		var cz := floori(z / MapData.CELL)
+		return cz * w + cx if cx >= 0 and cz >= 0 and cx < w and cz < h else -1
+	for fk: String in floor_bb:
+		rel.plan_floor(fk, 0.0, floor_bb[fk], func(x: float, z: float) -> bool:
+			var i: int = at.call(x, z)
+			return i >= 0 and kept[i] == 0 and fkeys[i] == fk)
+	for ck: String in ceil_bb:
+		rel.plan_ceiling(ck, wall_height, ceil_bb[ck], func(x: float, z: float) -> bool:
+			var i: int = at.call(x, z)
+			return i >= 0 and ckeys[i] == ck,
+			func(x: float, z: float) -> bool:
+				var i: int = at.call(x, z)
+				return i < 0 or lit[i] == 0, "", MapData.CELL, true)
+	# Murs : faces alignées d'un même matériau réunies en pans continus.
+	var runs := {}   # [normale, plan, clé] -> [débuts le long du mur (cubes)]
+	for cy in data.height:
+		for cx in data.width:
+			var c := Vector2i(cx, cy)
+			if not data.is_wall(c):
+				continue
+			for d in DIRS:
+				if data.is_floor(c + d):
+					var wr := _wall_rect(c, d)
+					(runs.get_or_add([wr[0], wr[1], _wall_key(c + d)], []) as Array).append((wr[2] as Rect2i).position.x)
+	var free := func(x: float, z: float) -> bool:
+		var i: int = at.call(x, z)
+		return i < 0 or (kept[i] & 2) == 0
+	var n := roundi(MapData.CELL / SurfaceRelief.CUBE)
+	for k: Array in runs:
+		var starts: Array = runs[k]
+		starts.sort()
+		var a: int = starts[0]
+		var prev: int = a
+		for i in range(1, starts.size() + 1):
+			if i < starts.size() and int(starts[i]) == prev + n:
+				prev = starts[i]
+				continue
+			rel.plan_wall(String(k[2]), k[0], float(k[1]), a * SurfaceRelief.CUBE, (prev + n) * SurfaceRelief.CUBE, 0.0, wall_height, 0.0, free)
+			if i < starts.size():
+				a = starts[i]
+				prev = a
+	return rel
 
 
 ## Ajoute une quad (a,b,c,d dans le sens anti-horaire vu depuis la normale).

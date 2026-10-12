@@ -81,11 +81,26 @@ static func _quad(g: Dictionary, p: Array, n: Vector3, vis := true, col := false
 
 
 ## Boîte orientée : `size` = (longueur x, hauteur y, épaisseur z), lacet autour de y.
-func _box(g: Dictionary, center: Vector3, size: Vector3, yaw: float, vis := true, col := true) -> void:
+## `rel_key`, `rel_room` (murs et blocs axiaux) : matériau et salle des faces
+## verticales, qui reçoivent le relief des murs (SurfaceRelief) là où elles
+## donnent dans une salle.
+func _box(g: Dictionary, center: Vector3, size: Vector3, yaw: float, vis := true, col := true, rel_key := "", rel_room := "") -> void:
 	var ux := Vector3(cos(yaw), 0, -sin(yaw))
 	var uz := Vector3(sin(yaw), 0, cos(yaw))
 	var h := size * 0.5
 	if vis:
+		var lo := Vector3.INF
+		var hi := -Vector3.INF
+		var relief := rel_key != "" and _relief != null and SurfaceRelief.wall_profile(rel_key).size() > 0 \
+				and absf(ux.x * ux.z) < 1e-6
+		if relief:
+			for sx in [-1.0, 1.0]:
+				for sz in [-1.0, 1.0]:
+					var q: Vector3 = center + ux * h.x * sx + uz * h.z * sz
+					lo = lo.min(q)
+					hi = hi.max(q)
+			lo.y = center.y - h.y
+			hi.y = center.y + h.y
 		for axis in [[ux, h.x, Vector3.UP, h.y, uz, h.z], [Vector3.UP, h.y, ux, h.x, uz, h.z], [uz, h.z, ux, h.x, Vector3.UP, h.y]]:
 			var n: Vector3 = axis[0]
 			var a: Vector3 = axis[2] * float(axis[3])
@@ -95,6 +110,11 @@ func _box(g: Dictionary, center: Vector3, size: Vector3, yaw: float, vis := true
 				if n == Vector3.UP and s < 0.0:
 					# Dessous : sans les parties où un plafond est dans son plan.
 					_down_face(g, [c - a - b, c + a - b, c + a + b, c - a + b])
+					continue
+				if relief and n != Vector3.UP:
+					# Construite plus tard (_flush_relief_faces) : les faces
+					# alignées voisines sont d'abord réunies en pans.
+					_wall_faces.append([g, Vector3i((n * s).round()), lo, hi, rel_key, rel_room])
 					continue
 				_quad(g, [c - a - b, c + a - b, c + a + b, c - a + b], n * s)
 	if col:
@@ -182,7 +202,7 @@ func _quad_or_poly(g: Dictionary, pts: Array) -> void:
 
 ## Contour `a` moins le contour `b` : morceaux sans trou (un trou est évité en
 ## coupant `a` en deux par une verticale à travers lui, puis chaque moitié).
-static func _minus(a: PackedVector2Array, b: PackedVector2Array, depth: int) -> Array:
+static func _minus(a: PackedVector2Array, b: PackedVector2Array, depth: int, on_grid := false) -> Array:
 	var res := Geometry2D.clip_polygons(a, b)
 	var hole := -1
 	for i in res.size():
@@ -194,13 +214,15 @@ static func _minus(a: PackedVector2Array, b: PackedVector2Array, depth: int) -> 
 	if hole < 0 or depth > 8:
 		return res.filter(func(p): return _area2(p) > 1e-6)
 	var bb := _bb2(a)
-	var x := _bb2(res[hole]).get_center().x
+	# `on_grid` (creux du relief, sur la grille de 5 cm) : coupe sur le bord
+	# gauche du trou (sur la grille) plutôt qu'en son milieu.
+	var x := _bb2(res[hole]).position.x if on_grid else _bb2(res[hole]).get_center().x
 	var out := []
 	for half in [Rect2(bb.position.x - 1.0, bb.position.y - 1.0, x - bb.position.x + 1.0, bb.size.y + 2.0),
 			Rect2(x, bb.position.y - 1.0, bb.end.x - x + 1.0, bb.size.y + 2.0)]:
 		var hp := PackedVector2Array([half.position, Vector2(half.end.x, half.position.y), half.end, Vector2(half.position.x, half.end.y)])
 		for part in Geometry2D.intersect_polygons(a, hp):
-			out.append_array(_minus(part, b, depth + 1))
+			out.append_array(_minus(part, b, depth + 1, on_grid))
 	return out
 
 
@@ -676,11 +698,15 @@ static func _polygon(g: Dictionary, outline: Array, height_fn: Callable, up: boo
 
 
 ## Dalle pleine (dessus à `top`, épaisseur `th`) : planchers de niveau, balcons.
-func _slab(g: Dictionary, outline: Array, top: float, th: float) -> void:
+func _slab(g: Dictionary, outline: Array, top: float, th: float, holes := []) -> void:
 	var p2 := PackedVector2Array()
 	for p in outline:
 		p2.append(Vector2(float(p[0]), float(p[1])))
-	_polygon(g, outline, func(_x, _z): return top, true, true, false)
+	if holes.is_empty():
+		_polygon(g, outline, func(_x, _z): return top, true, true, false)
+	else:
+		# Relief : dessus percé des creux (collision : le prisme plein).
+		_cut_polygon(g, outline, top, true, holes)
 	# Dessous : sans les parties où le plafond d'une salle est dans son plan
 	# (format 20 : ce plafond est la face du dessous de la dalle).
 	var under := []
@@ -732,27 +758,41 @@ static func _floor_height(r: Dictionary) -> Callable:
 
 func _build(L: Dictionary) -> Node3D:
 	_collect_covers(L)
+	_relief = _make_relief(L) if SurfaceRelief.enabled else null
 	# Salles : sols et plafonds.
 	for r in L.get("rooms", []):
 		var rid := String(r.id)
 		_kind = "floor"
-		var g := _group(String(r.get("floor_mat", "floor")), rid)
+		var fmat := String(r.get("floor_mat", "floor"))
+		var g := _group(fmat, rid)
 		if r.has("floor_slab"):
-			_slab(g, r.outline, float(r.get("floor", 0.0)), float(r.floor_slab))
+			_slab(g, r.outline, float(r.get("floor", 0.0)), float(r.floor_slab), _room_relief(r, fmat, true))
 		elif r.has("slope"):
 			# Pente : terrasses de 5 cm (visuel), plan incliné (collision).
 			_terraces(g, r.outline, _floor_height(r))
 			_polygon(g, r.outline, _floor_height(r), true, false, true)
 		else:
-			_polygon(g, r.outline, _floor_height(r), true, true, true)
+			var holes := _room_relief(r, fmat, true)
+			if holes.is_empty():
+				_polygon(g, r.outline, _floor_height(r), true, true, true)
+			else:
+				# Relief : sol visible percé des creux, collision pleine.
+				_cut_polygon(g, r.outline, float(r.get("floor", 0.0)), true, holes)
+				_polygon(g, r.outline, _floor_height(r), true, false, true)
 		if not r.get("no_ceiling", false):
 			_kind = "ceil"
-			var gc := _group(String(r.get("ceiling_mat", "ceiling")), rid)
+			var cmat := String(r.get("ceiling_mat", "ceiling"))
+			var gc := _group(cmat, rid)
 			var ce := float(r.ceiling)
 			if r.has("ceiling_slab"):
 				_slab(gc, r.outline, ce + float(r.ceiling_slab), float(r.ceiling_slab))
 			else:
-				_polygon(gc, r.outline, func(_x, _z): return ce, false, true, true)
+				var holes := _room_relief(r, cmat, false)
+				if holes.is_empty():
+					_polygon(gc, r.outline, func(_x, _z): return ce, false, true, true)
+				else:
+					_cut_polygon(gc, r.outline, ce, false, holes)
+					_polygon(gc, r.outline, func(_x, _z): return ce, false, false, true)
 	# Blocs (murs, allèges, linteaux, décor).
 	for bl in L.get("blocks", []):
 		_kind = "barrier" if bl.get("barrier", false) else "block"
@@ -767,7 +807,8 @@ func _build(L: Dictionary) -> Node3D:
 			_box(_group(mat, String(bl.get("room", "x"))), (lo + hi) * 0.5, hi - lo, 0.0, false, not bl.get("nocollide", false))
 			_decor.append([String(bl.get("room", "x")), model, Vector3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5), hi - lo])
 			continue
-		_box(_group(mat, String(bl.get("room", "x"))), (lo + hi) * 0.5, hi - lo, 0.0, true, not bl.get("nocollide", false))
+		_box(_group(mat, String(bl.get("room", "x"))), (lo + hi) * 0.5, hi - lo, 0.0, true, not bl.get("nocollide", false),
+			mat if _kind == "block" else "", String(bl.get("room", "x")))
 	# Murs (chemins avec ouvertures ; cours des fenêtres).
 	_kind = "wall"
 	for w in L.get("walls", []):
@@ -803,10 +844,13 @@ func _build(L: Dictionary) -> Node3D:
 				if pc[1] - pc[0] < 0.001 or pc[3] - pc[2] < 0.001:
 					continue
 				var c: Vector3 = a + d * ((pc[0] + pc[1]) * 0.5) + Vector3.UP * ((pc[2] + pc[3]) * 0.5)
-				_box(g, c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw, ow < 0)
+				_box(g, c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw, ow < 0, true, String(w.get("mat", "wall")), String(w.get("room", "x")))
 				if ow >= 0:
 					_raster_piece(ow, Vector2(a.x, a.z), d2, pc[0], pc[1], t, pc[2], pc[3])
 					_shadow_boxes.append([c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw, SHADOW_INSET])
+	# Faces des murs et blocs axiaux avec leur relief (pans réunis).
+	if _relief != null:
+		_flush_relief_faces()
 	# Murs en biais (cartes de l'éditeur) : vrais murs droits obliques, une
 	# texture par face (celle de la pièce de chaque côté), collisions en
 	# pavés CollisionBox tournés comme le mur (balles, grenades, joueurs et
@@ -885,6 +929,15 @@ func _build(L: Dictionary) -> Node3D:
 			var c := Vector3(a.x, 0, a.y) + seg * 0.5
 			_box(g, Vector3(c.x, y + h / 2.0, c.z), Vector3(seg.length(), h, 0.1), atan2(-d.z, d.x), false, true)
 		vox.emit(self, g)
+	# Relief des surfaces : creux et saillies (visuel seul, sans ombre).
+	if _relief != null:
+		_kind = "relief"
+		var groups := _relief.emit_groups()
+		for key: String in groups:
+			for tag: String in groups[key]:
+				var g := _group(key, tag)
+				g.v.append_array(groups[key][tag][0])
+				g.n.append_array(groups[key][tag][1])
 	return _nodes()
 
 
@@ -1323,6 +1376,305 @@ func _shadow_casters() -> MeshInstance3D:
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mi.material_override = mat
 	return mi
+
+
+# ------------------------------------------------------------------ relief des surfaces
+
+## Relief des surfaces (SurfaceRelief : creux et saillies de 5 cm, visuel
+## seul) ; null : carte sans relief (« relief » : 0 dans la description).
+var _relief: SurfaceRelief
+## Emprises pleines (blocs, murs, murs en biais, garde-corps, pavés de
+## collision du décor) : {box: AABB} ou {a, b (Vector2), r, y0, y1} (tronçon
+## épais), indexées par case de 1 m (Vector2i -> [indices]).
+var _solids: Array = []
+var _solid_cells: Dictionary = {}
+## Zones réservées (Rect2 en x, z : portes, fenêtres, escaliers, évacuation,
+## station, apparitions, caisse, pièges, objets posés), par case de 1 m.
+var _keep: Array = []
+var _keep_cells: Dictionary = {}
+## Lampes (x, z) : aucune dalle de plafond tombée au-dessus.
+var _lamp_pts: Array = []
+## Salles : [{poly, bb, floor, ceiling}] ; sol de référence par salle.
+var _room_list: Array = []
+var _room_cells: Dictionary = {}
+var _floors: Dictionary = {}
+## Clés de marqueurs qui sont des directions, pas des points.
+const DIR_KEYS := ["wall", "in", "inward", "dir", "normal", "basis"]
+
+
+func _make_relief(L: Dictionary) -> SurfaceRelief:
+	var rel := SurfaceRelief.new()
+	rel.seed = SurfaceRelief.seed_of(String(L.get("id", "map")))
+	rel.density = clampf(float(L.get("relief", 1.0)), 0.0, 2.0)
+	if rel.density <= 0.0:
+		return null
+	for r in L.get("rooms", []):
+		var p2 := PackedVector2Array()
+		for p in r.get("outline", []):
+			p2.append(Vector2(float(p[0]), float(p[1])))
+		if p2.size() < 3:
+			continue
+		var fl := MeshMapBuilder._room_floor(r)
+		_floors[String(r.id)] = fl
+		var rb := _bb2(p2)
+		_room_list.append({"poly": p2, "bb": rb, "floor": fl,
+			"ceiling": INF if r.get("no_ceiling", false) or not r.has("ceiling") else float(r.ceiling)})
+		for j in range(floori(rb.position.y), floori(rb.end.y) + 1):
+			for i in range(floori(rb.position.x), floori(rb.end.x) + 1):
+				(_room_cells.get_or_add(Vector2i(i, j), []) as Array).append(_room_list.size() - 1)
+	# Emprises pleines.
+	for bl in L.get("blocks", []):
+		var b: Array = bl.box
+		_add_solid({"box": AABB(Vector3(b[0], b[1], b[2]), Vector3(b[3] - b[0], b[4] - b[1], b[5] - b[2]))})
+	for w in L.get("walls", []):
+		var pts: Array = w.path.duplicate()
+		if w.get("closed", false):
+			pts.append(w.path[0])
+		for i in pts.size() - 1:
+			_add_solid({"a": Vector2(pts[i][0], pts[i][1]), "b": Vector2(pts[i + 1][0], pts[i + 1][1]),
+				"r": float(w.get("thick", 0.3)) * 0.5, "y0": float(w.y0), "y1": float(w.y1)})
+	for w in L.get("obliques", []):
+		_add_solid({"a": Vector2(float(w.a[0]), float(w.a[1])), "b": Vector2(float(w.b[0]), float(w.b[1])),
+			"r": float(w.get("thick", 0.5)) * 0.5 + 0.1, "y0": float(w.y0), "y1": float(w.y1)})
+	for rl in L.get("rails", []):
+		var pts: Array = rl.path
+		for i in pts.size() - 1:
+			_add_solid({"a": Vector2(pts[i][0], pts[i][1]), "b": Vector2(pts[i + 1][0], pts[i + 1][1]),
+				"r": 0.15, "y0": float(rl.y) - 0.3, "y1": float(rl.y) + float(rl.get("h", 1.0))})
+	for d in L.get("blockers", []):
+		if not (d is Dictionary and d.get("center") is Array and d.get("size") is Array):
+			continue
+		var c := Vector3(d.center[0], d.center[1], d.center[2])
+		var s := Vector3(d.size[0], d.size[1], d.size[2])
+		var rad := Vector2(s.x, s.z).length() * 0.5
+		_add_solid({"box": AABB(c - Vector3(rad, s.y * 0.5, rad), Vector3(rad * 2.0, s.y, rad * 2.0))})
+	# Zones réservées : marqueurs (rayon 1 m ; portes et fenêtres : leur
+	# largeur en plus), escaliers (emprise + 1 m), objets posés (50 cm).
+	var markers: Dictionary = L.get("markers", {})
+	for k in markers:
+		if k == "lamps":
+			for l in markers[k]:
+				if l is Dictionary and l.get("p") is Array:
+					_lamp_pts.append(Vector2(float(l.p[0]), float(l.p[2])))
+			continue
+		var rad := 1.0
+		if k in ["doors", "windows"]:
+			rad = 1.6
+		var pts := []
+		_marker_points(markers[k], pts)
+		# Murs : tous les objets sauf les apparitions (pas d'objet au mur).
+		var wall := not String(k) in ["player_spawns", "zombie_spawns", "player_yaw"]
+		for p: Vector2 in pts:
+			_add_keep(Rect2(p - Vector2.ONE * rad, Vector2.ONE * rad * 2.0), wall)
+	for st in L.get("stairs", []):
+		var pts := []
+		_marker_points(st, pts)
+		if pts.is_empty():
+			continue
+		var bb := Rect2(pts[0], Vector2.ZERO)
+		for p: Vector2 in pts:
+			bb = bb.expand(p)
+		_add_keep(bb.grow(float(st.get("w", 1.2)) * 0.5 + 1.0), true)
+	for pr in L.get("props", []):
+		if pr is Dictionary and pr.get("p") is Array and (pr.p as Array).size() >= 3:
+			_add_keep(Rect2(Vector2(float(pr.p[0]), float(pr.p[2])) - Vector2.ONE * 0.5, Vector2.ONE), true)
+	return rel
+
+
+## Points (x, z) des marqueurs : tableaux de 3 nombres ([x, y, z]) et boîtes
+## de 6 nombres (deux coins), partout dans `v` (sauf les directions).
+static func _marker_points(v: Variant, out: Array) -> void:
+	if v is Array:
+		var nums := true
+		for e in v:
+			if not (e is float or e is int):
+				nums = false
+				break
+		if nums and v.size() == 3:
+			out.append(Vector2(float(v[0]), float(v[2])))
+			return
+		if nums and v.size() == 6:
+			out.append(Vector2(float(v[0]), float(v[2])))
+			out.append(Vector2(float(v[3]), float(v[5])))
+			return
+		for e in v:
+			_marker_points(e, out)
+	elif v is Dictionary:
+		for k in v:
+			if not String(k) in DIR_KEYS:
+				_marker_points(v[k], out)
+
+
+func _add_solid(s: Dictionary) -> void:
+	var bb: Rect2
+	if s.has("box"):
+		var b: AABB = s.box
+		bb = Rect2(b.position.x, b.position.z, b.size.x, b.size.z)
+	else:
+		var a: Vector2 = s.a
+		bb = Rect2(a, Vector2.ZERO).expand(s.b).grow(float(s.r))
+	_solids.append(s)
+	for j in range(floori(bb.position.y), floori(bb.end.y) + 1):
+		for i in range(floori(bb.position.x), floori(bb.end.x) + 1):
+			(_solid_cells.get_or_add(Vector2i(i, j), []) as Array).append(_solids.size() - 1)
+
+
+func _add_keep(r: Rect2, wall := false) -> void:
+	_keep.append([r, wall])
+	for j in range(floori(r.position.y), floori(r.end.y) + 1):
+		for i in range(floori(r.position.x), floori(r.end.x) + 1):
+			(_keep_cells.get_or_add(Vector2i(i, j), []) as Array).append(_keep.size() - 1)
+
+
+## Le point (x, z) à la hauteur y est-il dans une emprise pleine ?
+func _solid_at(x: float, z: float, y: float) -> bool:
+	var q := Vector2(x, z)
+	for k: int in _solid_cells.get(Vector2i(floori(x), floori(z)), []):
+		var s: Dictionary = _solids[k]
+		if s.has("box"):
+			var b: AABB = s.box
+			if x > b.position.x and x < b.end.x and z > b.position.z and z < b.end.z and y > b.position.y and y < b.end.y:
+				return true
+		elif y > float(s.y0) and y < float(s.y1) and Geometry2D.get_closest_point_to_segment(q, s.a, s.b).distance_to(q) < float(s.r):
+			return true
+	return false
+
+
+## (x, z) dans une zone réservée ? `wall` : seulement celles des objets
+## muraux et des ouvertures (plinthes, cimaises et creux des murs).
+func _kept(x: float, z: float, wall := false) -> bool:
+	var q := Vector2(x, z)
+	for k: int in _keep_cells.get(Vector2i(floori(x), floori(z)), []):
+		if (not wall or _keep[k][1]) and (_keep[k][0] as Rect2).has_point(q):
+			return true
+	return false
+
+
+## Point (x, z, y) dans une salle (sous son plafond, hors emprise pleine) ?
+func _interior(x: float, z: float, y: float) -> bool:
+	var q := Vector2(x, z)
+	for k: int in _room_cells.get(Vector2i(floori(x), floori(z)), []):
+		var rm: Dictionary = _room_list[k]
+		if y >= float(rm.floor) - 0.05 and y <= float(rm.ceiling) and (rm.bb as Rect2).grow(0.01).has_point(q) \
+				and Geometry2D.is_point_in_polygon(q, rm.poly):
+			return not _solid_at(x, z, y)
+	return false
+
+
+## Relief du sol (`floor_side`) ou du plafond de la salle `r` (matériau
+## `mat`) : repérage, puis creux de ce plan dans la salle (Rect2 en x, z).
+func _room_relief(r: Dictionary, mat: String, floor_side: bool) -> Array:
+	if _relief == null or r.has("slope"):
+		return []
+	var p2 := PackedVector2Array()
+	for p in r.get("outline", []):
+		p2.append(Vector2(float(p[0]), float(p[1])))
+	if p2.size() < 3:
+		return []
+	var bb := _bb2(p2)
+	var rid := String(r.id)
+	# Contour à côtés obliques (pièces le long d'un mur en biais) : la découpe
+	# des creux y ferait des sommets hors de la grille ; pas de creux (le
+	# plafond garde son ossature).
+	var straight := true
+	for i in p2.size():
+		var d := p2[(i + 1) % p2.size()] - p2[i]
+		if absf(d.x) > 1e-4 and absf(d.y) > 1e-4:
+			straight = false
+	if floor_side:
+		if SurfaceRelief.floor_profile(mat).is_empty() or not straight:
+			return []
+		var fy := float(r.get("floor", 0.0))
+		_relief.plan_floor(mat, fy, bb, func(x: float, z: float) -> bool:
+			return Geometry2D.is_point_in_polygon(Vector2(x, z), p2) and not _solid_at(x, z, fy + 0.1) and not _kept(x, z), rid)
+		return _relief.holes(Vector3i.UP, fy, bb)
+	if SurfaceRelief.ceiling_profile(mat).is_empty():
+		return []
+	var ce := float(r.ceiling)
+	_relief.plan_ceiling(mat, ce, bb, func(x: float, z: float) -> bool:
+		return Geometry2D.is_point_in_polygon(Vector2(x, z), p2) and not _solid_at(x, z, ce - 0.1),
+		func(x: float, z: float) -> bool:
+			if not straight:
+				return false
+			for l: Vector2 in _lamp_pts:
+				if absf(l.x - x) < 0.6 and absf(l.y - z) < 0.6:
+					return false
+			return true, rid, 0.25)
+	return _relief.holes(Vector3i.DOWN, ce, bb) if straight else []
+
+
+## Contour plat à la hauteur y (dessus vers le haut si `up`) percé des
+## rectangles `holes` (Rect2 en x, z) : visuel seul.
+func _cut_polygon(g: Dictionary, outline: Array, y: float, up: bool, holes: Array) -> void:
+	var p2 := PackedVector2Array()
+	for p in outline:
+		p2.append(Vector2(float(p[0]), float(p[1])))
+	var pieces: Array = [p2]
+	for h: Rect2 in holes:
+		var hp := PackedVector2Array([h.position, Vector2(h.end.x, h.position.y), h.end, Vector2(h.position.x, h.end.y)])
+		var next := []
+		for pc: PackedVector2Array in pieces:
+			if _bb2(pc).intersects(h):
+				next.append_array(_minus(pc, hp, 0, true))
+			else:
+				next.append(pc)
+		pieces = next
+	var n := Vector3.UP if up else Vector3.DOWN
+	for pc: PackedVector2Array in pieces:
+		var idx := Geometry2D.triangulate_polygon(pc)
+		for i in range(0, idx.size(), 3):
+			_tri(g, Vector3(pc[idx[i]].x, y, pc[idx[i]].y), Vector3(pc[idx[i + 1]].x, y, pc[idx[i + 1]].y),
+				Vector3(pc[idx[i + 2]].x, y, pc[idx[i + 2]].y), n, true, false)
+
+
+## Faces verticales des murs et blocs axiaux en attente du relief :
+## [groupe, normale, lo, hi, matériau, salle].
+var _wall_faces: Array = []
+
+
+## Relief des murs (SurfaceRelief) puis faces en attente : les morceaux de
+## face qui donnent dans une salle (testés tous les 25 cm, 20 cm devant la
+## face) sont réunis en pans continus (même plan, matériau, hauteurs, sol),
+## repérés, puis chaque face est construite percée de ses creux.
+func _flush_relief_faces() -> void:
+	var runs := {}   # [normale, plan, clé, y0, y1, sol, salle] -> [Vector2(début, fin)]
+	for wf: Array in _wall_faces:
+		var n: Vector3i = wf[1]
+		var lo: Vector3 = wf[2]
+		var hi: Vector3 = wf[3]
+		var room: String = wf[5]
+		var a := 0 if n.x != 0 else 2
+		var ua := 2 if a == 0 else 0
+		var plane: float = hi[a] if n[a] > 0 else lo[a]
+		var fy := float(_floors.get(room, lo.y))
+		var ty := clampf(fy + 1.0, lo.y + 0.05, hi.y - 0.05)
+		var key := [n, snappedf(plane, 0.001), wf[4], snappedf(lo.y, 0.001), snappedf(hi.y, 0.001), fy, room]
+		var u1: float = hi[ua]
+		var s: float = lo[ua]
+		while s < u1 - 0.001:
+			var e := minf(s + 0.25, u1)
+			var p := Vector3.ZERO
+			p[a] = plane + n[a] * 0.2
+			p[ua] = (s + e) * 0.5
+			if _interior(p.x, p.z, ty):
+				(runs.get_or_add(key, []) as Array).append(Vector2(s, e))
+			s = e
+	var free := func(x: float, z: float) -> bool: return not _kept(x, z, true)
+	for key: Array in runs:
+		var segs: Array = runs[key]
+		segs.sort_custom(func(p: Vector2, q: Vector2) -> bool: return p.x < q.x)
+		var cur: Vector2 = segs[0]
+		for i in range(1, segs.size() + 1):
+			if i < segs.size() and (segs[i] as Vector2).x <= cur.y + 0.001:
+				cur.y = maxf(cur.y, (segs[i] as Vector2).y)
+				continue
+			_relief.plan_wall(String(key[2]), key[0], float(key[1]), cur.x, cur.y, float(key[3]), float(key[4]), float(key[5]), free, String(key[6]))
+			if i < segs.size():
+				cur = segs[i]
+	for wf: Array in _wall_faces:
+		var g: Dictionary = wf[0]
+		_relief.box_face(wf[1], wf[2], wf[3], func(pts: Array, nn: Vector3) -> void: _quad(g, pts, nn))
+	_wall_faces = []
 
 
 # ------------------------------------------------------------------ caisse et baril

@@ -29,7 +29,13 @@ static func _two_floors(ceil_a := "", double_h := false) -> EditorMap:
 
 static func _geometry(doc: EditorMap) -> Node3D:
 	# Même chemin que l'aperçu 3D (et, pour la géométrie, que TESTER).
-	return MeshMapGeometry.build(MapPreviewWorld.compute(doc).data)
+	# Sans le relief des surfaces (ossature des plafonds, cimaises : décor
+	# testé à part, tests/test_surface_relief.gd) : les rayons visent les
+	# vraies faces de l'architecture.
+	SurfaceRelief.enabled = false
+	var root := MeshMapGeometry.build(MapPreviewWorld.compute(doc).data)
+	SurfaceRelief.enabled = true
+	return root
 
 
 ## Première face VISIBLE (faces avant, Godot : sens horaire) touchée par un
