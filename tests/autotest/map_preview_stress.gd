@@ -15,6 +15,8 @@ extends AutotestScenario
 
 const T := preload("res://tests/test_preview_thread.gd")
 const DURATION := 60.0
+## Durée maximale quand la machine est lente (actions attendues pas encore faites).
+const MAX_DURATION := 200.0
 ## Outils tenus tour à tour, et où les survoler (m) : bords communs, murs
 ## extérieurs, dessus du bureau, milieu d'une pièce.
 const TOOLS := [
@@ -64,7 +66,7 @@ func _worker() -> void:
 
 
 func run() -> void:
-	timeout_sec = 240
+	timeout_sec = 330
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu principal")
 	tree().change_scene_to_file(MapEditor.SCENE)
 	if not await until(func(): return tree().current_scene is MapEditor, 6.0, "éditeur ouvert"):
@@ -94,7 +96,10 @@ func run() -> void:
 	var moves := 0
 	var validations := 0
 	var worst := 0.0
-	while Time.get_ticks_msec() - t0 < DURATION * 1000.0:
+	# Au moins DURATION s, puis jusqu'à avoir fait toutes les actions attendues
+	# (machine chargée : moins d'images par seconde), dans la limite de MAX_DURATION.
+	while Time.get_ticks_msec() - t0 < DURATION * 1000.0 \
+			or (Time.get_ticks_msec() - t0 < MAX_DURATION * 1000.0 and (placed < 40 or moves < 3 or validations < 5)):
 		var f0 := Time.get_ticks_usec()
 		# Une copie neuve pour le fil de test dès qu'il a pris la précédente.
 		_mutex.lock()
