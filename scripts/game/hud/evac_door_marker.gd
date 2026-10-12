@@ -70,7 +70,10 @@ func _process(_delta: float) -> void:
 	_text = Lang.t("ÉVACUATION · %d m", "EVACUATION · %d m") % roundi(dist)
 	var pt := door.marker_point()
 	var box := _label_size()
-	var half := Vector2(box.x * 0.5, box.y + Hub2Style.px(GAP) + Hub2Style.px(ARROW.y)) + Vector2.ONE * Hub2Style.px(EDGE)
+	# Demi-encombrement : étiquette, écart et flèche (au-dessus à l'écran, de
+	# n'importe quel côté collé au bord), plus la marge.
+	var arrow := Hub2Style.px(GAP) + Hub2Style.px(ARROW.x)
+	var half := Vector2(box.x * 0.5 + arrow, box.y + arrow) + Vector2.ONE * Hub2Style.px(EDGE)
 	placed = place(cam.unproject_position(pt), cam.is_position_behind(pt), size, half)
 	queue_redraw()
 

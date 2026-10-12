@@ -253,8 +253,9 @@ func apply_state(state: Dictionary, _animate: bool) -> void:
 	if game != null and game.hud != null and _ui_open != is_open:
 		_ui_open = is_open
 		if is_open:
+			# Ouverture annoncée par le son et le cadre de vote (EvacVotePanel),
+			# sans grand bandeau : il passait sur le cadre, à gauche.
 			Audio.play_2d("round_end", 0.0, 0.0)
-			game.hud.show_banner(Lang.t("LA PORTE D'ÉVACUATION EST OUVERTE", "THE EVACUATION DOOR IS OPEN"), 4.0)
 		elif GameState.state != GameState.State.GAME_OVER:
 			game.hud.show_banner(Lang.t("LA PARTIE CONTINUE", "THE GAME GOES ON"), 2.5)
 

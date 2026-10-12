@@ -304,11 +304,21 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   Elle est **obligatoire sur chaque carte** et **accessible dès le départ** (à
   ajouter au jeu et à la vérification des cartes de l'éditeur).
 - L'évacuation reste ouverte **2 minutes**, **sans zombies**.
-- Chaque joueur vote **« prêt »** (continuer) ou **« partir »**.
-  - Si tout le monde a voté « prêt », la partie reprend immédiatement.
-  - L'équipe s'évacue quand **tous les joueurs vivants sont dans la zone de la
-    porte**.
+- Chaque joueur vote **de n'importe où** sur la carte : **CONTINUER** (F1,
+  croix gauche) ou **ÉVACUER** (F2, croix droite), deux commandes
+  réaffectables. L'autre touche change le vote ; on ne revient jamais à « en
+  attente » (EN ATTENTE = pas encore voté). Pendant la fenêtre (sans zombies),
+  une commande partagée ne sert qu'au vote : la croix ne change pas d'arme.
+  - Si tout le monde a voté CONTINUER, la partie reprend immédiatement.
+  - L'équipe s'évacue quand **tous ont voté ÉVACUER et que tous les joueurs
+    vivants sont debout dans la zone de la porte** ; un joueur à terre bloque.
+    Les morts sont spectateurs (ni vote ni attente), ils partent avec l'équipe.
   - À la fin des 2 minutes sans évacuation, la partie continue.
+- Affichage (maquette `docs/hub_v2/Evacuation.dc.html`) : cadre compact à
+  gauche, ÉVACUATION et temps restant, une ligne par joueur avec son choix
+  (CONTINUER jaune, ÉVACUER turquoise, EN ATTENTE gris), les deux choix avec
+  leurs touches ; après un vote ÉVACUER, repère « ÉVACUATION · N m » au-dessus
+  de la porte (au bord de l'écran quand elle est hors de vue).
 - En coop, **toute l'équipe part ensemble** : personne ne s'évacue seul.
 
 ### 4.6 Mort, réanimation et fin de partie ✅

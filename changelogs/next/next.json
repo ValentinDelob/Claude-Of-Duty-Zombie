@@ -1,0 +1,20 @@
+{
+ "title": {
+  "en": "Vote to evacuate from anywhere",
+  "fr": "Votez l'évacuation de n'importe où"
+ },
+ "items": [
+  {
+   "en": "The evacuation vote no longer happens at the door: vote CONTINUE (F1, D-pad left) or EVACUATE (F2, D-pad right) from anywhere on the map; press the other key to change your mind.",
+   "fr": "Le vote d'évacuation ne se fait plus à la porte : votez CONTINUER (F1, croix gauche) ou ÉVACUER (F2, croix droite) de n'importe où sur la carte ; l'autre touche change d'avis."
+  },
+  {
+   "en": "A new vote panel on the left shows the time left and every teammate's choice, and a marker above the door guides you once you have voted to evacuate.",
+   "fr": "Un nouveau cadre de vote à gauche montre le temps restant et le choix de chaque coéquipier, et un repère au-dessus de la porte vous guide dès que vous avez voté ÉVACUER."
+  },
+  {
+   "en": "Both vote keys can be rebound in OPTIONS > CONTROLS; during the vote, the D-pad no longer switches weapons.",
+   "fr": "Les deux touches de vote se réaffectent dans OPTIONS > COMMANDES ; pendant le vote, la croix ne change plus d'arme."
+  }
+ ]
+}

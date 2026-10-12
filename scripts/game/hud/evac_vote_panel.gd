@@ -108,17 +108,23 @@ func _f(fam: String, w: int) -> Font:
 	return Hub2Style.font(fam, w)
 
 
-func _lh(fam: String, w: int, size: float) -> float:
-	return Hub2Style.line_height(_f(fam, w), Hub2Style.fs(size))
+## Hauteur de ligne CSS « normal » (line-height: normal du navigateur, non
+## arrondie comme les métriques de Godot) : Chakra Petch 1,3 em, JetBrains
+## Mono 1,32 em, ligne de base de JetBrains Mono à 1,02 em.
+const LH_CHAKRA := 1.3
+const LH_MONO := 1.32
+const ASC_MONO := 1.02
 
 
-## Hauteurs de la maquette : en-tête, ligne de joueur, bouton de choix.
+func _lh(fam: String, _w: int, size: float) -> float:
+	return Hub2Style.fs(size) * (LH_MONO if fam == Hub2Style.MONO else LH_CHAKRA)
+
+
+## En-tête (align-items: baseline) : x = hauteur au-dessus de la ligne de
+## base, y = en dessous ; le temps (Mono 20) est le plus haut.
 func _header_metrics() -> Vector2:
-	var tf := _f(Hub2Style.CHAKRA, 700)
-	var cf := _f(Hub2Style.MONO, 700)
-	var asc := maxf(tf.get_ascent(Hub2Style.fs(15)), cf.get_ascent(Hub2Style.fs(20)))
-	var desc := maxf(tf.get_descent(Hub2Style.fs(15)), cf.get_descent(Hub2Style.fs(20)))
-	return Vector2(asc, desc)
+	var s := Hub2Style.fs(20)
+	return Vector2(s * ASC_MONO, s * (LH_MONO - ASC_MONO))
 
 
 func _row_h() -> float:
@@ -203,6 +209,9 @@ func _draw_content() -> void:
 	y += Hub2Style.px(1) + Hub2Style.px(8)
 	var bh2 := _button_h()
 	var choices := [["vote_continue", EvacRules.Vote.READY], ["vote_evacuate", EvacRules.Vote.LEAVE]]
+	# Deux touches de même largeur (F1 / F2 : 26 px comme la maquette ; noms
+	# de la croix plus longs) : les deux libellés restent alignés.
+	var key_w := maxf(_key_width(choices[0][0]), _key_width(choices[1][0]))
 	for c in choices:
 		var on: bool = _mine == c[1]
 		var col := vote_color(c[1])
@@ -211,7 +220,7 @@ func _draw_content() -> void:
 			ci.draw_rect(Rect2(bx, y, bw, bh2), Hub2Style.white_a(0.07))
 			ci.draw_rect(Rect2(bx, y, Hub2Style.px(2), bh2), col)
 		var kx := bx + Hub2Style.px(2) + Hub2Style.px(6)
-		var kw := _draw_key(ci, c[0], kx, y + roundf((bh2 - Hub2Style.px(20)) * 0.5))
+		var kw := _draw_key(ci, c[0], kx, y + roundf((bh2 - Hub2Style.px(20)) * 0.5), key_w)
 		var label := EvacRules.vote_text(c[1])
 		Hub2Style.draw_text(ci, vf, Vector2(kx + kw + gap, Hub2Style.baseline(vf, vs, y, bh2)), label, vs,
 				col if on else Hub2Style.text_a(OFF_ALPHA), vt)
@@ -220,14 +229,13 @@ func _draw_content() -> void:
 
 ## Touche de `action` (<kbd> de la maquette : 20 px de haut, 26 px de large au
 ## moins, padding 0 5 px, JetBrains Mono 10 / 700 #0B0B0C sur pavé clair) ;
-## bouton de face PlayStation en symbole. Rend la largeur.
-func _draw_key(ci: CanvasItem, action: String, x: float, y: float) -> float:
+## bouton de face PlayStation en symbole ; `w` : largeur. Rend la largeur.
+func _draw_key(ci: CanvasItem, action: String, x: float, y: float, w: float) -> float:
 	var h := Hub2Style.px(20)
 	var sym := _ps_symbol(action)
 	var t := Settings.action_label(action)
 	var f := _f(Hub2Style.MONO, 700)
 	var s := Hub2Style.fs(10)
-	var w := Hub2Style.px(26) if sym >= 0 else maxf(Hub2Style.px(26), ceilf(Hub2Style.text_width(t, f, s) + Hub2Style.px(5) * 2.0))
 	var r := Rect2(x, y, w, h)
 	ci.draw_rect(r, Hub2Style.KEYCAP_BG)
 	if sym >= 0:
@@ -236,6 +244,15 @@ func _draw_key(ci: CanvasItem, action: String, x: float, y: float) -> float:
 		Hub2Style.draw_text(ci, f, Vector2(x + roundf((w - Hub2Style.text_width(t, f, s)) * 0.5),
 				Hub2Style.baseline(f, s, y, h)), t, s, Hub2Style.INK)
 	return w
+
+
+## Largeur de la touche de `action` : 26 px au moins, padding 0 5 px.
+func _key_width(action: String) -> float:
+	if _ps_symbol(action) >= 0:
+		return Hub2Style.px(26)
+	var f := _f(Hub2Style.MONO, 700)
+	var s := Hub2Style.fs(10)
+	return maxf(Hub2Style.px(26), ceilf(Hub2Style.text_width(Settings.action_label(action), f, s) + Hub2Style.px(5) * 2.0))
 
 
 ## Bouton de face PlayStation de la touche affichée de `action` (-1 : texte).
