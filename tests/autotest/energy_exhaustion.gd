@@ -44,6 +44,20 @@ func run() -> void:
 	var run_time := GameClock.now() - t0
 	at.check(run_time > 3.6 and run_time < 4.4, "course pleine d'environ 4 s (%.2f s)" % run_time)
 	at.check(e.exhausted and e.value <= 0.0, "épuisé, énergie nulle (%.1f)" % e.value)
+	# Essoufflement audible en vraie partie (BreathFeedback du joueur local).
+	var breath := p.get_node_or_null("Breath") as BreathFeedback
+	at.check(breath != null, "joueur local : essoufflement branché")
+	if breath:
+		var b0 := breath.breaths
+		await seconds(1.0)
+		e.value = 0.0
+		await seconds(1.0)
+		print("[energy] souffles : %d (intensité %.2f, coupé %s)" % [breath.breaths - b0, breath.intensity, breath.suppressed])
+		at.check(not breath.suppressed, "vivant, en bonne santé : essoufflement jamais coupé")
+		at.check(e.exhausted and breath.breaths - b0 >= 2, "épuisé : halètement joué (%d souffles en 2 s)" % (breath.breaths - b0))
+		at.check(BreathFeedback.volume_for(breath.intensity) >= -1.0, "épuisé : plein niveau (%.1f dB)" % BreathFeedback.volume_for(breath.intensity))
+		# Suite du test depuis l'épuisement à énergie nulle.
+		e.value = 0.0
 
 	# Course refusée : nouvel appui, rien.
 	p.input.sprint = false

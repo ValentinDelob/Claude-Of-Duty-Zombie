@@ -13,17 +13,16 @@ extends Node
 ## * fin de partie (srv_close_all, appelé par Game.match_result) : relevés
 ##   clos, bonus d'évacuation, envoyés à tous dans le résultat (MatchResult).
 ## Chaque gain est envoyé au seul joueur concerné (_cl_xp : relevé complet,
-## relu par XpRules.clean_ledger) ; le client l'affiche discrètement (« +9 XP »
-## près du viseur, compteur d'XP de partie en haut à droite). Le profil est
+## relu par XpRules.clean_ledger) ; le client l'affiche discrètement (compteur
+## d'XP de partie en haut à droite ; plus de « +N XP » flottant près du
+## viseur à chaque élimination, retiré à la demande du joueur). Le profil est
 ## modifié UNE fois, à la fin de la partie (Game._show_match_end, MatchXp).
 
-## Sources d'un gain (affichage).
+## Sources d'un gain.
 const SRC_KILL := "kill"
 const SRC_ROUND := "round"
 ## Rencontre d'un ennemi (codex) : relevé renvoyé sans gain.
 const SRC_MET := "met"
-## Durée d'affichage du « +N XP » (s) : les gains rapprochés s'additionnent.
-const POP_TIME := 1.1
 
 signal xp_changed
 
@@ -33,9 +32,6 @@ var ledgers: Dictionary = {}
 ## Joueur local : copie de son relevé (envoyée par le serveur).
 var my_ledger: Dictionary = XpRules.new_ledger()
 var _counter: Label
-var _pop: Label
-var _pop_sum := 0
-var _pop_t := 0.0
 
 
 func _ready() -> void:
@@ -154,18 +150,16 @@ func _send(pid: int, gained: int, source: String) -> void:
 # --------------------------------------------------------------------------
 
 @rpc("authority", "call_remote", "reliable")
-func _cl_xp(l: Variant, gained: Variant, source: Variant) -> void:
+func _cl_xp(l: Variant, _gained: Variant, _source: Variant) -> void:
 	my_ledger = XpRules.clean_ledger(l)
-	var g := ProfileValues.to_int(gained, 0, 0, 1 << 30)
 	xp_changed.emit()
 	if GameState.state == GameState.State.GAME_OVER or game.hud == null:
 		return
 	# Carte perso (ProgressGate) : l'XP n'est pas gardée, rien d'affiché.
 	if not game.progress:
 		return
+	# Gain : seulement le compteur, aucun marqueur flottant.
 	_refresh_counter()
-	if g > 0 and source is String and String(source) in [SRC_KILL, SRC_ROUND]:
-		_show_pop(g)
 
 
 ## XP de la partie du joueur local (avant le bonus d'évacuation).
@@ -198,60 +192,20 @@ static func counter_text(xp: int) -> String:
 	return Lang.t("XP DE PARTIE %s", "MATCH XP %s") % group(xp)
 
 
-## « +N XP » léger sous le viseur ; les gains rapprochés s'additionnent.
-func _show_pop(gained: int) -> void:
-	if _pop == null:
-		_pop = HudStyle.label("", 18, XP_COLOR, "condensed", 3)
-		_pop.name = "XpPop"
-		_pop.set_anchors_preset(Control.PRESET_CENTER)
-		_pop.position = Vector2(34, 22)
-		_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		game.hud.add_child(_pop)
-	_pop_sum = (_pop_sum if _pop_t > 0.0 else 0) + gained
-	_pop_t = POP_TIME
-	_pop.text = pop_text(_pop_sum)
-	_pop.modulate.a = 0.9
-	_pop.visible = true
-
-
 ## Couleur de l'XP (bleu pâle, distincte de l'or de la ferraille).
 const XP_COLOR := Color(0.55, 0.8, 1.0)
 
 
-static func pop_text(xp: int) -> String:
-	return "+%d XP" % xp
-
-
-## Fin de partie : compteur et « +N XP » masqués (le rapport de l'écran de
-## fin prend le relais).
+## Fin de partie : compteur masqué (le rapport de l'écran de fin prend le
+## relais).
 func hide_live() -> void:
-	_pop_t = 0.0
-	_pop_sum = 0
-	if _pop:
-		_pop.visible = false
 	if _counter:
 		_counter.visible = false
-
-
-## Texte du « +N XP » affiché ("" : aucun ; tests).
-func pop_shown() -> String:
-	return _pop.text if _pop and _pop.visible else ""
 
 
 ## Texte du compteur affiché ("" : aucun ; tests).
 func counter_shown() -> String:
 	return _counter.text if _counter and _counter.visible else ""
-
-
-func _process(delta: float) -> void:
-	if _pop_t <= 0.0 or _pop == null:
-		return
-	_pop_t -= delta
-	# Fondu sur le dernier tiers.
-	_pop.modulate.a = clampf(_pop_t / (POP_TIME / 3.0), 0.0, 0.9)
-	if _pop_t <= 0.0:
-		_pop.visible = false
-		_pop_sum = 0
 
 
 ## Nombre avec espaces de milliers (« 12 450 »).

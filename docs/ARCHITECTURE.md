@@ -1063,10 +1063,17 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   (manche - 1), sans plafond (GAME_CONCEPT.md §4.3 ; remplace la formule de
   BO1, +10 % par manche après la 9).
 
-- Vitesse (`RoundRules.pick_speed`) : que des marcheurs aux manches 1 à 3
-  (`RUNNERS_FROM_ROUND` = 4, règle demandée par le joueur), puis le tirage de
-  BO1 (`[manche x 8, manche x 8 + 35]` : marche jusqu'à 35, course jusqu'à
-  70, sprint au-delà). Les chiens ont leur propre vitesse (`DogRules`).
+- Vitesse (`RoundRules.pick_speed`, tirée par l'hôte avec le générateur de
+  la partie et envoyée avec l'apparition) : que des marcheurs aux manches 1
+  à 3 (`RUNNERS_FROM_ROUND` = 4, règle demandée par le joueur), puis 💡
+  **course progressive** : `run_share` = 20 % de coureurs à la manche 4,
+  40 % à la 5, 60 % à la 6, 80 % à la 7, **tous** à partir de la 8
+  (`ALL_RUN_FROM_ROUND`), jamais avant ; parmi eux, `sprint_share` garde le
+  calendrier de BO1 (part des tirages de `[manche x 8, manche x 8 + 35]`
+  au-delà de 70 : 14 % à la 5, 36 % à la 6, 58 % à la 7, 81 % à la 8, tous à
+  partir de la 9). Un seul tirage uniforme `u` par zombie : sprint sous
+  `sprint_share`, course sous `run_share`, marche au-delà. Les chiens ont
+  leur propre vitesse (`DogRules`).
 - Points d'apparition (`Spawner.pick_spawn_point`) : zones actives, un zombie
   à la fois par point, de préférence à 9-26 m et hors de vue. Les points qui
   sortent du sol sont exclus à moins de 7 m d'un joueur ; ceux d'une fenêtre
@@ -1904,8 +1911,8 @@ interface dans `scripts/game/hub/` ; écrans : le hub (`scripts/ui/hub2/`,
   de manche, manches, vagues, évacuation ; relevé sérialisable), `XpSystem`
   (`/root/Game/Xp` : l'hôte compte l'XP de chaque joueur sur
   `Combat.zombie_damaged` (coup fatal) et `RoundManager.round_ended`
-  (joueurs non morts), envoie le relevé au seul joueur `_cl_xp` ; « +N XP »
-  et compteur au HUD ; `srv_close_all` à la fin -> `MatchResult.xp_ledgers`),
+  (joueurs non morts), envoie le relevé au seul joueur `_cl_xp` ; compteur
+  au HUD (pas de « +N XP » flottant) ; `srv_close_all` à la fin -> `MatchResult.xp_ledgers`),
   `MatchXp.apply(relevé)` : seule voie d'entrée au profil, une fois par
   partie (`Game._show_match_end`, ou `Game.keep_match_xp` au départ en cours
   de partie), quelle que soit l'issue. Détail, niveau avant / après et

@@ -70,7 +70,7 @@ func _play(map_id: String, progress: bool) -> bool:
 	if progress:
 		at.check(game.xp.counter_shown() != "", "compteur d'XP de partie : %s" % game.xp.counter_shown())
 	else:
-		at.check(game.xp.counter_shown() == "" and game.xp.pop_shown() == "", "carte perso : aucun compteur d'XP")
+		at.check(game.xp.counter_shown() == "", "carte perso : aucun compteur d'XP")
 	game.srv_end_match(true)
 	await until(func(): return game.last_result != null, 3.0, "fin de partie")
 	var r := game.last_result

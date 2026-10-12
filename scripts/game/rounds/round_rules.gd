@@ -28,6 +28,12 @@ const SPRINT := 3
 ## seul ([manche x 8, manche x 8 + 35]) en sortait déjà dès la manche 1
 ## (tirages 36 à 43 : ~22 % de coureurs).
 const RUNNERS_FROM_ROUND := 4
+## 💡 Course progressive (demande du joueur : tous couraient d'un coup à la
+## manche 4, le tirage de BO1 n'y laissant que 11 % de marcheurs et aucun à
+## la 5) : de la manche 4 à la 7, une part croissante des zombies court
+## (20 %, 40 %, 60 %, 80 %) ; TOUS courent (ou sprintent) à partir de la
+## manche 8, jamais avant.
+const ALL_RUN_FROM_ROUND := 8
 
 
 ## Nombre total de zombies de la manche.
@@ -68,20 +74,41 @@ static func move_speed(round_n: int) -> int:
 	return round_n * MOVE_SPEED_MULT
 
 
-## Tirage de la vitesse d'un zombie : aléatoire dans [vitesse, vitesse + 35] ;
-## <= 35 marche, <= 70 court, au-delà sprinte.
-static func speed_for_roll(roll: int) -> int:
-	if roll <= 35:
-		return WALK
-	if roll <= 70:
+## Part des zombies de la manche qui courent ou sprintent (0 à 1) : 0 avant
+## RUNNERS_FROM_ROUND, puis linéaire jusqu'à 1 à ALL_RUN_FROM_ROUND.
+static func run_share(round_n: int) -> float:
+	if round_n < RUNNERS_FROM_ROUND:
+		return 0.0
+	if round_n >= ALL_RUN_FROM_ROUND:
+		return 1.0
+	return float(round_n - RUNNERS_FROM_ROUND + 1) / float(ALL_RUN_FROM_ROUND - RUNNERS_FROM_ROUND + 1)
+
+
+## Part des sprinteurs (0 à 1), calendrier de BO1 inchangé : part des tirages
+## de [vitesse, vitesse + 35] au-delà de 70 (manche 5 : 14 %, 6 : 36 %, 7 :
+## 58 %, 8 : 81 %, tous à partir de la 9), jamais avant RUNNERS_FROM_ROUND
+## et jamais plus que run_share (un sprinteur est un coureur plus rapide).
+static func sprint_share(round_n: int) -> float:
+	if round_n < RUNNERS_FROM_ROUND:
+		return 0.0
+	var s := move_speed(round_n)
+	return minf(clampf(float(s + 35 - 70) / 36.0, 0.0, 1.0), run_share(round_n))
+
+
+## Classe de vitesse pour un tirage uniforme `u` dans [0, 1) : sprinteur sous
+## sprint_share, coureur sous run_share, marcheur au-delà.
+static func speed_for_share(round_n: int, u: float) -> int:
+	if u < sprint_share(round_n):
+		return SPRINT
+	if u < run_share(round_n):
 		return RUN
-	return SPRINT
+	return WALK
 
 
-## Classe de vitesse d'un nouveau zombie : marcheur avant RUNNERS_FROM_ROUND,
-## ensuite le tirage de BO1.
+## Classe de vitesse d'un nouveau zombie (tirée par le serveur, qui l'envoie
+## aux clients avec l'apparition) : marcheur avant RUNNERS_FROM_ROUND (aucun
+## tirage), ensuite un tirage du générateur de la partie (speed_for_share).
 static func pick_speed(round_n: int, rng: RandomNumberGenerator) -> int:
 	if round_n < RUNNERS_FROM_ROUND:
 		return WALK
-	var s := move_speed(round_n)
-	return speed_for_roll(rng.randi_range(s, s + 35))
+	return speed_for_share(round_n, rng.randf())

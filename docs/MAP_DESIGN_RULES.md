@@ -47,7 +47,7 @@ Lus dans le code (à revérifier s'ils changent) :
 | Rayon du joueur | 0,35 m | `RADIUS` |
 | Zombies, de la marche au sprint | 1,25 / 2,3 / 3,7 / 5,0 m/s | `zombie.gd` `SPEEDS` |
 | Portée d'attaque d'un zombie | 1,25 m | `ATTACK_RANGE` |
-| Chiens | 6,3 m/s | `dog_rules.gd` |
+| Chiens | 5,5 m/s | `dog_rules.gd` `RUN_SPEED` |
 | Ferraille de départ / par élimination | 0 / 50 | `player_data.gd`, `points_rules.gd` |
 | Planche réparée | 10, au plus 60 par joueur et par manche | `points_rules.gd` |
 | Caisse au hasard / piège / téléporteur | 950 / 1000 / 1500 | `COST` de chaque script |

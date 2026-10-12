@@ -58,6 +58,8 @@ func test_hellhound_uses_zombie_channel() -> void:
 	# 2 octets, y 0 en 1 octet — entiers variables, protocole 6 —, 2 x u8).
 	assert_eq(buf.size(), 2 + 3 + 7)
 	assert_eq(buf.decode_u16(2), 7)
-	assert_true(d.speed_mult * Zombie.SPEEDS[3] > 6.0, "course rapide")
+	assert_near(d.speed_mult * Zombie.SPEEDS[3], DogRules.RUN_SPEED, 0.001, "course de la meute")
+	assert_true(DogRules.RUN_SPEED > Player.WALK_SPEED and DogRules.RUN_SPEED < Player.SPRINT_SPEED * 0.85,
+			"plus rapide que la marche, un sprint la distance (%.1f m/s)" % DogRules.RUN_SPEED)
 	assert_true(d.hit_head != null and d.hit_body != null, "hitboxes")
 	mgr.queue_free()

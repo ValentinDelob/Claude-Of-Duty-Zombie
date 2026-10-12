@@ -16,8 +16,12 @@ extends Node
 ## `health_breath_active()`, même seuil que hud.gd) : tant qu'il est vrai,
 ## aucun souffle d'énergie n'est joué, pour ne jamais superposer les deux.
 ##
-## Mixage : sons 2D sur le bus SFX, jamais plus forts que la respiration de
-## santé basse de hud.gd (-8 dB), et aucun autre son n'est baissé.
+## Mixage : sons 2D sur le bus SFX, aucun autre son n'est baissé. Indice
+## important (on ne voit pas la jauge) : l'épuisement est joué au niveau
+## normalisé du son (0 dB, catégorie « joueur » de SfxLoudness, -18 LUFS),
+## au-dessus des pas (-14 dB) et à portée des voix des zombies. L'ancien
+## plafond (-8 dB, -20 dB au seuil : -26 à -38 LUFS) se perdait sous les
+## tirs et les râles en vraie partie.
 
 ## Sous ce ratio d'énergie, la respiration devient audible.
 const THRESHOLD := 0.35
@@ -26,10 +30,10 @@ const INTERVAL_CALM := 2.4
 const INTERVAL_LOW := 0.95
 ## Halètement de l'épuisement.
 const INTERVAL_EXHAUSTED := 0.7
-## Volume (dB) : discret au seuil, plafonné au niveau de la respiration de
-## santé basse de hud.gd (-8 dB).
-const VOLUME_CALM := -20.0
-const VOLUME_MAX := -8.0
+## Volume (dB) : discret au seuil, plein niveau à l'épuisement (énergie
+## nulle hors épuisement : -2,4 dB).
+const VOLUME_CALM := -12.0
+const VOLUME_MAX := 0.0
 ## Hauteur : un souffle court est plus aigu.
 const PITCH_CALM := 0.95
 const PITCH_MAX := 1.1
@@ -54,7 +58,13 @@ var suppressed := false
 var intensity := 0.0
 ## Nombre de souffles joués depuis setup() (diagnostic, tests).
 var breaths := 0
+## Volume (dB) du dernier souffle joué (diagnostic, tests).
+var last_volume_db := -INF
+## Voix propres de l'essoufflement (voir _breathe).
+const VOICES := 2
 
+var _voices: Array[AudioStreamPlayer] = []
+var _next_voice := 0
 var _energy: Object = null
 var _until_next := 0.0
 var _last_sound := 0
@@ -147,4 +157,24 @@ func _breathe() -> void:
 		_last_sound = 1 - _last_sound
 	breaths += 1
 	var vol := minf(volume_for(intensity) + randf_range(-VOLUME_JITTER, VOLUME_JITTER), VOLUME_MAX)
-	Audio.play_2d("player_breath_%d" % (1 + _last_sound), vol, PITCH_JITTER, "SFX", pitch_for(intensity))
+	var st := Audio.get_stream("player_breath_%d" % (1 + _last_sound))
+	if st == null:
+		return
+	# Voix dédiées : la réserve 2D partagée d'Audio (16 voix tournantes)
+	# était reprise par les tirs et les pas, ce qui coupait le souffle en
+	# plein milieu. Deux voix alternées : un souffle (~1,1 s) n'est jamais
+	# coupé par le suivant (0,7 s plus tard au plus vite).
+	if _voices.is_empty():
+		for i in VOICES:
+			var v := AudioStreamPlayer.new()
+			v.name = "BreathVoice%d" % i
+			v.bus = "SFX"
+			add_child(v)
+			_voices.append(v)
+	var p := _voices[_next_voice]
+	_next_voice = (_next_voice + 1) % VOICES
+	p.stream = st
+	p.volume_db = vol
+	p.pitch_scale = pitch_for(intensity) * (1.0 + randf_range(-PITCH_JITTER, PITCH_JITTER))
+	p.play()
+	last_volume_db = vol

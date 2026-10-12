@@ -47,9 +47,14 @@ func test_exhausted_pants_hardest() -> void:
 	assert_true(B.breath_volume(0.0, true) > B.breath_volume(0.0, false), "plus fort que l'énergie basse")
 
 
-func test_levels_stay_within_hud_breath() -> void:
-	# Jamais plus fort que la respiration de santé basse de hud.gd (-8 dB).
-	assert_true(B.VOLUME_MAX <= -8.0)
+func test_levels_clearly_audible() -> void:
+	# Épuisement bien audible (retour du joueur : on ne l'entendait pas) :
+	# au niveau normalisé du son, au-dessus des pas du joueur (-14 dB), sans
+	# jamais pousser le son au-delà (aucun autre son baissé).
+	assert_near(B.VOLUME_MAX, 0.0, 0.001)
+	assert_true(B.breath_volume(0.0, true) > -14.0 + 10.0, "épuisé : nettement plus fort que les pas")
+	assert_true(B.breath_volume(0.0, false) >= -3.0, "énergie nulle : presque plein niveau")
+	assert_true(B.breath_volume(0.3, false) < B.breath_volume(0.0, false), "discret juste sous le seuil")
 	for k in [0.0, 0.25, 0.5, 0.75, 1.0, 1.5]:
 		assert_true(B.volume_for(k) <= B.VOLUME_MAX + 0.001, "volume %.2f" % k)
 		var p := B.pitch_for(k)
@@ -100,6 +105,13 @@ func test_actor_rhythm_and_recovery() -> void:
 	_run(b, 6.0)
 	assert_true(b.breaths > low, "épuisé : halètement plus rapide (%d > %d)" % [b.breaths, low])
 	assert_near(b.intensity, 1.0, 0.001)
+	# Voix dédiées (jamais reprises par les tirs de la réserve 2D d'Audio).
+	var voices := b.find_children("BreathVoice*", "AudioStreamPlayer", false, false)
+	assert_eq(voices.size(), B.VOICES, "voix propres de l'essoufflement")
+	assert_true(b.last_volume_db >= B.VOLUME_MAX - B.VOLUME_JITTER - 0.001, "épuisé : plein niveau (%.1f dB)" % b.last_volume_db)
+	for v: AudioStreamPlayer in voices:
+		assert_eq(String(v.bus), "SFX")
+		assert_true(v.stream != null, "souffle chargé")
 
 	# Fin de l'épuisement à 50 % : retour progressif au calme.
 	e.value = 50.0

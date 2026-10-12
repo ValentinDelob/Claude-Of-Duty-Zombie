@@ -47,6 +47,14 @@ func run() -> void:
 	if not ok:
 		return
 	at.check(not game.last_result.evacuated, "toute l'équipe morte")
+	# Rapport de fin et récapitulatif : seule l'arme ramassée est perdue, la
+	# version construite à la station n'est jamais annoncée perdue.
+	var lost: Array = game.last_result.loot.get("weapons", [])
+	at.check(lost.size() == 1 and String(lost[0][0]) == "m14", "seule l'arme ramassée est annoncée perdue (%s)" % [lost])
+	at.check(not game.last_result.loot_text().contains(WeaponDB.display_name("mp40")), "rapport : « %s »" % game.last_result.loot_text())
+	var rc := Hub2RecapModel.new().read(Router.last_match, ProfileStore.load_profile())
+	at.check(rc.weapons.size() == 1 and rc.lost_text().begins_with(Lang.t("1 arme", "1 weapon")),
+			"récapitulatif : perdu « %s »" % rc.lost_text())
 	var after := ProfileStore.load_profile()
 	var v := after.get_weapon(uid)
 	at.check(v != null and v.level == 3 and v.rarity == OwnedWeapon.Rarity.RARE, "version de l'arsenal gardée et inchangée (niveau %d)" % (v.level if v else -1))

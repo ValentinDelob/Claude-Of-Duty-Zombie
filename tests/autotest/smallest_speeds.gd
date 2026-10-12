@@ -1,8 +1,9 @@
 extends AutotestScenario
 ## @couvre scripts/game/rounds/* tests/fixtures/maps/smallest/*
 ## Carte SMALLEST du joueur (une salle, une fenêtre), vraies manches : que des
-## marcheurs aux manches 1 à 3, des coureurs à partir de la manche 4 (règle
-## demandée par le joueur). Les zombies apparus sont abattus aussitôt pour
+## marcheurs aux manches 1 à 3, des coureurs à partir de la manche 4, une
+## part croissante, tous à partir de la manche 8 (règles demandées par le
+## joueur). Les zombies apparus sont abattus aussitôt pour
 ## que la fenêtre (3 places) en laisse venir d'autres.
 
 const Win := preload("res://tests/autotest/smallest_window.gd")
@@ -27,7 +28,8 @@ func run() -> void:
 	var on_spawn := func(z: Zombie): speeds.append(z.speed_class)
 	game.zombies.zombie_spawned.connect(on_spawn)
 	var by_round := {}
-	for r in [1, 2, 3, 4, 6]:
+	var all_run := RoundRules.ALL_RUN_FROM_ROUND
+	for r in [1, 2, 3, 4, all_run]:
 		game.rounds.debug_jump_to(r)
 		speeds.clear()
 		var ok: bool = await until(func():
@@ -41,10 +43,11 @@ func run() -> void:
 		print("[smallest] manche %d : vitesses %s" % [r, str(speeds)])
 		if r < RoundRules.RUNNERS_FROM_ROUND:
 			at.check(runners == 0, "manche %d : que des marcheurs (%d coureur(s) sur %d)" % [r, runners, speeds.size()])
-	var late: Array = by_round[4] + by_round[6]
+	var late: Array = by_round[4] + by_round[all_run]
 	var late_runners := late.filter(func(s): return s != RoundRules.WALK).size()
 	at.check(late_runners > 0, "à partir de la manche 4 : des coureurs (%d sur %d)" % [late_runners, late.size()])
-	at.check(by_round[6].filter(func(s): return s == RoundRules.WALK).is_empty(), "manche 6 : plus aucun marcheur (tirage de BO1)")
+	at.check(by_round[all_run].filter(func(s): return s == RoundRules.WALK).is_empty(),
+			"manche %d : plus aucun marcheur (course progressive)" % all_run)
 	game.zombies.zombie_spawned.disconnect(on_spawn)
 	await H.clear_zombies(self)
 	Router.back_to_menu()
