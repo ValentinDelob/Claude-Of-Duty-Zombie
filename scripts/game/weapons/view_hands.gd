@@ -1,7 +1,10 @@
 class_name ViewHands
 extends Node3D
-## Mains et avant-bras de la vue FPS, en CUBES de 2,5 cm (GAME_CONCEPT §4.19) :
-## ceux du joueur de baseball, personnage unique du jeu (§3), avec la palette
+## Mains et avant-bras de la vue FPS, en CUBES de 1,25 cm à la taille réelle
+## d'une main (≈ 9 cm de large, doigts séparés ; validés le 2026-10-12 sur la
+## prise à deux mains du M1912, GAME_CONCEPT §4.19, même finesse que les
+## armes refaites) : ceux du joueur de baseball, personnage unique du jeu
+## (§3), avec la palette
 ## de son modèle vu par les autres (PlayerModel) : gants de frappe sombres à
 ## paume de cuir, poignet nu, sous-maillot à manches longues, manche courte
 ## crème du maillot (équipe fictive, sans logo), bandage ensanglanté à
@@ -9,17 +12,17 @@ extends Node3D
 ## manche forment la ZONE D'ÉQUIPE (matière « team ») : ils prennent la
 ## couleur du joueur (HudStyle.PLAYER_COLORS, WeaponModels.team_material),
 ## comme sur son modèle vu par les autres. Modèle :
-## assets/models/weapons/voxel/hands.glb (tools/blender/weapons/weapons_voxel.py),
+## assets/models/weapons/voxel/hands.glb (tools/blender/weapons/hands_fine.py),
 ## une pièce par nœud « hand__<pièce> », chacune dans son repère :
-##   * poings (grip : main droite, index sur la détente ; foregrip, knife :
-##     main gauche) autour d'un manche vertical (axe Y, colonne x = 0,
-##     z de -2,5 à +2,5 cm), poing sous y = 0 ;
+##   * poings (grip : main droite, index le long du flanc et pulpe devant la
+##     détente ; foregrip, knife : main gauche) autour d'une poignée
+##     verticale (axe Y, x = 0, 3,75 cm de large, z de -2,5 à +2,5 cm),
+##     poing sous y = 0 ;
 ##   * pistol_support : main gauche qui enveloppe le poing droit ;
 ##   * cradle : paume sous un garde-main (origine : milieu du dessous), doigts
-##     sur le flanc droit, pouce à gauche ; cradle_narrow : le même pour le
-##     garde-main étroit d'une arme fine (info « narrow_support ») ;
+##     qui montent sur le flanc droit, pouce à gauche ;
 ##   * throw_r / throw_l : main du lancer (grenade centrée) et pince ;
-##   * bat_r / bat_l : poings serrés sur un manche d'un cube (batte) ;
+##   * bat_r / bat_l : poings serrés sur un manche rond de 2,5 cm (batte) ;
 ##   * forearm / forearm_l (bandage) : du coude (z = 0) au poignet
 ##     (z = -ARM_LEN), manche du maillot derrière le coude.
 ## Chaque pièce est rigide (cubes) : elle se place et tourne librement, sans
@@ -31,19 +34,24 @@ extends Node3D
 
 ## Coude gauche et droit en repère de l'arme, par rapport à la main.
 const ELBOW_R := Vector3(0.11, -0.24, 0.34)
-const ELBOW_L := Vector3(-0.16, -0.2, 0.3)
+const ELBOW_L := Vector3(-0.19, -0.2, 0.3)
 ## Coudes en repère de la CAMÉRA (arme tenue de biais, info « elbows_cam » :
 ## batte) : ramenés dans le repère de l'arme par sa pose de repos.
 const ELBOW_R_CAM := Vector3(0.14, -0.3, 0.2)
 const ELBOW_L_CAM := Vector3(-0.06, -0.32, 0.22)
-## Longueur de l'avant-bras, du coude au poignet (12 cubes).
+## Pistolet tenu à deux mains : direction du poignet vers le coude (repère
+## de l'arme), celle de la prise validée le 2026-10-12 (hands_m1911.png :
+## 0,4 cube vers l'extérieur et 0,5 vers le bas par cube vers l'arrière).
+const PISTOL_ARM_R := Vector3(0.2, -0.6, 1.0)
+const PISTOL_ARM_L := Vector3(-0.2, -0.6, 1.0)
+## Longueur de l'avant-bras, du coude au poignet (24 cubes de 1,25 cm).
 const ARM_LEN := 0.3
 ## La manche continue derrière le coude (haut du bras) sur cette fraction de
 ## l'avant-bras : son bout sort toujours de l'écran (jamais un bras coupé
 ## qui flotte, même quand la main gauche descend au rechargement).
 const SLEEVE_BACK := 0.9
 ## Pièces du modèle des mains.
-const PIECES := ["grip", "pistol_support", "foregrip", "cradle", "cradle_narrow", "forearm", "forearm_l", "knife", "throw_r", "throw_l", "bat_r", "bat_l"]
+const PIECES := ["grip", "pistol_support", "foregrip", "cradle", "forearm", "forearm_l", "knife", "throw_r", "throw_l", "bat_r", "bat_l"]
 
 var hand_r: Node3D
 var hand_l: Node3D
@@ -130,9 +138,15 @@ func setup(mid: String, team: Color) -> void:
 		elbow_l_off = inv * ELBOW_L_CAM
 	# Arme à manche fin tenue à deux poings (batte) : poings « bat_r » / « bat_l ».
 	var stick: bool = WeaponModels.info(mid, "support_fist", false)
+	# Pistolet tenu à deux mains : la main gauche enveloppe la droite.
+	var pistol: bool = support.z > grip.z - 0.08 and not stick
 	# Main droite : poing fermé sur la poignée, avant-bras vers le bas-droite.
 	var gxf := Transform3D(Basis(Vector3.RIGHT, deg_to_rad(ga)), grip)
 	var rname := "bat_r" if stick else "grip"
+	if pistol:
+		# Prise validée (docs/weapons/img/hands_m1911.png) : avant-bras en V
+		# étroit qui descendent sous la glissière, cran et guidon dégagés.
+		elbow_r = gxf * wrist(rname) + PISTOL_ARM_R.normalized() * ARM_LEN
 	hand_r = Node3D.new()
 	hand_r.name = "HandR"
 	add_child(hand_r)
@@ -141,7 +155,6 @@ func setup(mid: String, team: Color) -> void:
 	# Main gauche : sur le garde-main, la poignée avant ou la main droite.
 	var lxf: Transform3D
 	var pname := "cradle"
-	var pistol: bool = support.z > grip.z - 0.08 and not stick
 	if pistol:
 		lxf = gxf
 		pname = "pistol_support"
@@ -153,12 +166,11 @@ func setup(mid: String, team: Color) -> void:
 		pname = "foregrip"
 	else:
 		lxf = Transform3D(Basis.IDENTITY, support)
-		# Garde-main étroit d'une arme fine (3,75 cm) : berceau de deux cubes.
-		if WeaponModels.info(mid, "narrow_support", false):
-			pname = "cradle_narrow"
 	_wrist_l = lxf * wrist(pname)
 	if WeaponModels.info(mid, "elbows_cam", false):
 		_elbow_l = support + elbow_l_off
+	elif pistol:
+		_elbow_l = _wrist_l + PISTOL_ARM_L.normalized() * ARM_LEN
 	else:
 		_elbow_l = _wrist_l + (elbow_l_off - Vector3(-0.03, -0.022, 0.055)) * (0.8 if pistol else 1.0)
 	hand_l = Node3D.new()

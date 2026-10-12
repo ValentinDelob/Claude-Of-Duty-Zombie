@@ -304,9 +304,9 @@ func test_sight_line() -> void:
 ## Tous les objets tenus sont cubiques (VoxelCheck) : cubes de 2,5 cm, sauf
 ## les armes fines (1,25 cm, exception validée le 2026-10-12, info « cube »
 ## de leur modèle) ; armes d'un bloc, objets à pièces indépendantes (mains,
-## grenade, peluche, cartouches) pièce par pièce. Seules des ARMES à feu
-## peuvent être fines : mains, batte, couteau et objets lancés restent en
-## 2,5 cm.
+## grenade, peluche, cartouches) pièce par pièce. Seules des ARMES à feu et
+## les MAINS de la vue FPS (taille réelle, validées le 2026-10-12) peuvent
+## être fines : batte, couteau et objets lancés restent en 2,5 cm.
 func test_held_models_are_cubic() -> void:
 	var ids: Array = WeaponModels.SPECS.keys()
 	ids.append_array([WeaponModels.HANDS, WeaponModels.FRAG, WeaponModels.TEDDY])
@@ -316,10 +316,23 @@ func test_held_models_are_cubic() -> void:
 		var cube := WeaponModels.cube(mid)
 		if WeaponModels.is_fine(mid):
 			fine += 1
-			assert_false(articulated or WeaponDB.is_melee(mid) or not WeaponDB.exists(mid), "%s : seules les armes à feu sont fines" % mid)
+			var firearm: bool = WeaponDB.exists(mid) and not WeaponDB.is_melee(mid) and not articulated
+			assert_true(firearm or mid == WeaponModels.HANDS, "%s : seules les armes à feu et les mains sont fines" % mid)
 		else:
 			assert_near(cube, WeaponModels.CUBE, 0.00001, "%s : cubes de 2,5 cm" % mid)
 		var rep := VoxelCheck.check_file(ProjectSettings.globalize_path(WeaponModels.DIR + mid + ".glb"), 1 if articulated else 0, 1.0, cube)
 		assert_true(bool(rep.get("ok", false)), "%s : modèle cubique en cubes de %.2f cm (%s)" % [mid, cube * 100.0, rep.get("fr", rep.get("error", ""))])
 	assert_true(WeaponModels.is_fine("m1911"), "M1912 : arme fine (1,25 cm)")
-	assert_true(fine >= 1, "au moins une arme fine")
+	assert_true(WeaponModels.is_fine(WeaponModels.HANDS), "mains FPS en cubes de 1,25 cm")
+	assert_true(fine >= 2, "au moins une arme fine et les mains")
+
+
+## Budget des mains FPS (cubes de 1,25 cm, toutes les pièces) : < HANDS_BUDGET.
+const HANDS_BUDGET := 6000
+
+
+func test_hands_budget() -> void:
+	var tris := WeaponModels.triangles(WeaponModels.HANDS)
+	assert_true(tris > 0 and tris < HANDS_BUDGET, "mains : %d triangles (budget %d)" % [tris, HANDS_BUDGET])
+	for piece_name in ViewHands.PIECES:
+		assert_true(WeaponModels.raw(WeaponModels.HANDS).has(piece_name), "mains : pièce %s" % piece_name)
