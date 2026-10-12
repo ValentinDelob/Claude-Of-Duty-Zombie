@@ -257,7 +257,7 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
 | Retour (fermer une fiche ou une liste ; au niveau des onglets : menu du hub) | Échap, clic droit | B (Rond) |
 | Action secondaire (retirer, recycler, abandonner) | Suppr ou R | X (Carré) |
 | Filtre / tri | Tab | Y (Triangle) |
-| Fiche complète d'une arme (DÉTAILS ▾ / MASQUER ▴ : ARSENAL, inventaire de partie) | D, clic sur le titre | clic du stick droit (RS / R3) |
+| Fiche complète d'une arme (DÉTAILS ▾ / MASQUER ▴ : ARSENAL, inventaire de partie, station de construction) | D, clic sur le titre | clic du stick droit (RS / R3) |
 | Menu du hub | Échap (au niveau des onglets) | Start |
 | Défiler une liste longue | Molette | Stick droit |
 
