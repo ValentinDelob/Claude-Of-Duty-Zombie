@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Partie · Station de construction</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+@keyframes rarGlow { 0%, 100% { opacity: 0.45; transform: scale(0.9) } 50% { opacity: 0.9; transform: scale(1.08) } }
+@keyframes rarSpin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+.rar-glow { position: absolute; inset: -6px 8%; pointer-events: none; animation: rarGlow 2.6s ease-in-out infinite }
+.rar-rays { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; pointer-events: none; animation: rarSpin 9s linear infinite }
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/92057f91395d6002cbc09d7b4e5f0160" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(8, 9, 11, 0.6), rgba(8, 9, 11, 0.88))"></div>
+
+  <header style="position: absolute; left: 40px; right: 40px; top: 28px; display: flex; align-items: center; gap: 24px">
+    <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 30px; font-weight: 700; letter-spacing: 0.1em">STATION DE CONSTRUCTION</h1>
+    <span style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(10, 11, 13, 0.62); border: 1px solid rgba(255, 255, 255, 0.08)">
+      <span style="width: 8px; height: 8px; background: #C9C7BE; transform: rotate(45deg)"></span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700">{{scrapNow}}</span>
+      <span style="font-size: 13px; color: rgba(242, 240, 234, 0.6)">ferraille</span>
+    </span>
+  </header>
+
+  <main style="position: absolute; left: 40px; right: 40px; top: 90px; bottom: 64px; display: flex; gap: 24px">
+    <section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+
+      <!-- Arsenal -->
+      <div style="display: flex; align-items: center; gap: 14px">
+        <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.16em">TON ARSENAL</h2>
+        <span style="font-size: 13px; color: rgba(242, 240, 234, 0.55)">Trié par niveau</span>
+        <span style="flex: 1"></span>
+        <span style="display: flex; gap: 6px">
+          <button style="height: 28px; padding: 0 12px; border: 1px solid #F2F0EA; background: #F2F0EA; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em">CONSTRUCTIBLES</button>
+          <button style="height: 28px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(10, 11, 13, 0.5); color: rgba(242, 240, 234, 0.75); font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em">TOUTES</button>
+        </span>
+      </div>
+      <div style="flex: 1; min-height: 0; display: flex; align-items: stretch; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+        <button aria-label="Niveaux précédents" onClick="{{prev}}" style="{{prevStyle}}">‹</button>
+        <div style="flex: 1; min-width: 0; position: relative">
+          <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 42px; height: 1px; background: rgba(255, 255, 255, 0.16)"></div>
+          <div style="position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 0 4px">
+            <sc-for list="{{columns}}" as="col" hint-placeholder-count="5">
+              <div style="display: flex; flex-direction: column; min-width: 0">
+                <div style="height: 36px; display: flex; align-items: flex-end; justify-content: center; gap: 6px; padding-bottom: 2px">
+                  <span style="{{col.labelStyle}}">NIV. {{col.lvl}}</span>
+                  <sc-if value="{{col.many}}" hint-placeholder-val="{{false}}">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(242, 240, 234, 0.55)">×{{col.count}}</span>
+                  </sc-if>
+                </div>
+                <div style="height: 12px; display: flex; justify-content: center; align-items: center"><span style="{{col.nodeStyle}}"></span></div>
+                <div style="height: 10px"></div>
+                <div style="display: flex; flex-direction: column; gap: 8px">
+                  <sc-for list="{{col.cards}}" as="c" hint-placeholder-count="1">
+                    <button onClick="{{c.pick}}" style="{{c.style}}">
+                      <span style="{{c.rarLine}}"></span>
+                      <span style="position: relative; display: block; height: 40px; overflow: hidden">
+                        <sc-if value="{{c.fx}}" hint-placeholder-val="{{false}}">
+                          <sc-if value="{{c.rays}}" hint-placeholder-val="{{false}}"><span class="rar-rays" aria-hidden="true" style="{{c.raysStyle}}"></span></sc-if>
+                          <span class="rar-glow" aria-hidden="true" style="{{c.glowStyle}}"></span>
+                        </sc-if>
+                        <img src="{{c.img}}" alt="" style="position: relative; width: 100%; height: 40px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6))">
+                      </span>
+                      <span style="font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 700">{{c.name}}</span>
+                      <span style="{{c.rarStyle}}">{{c.rar}}</span>
+                      <span style="display: flex; justify-content: space-between; align-items: center; padding-top: 5px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+                        <span style="{{c.priceStyle}}">{{c.price}}</span>
+                        <span style="font-size: 11px; color: rgba(242, 240, 234, 0.6)">{{c.rounds}}</span>
+                      </span>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <button aria-label="Niveaux suivants" onClick="{{next}}" style="{{nextStyle}}">›</button>
+      </div>
+
+      <!-- Munitions -->
+      <div style="margin-top: auto; display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.16em; color: rgba(242, 240, 234, 0.6)">MUNITIONS</span>
+        <img src="/_blob/3d106fb115dca8c8713b595b21d2f34e" alt="" style="width: 70px; height: 32px; object-fit: contain">
+        <span style="flex: 1; font-size: 14px">COUPERET en main · <span style="font-family: 'JetBrains Mono', monospace">6 / 12</span></span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700">360</span>
+        <button style="height: 32px; padding: 0 14px; border: 1px solid rgba(242, 240, 234, 0.5); background: transparent; color: #F2F0EA; font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer">R · RECHARGER</button>
+      </div>
+    </section>
+
+    <!-- Fiche -->
+    <aside style="width: 360px; flex-shrink: 0; display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.72); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+      <div style="{{sel.headStyle}}">
+        <span style="{{sel.rarStyle}}">{{sel.rar}} · {{sel.cls}}</span>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px">
+          <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 30px; font-weight: 700; line-height: 1">{{sel.name}}</h2>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.7)">NIV. {{sel.lvl}}</span>
+        </div>
+      </div>
+      <div style="position: relative; height: 96px; margin: 0 18px; display: flex; align-items: center; justify-content: center; overflow: hidden">
+        <sc-if value="{{sel.fx}}" hint-placeholder-val="{{false}}">
+          <sc-if value="{{sel.rays}}" hint-placeholder-val="{{false}}"><span class="rar-rays" aria-hidden="true" style="{{sel.raysStyleBig}}"></span></sc-if>
+          <span class="rar-glow" aria-hidden="true" style="{{sel.glowStyle}}"></span>
+        </sc-if>
+        <img src="{{sel.img}}" alt="{{sel.name}}" style="position: relative; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.6))">
+      </div>
+      <div style="padding: 12px 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <sc-for list="{{sel.stats}}" as="st" hint-placeholder-count="6">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
+            <span style="width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" role="img" aria-label="{{st.label}}"><path d="{{st.d}}"></path></svg>
+            </span>
+            <span style="display: flex; flex-direction: column; min-width: 0">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: rgba(242, 240, 234, 0.5)">{{st.label}}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700">{{st.value}}</span>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding: 10px 18px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">PIÈCES · {{sel.partsLine}}</span>
+        <span style="font-size: 13px; color: {{sel.partsColor}}">{{sel.parts}}</span>
+      </div>
+      <div style="margin-top: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <div style="display: flex; justify-content: space-between; font-size: 14px"><span style="color: rgba(242, 240, 234, 0.7)">Prix</span><span style="{{sel.priceStyle}}">{{sel.price}} ferraille</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px"><span style="color: rgba(242, 240, 234, 0.7)">Prête à la fin de la manche</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700">{{sel.readyRound}}</span></div>
+        <button onClick="{{build}}" style="{{sel.btnStyle}}">{{sel.btn}}</button>
+        <span style="font-size: 12px; color: {{sel.noteColor}}; text-align: center">{{sel.note}}</span>
+      </div>
+    </aside>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="Pour recycler une arme, ouvre l’inventaire (I)." items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'couperet', job: null, start: 3 };
+  }
+  renderVals() {
+    const SCRAP = 2480, PLAYER = 23, ROUND = 12;
+    const RAR = { c: ['COMMUNE', '#C9C7BE', 1.0], r: ['RARE', '#4D9BFF', 1.5], e: ['ÉPIQUE', '#B56CFF', 2.2], l: ['LÉGENDAIRE', '#FF9A1F', 3.2] };
+    const IMG = { m1911: '/_blob/ed8a57fdd004b309f0c5567595ee180e', mp40: '/_blob/9d38742d8c0caee5a322e5a96cf99ef5', olympia: '/_blob/1872714484066f6416ad7bb97500f690', m14: '/_blob/831a546a3d13826bc14139ab5573dbab', cz75: '/_blob/31416266c1027096880ffa6893eaaca5', m16: '/_blob/1b9c912fbd8393fa67af3c56d6269910', stakeout: '/_blob/8b19808681271fea88592c2d0e4b691a', python: '/_blob/3d106fb115dca8c8713b595b21d2f34e', spectre: '/_blob/a038df1bbc5fc8e11bb800c3e9e54fcc', galil: '/_blob/246c2d17c27cbe7b3a43427543dbb2c3' };
+    const CLS = { pistol: 'PISTOLET', revolver: 'REVOLVER', smg: 'MITRAILLETTE', rifle: 'FUSIL', shotgun: 'FUSIL À POMPE' };
+    const ST = { pistol: [110, 400, 70, 25, 8, 1.6], revolver: [420, 180, 82, 35, 6, 2.8], smg: [90, 750, 58, 20, 32, 2.2], rifle: [160, 600, 78, 45, 30, 2.5], shotgun: [600, 90, 35, 12, 6, 3.4] };
+    const W = [
+      ['garde', 'GARDE-CHASSE', 'olympia', 'shotgun', 3, 'r', 1],
+      ['metronome', 'MÉTRONOME', 'm14', 'rifle', 5, 'c', 0],
+      ['guepe', 'GUÊPE', 'cz75', 'pistol', 8, 'r', 2],
+      ['triplette', 'TRIPLETTE', 'm16', 'rifle', 12, 'e', 2],
+      ['concasseur', 'BALAI', 'stakeout', 'shotgun', 14, 'r', 1],
+      ['feufollet', 'FEU FOLLET', 'spectre', 'smg', 18, 'e', 0],
+      ['couperet', 'COUPERET', 'python', 'revolver', 20, 'l', 2],
+      ['couperet2', 'COUPERET', 'python', 'revolver', 20, 'r', 1],
+      ['bourrasque', 'BOURRASQUE', 'galil', 'rifle', 24, 'e', 0]
+    ].map(([id, name, m, cls, lvl, r, parts]) => {
+      const price = Math.round(500 * (1 + 0.15 * (lvl - 1)) * RAR[r][2] / 10) * 10;
+      const rounds = price < 1500 ? 1 : price < 4000 ? 2 : 3;
+      return { id, name, img: IMG[m], cls, lvl, r, parts, price, rounds };
+    });
+    const job = this.state.job ? W.find((w) => w.id === this.state.job) : null;
+    const spent = job ? job.price : 0;
+    const scrap = SCRAP - spent;
+    const fmt = (n) => n.toLocaleString('fr-FR');
+    const sel = W.find((w) => w.id === this.state.sel);
+    const why = (w) => w.lvl > PLAYER ? 'NIV. ' + w.lvl + ' REQUIS' : job ? 'STATION OCCUPÉE' : w.price > scrap ? 'IL MANQUE ' + fmt(w.price - scrap) : '';
+    // Effet de rareté : rien pour les communes ; halo pulsé dès la rare ;
+    // rayons tournants en plus pour les légendaires et uniques.
+    const glowOf = (r, a) => 'background: radial-gradient(ellipse at center, ' + RAR[r][1] + Math.round(a * 255).toString(16).padStart(2, '0') + ' 0%, transparent 70%)';
+    const raysOf = (r, big) => 'background: repeating-conic-gradient(' + RAR[r][1] + '55 0deg 10deg, transparent 10deg 30deg); -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%); mask: radial-gradient(circle, #000 20%, transparent 70%)' + (big ? '; width: 220px; height: 220px; margin: -110px 0 0 -110px' : '');
+    const fxOf = (r) => ({ fx: r !== 'c', rays: r === 'l', glowStyle: r === 'c' ? '' : glowOf(r, r === 'r' ? 0.45 : r === 'e' ? 0.6 : 0.75), raysStyle: raysOf(r, false), raysStyleBig: raysOf(r, true) });
+    const cards = W.map((w) => {
+      const on = w.id === sel.id, lockLvl = w.lvl > PLAYER, poor = w.price > scrap;
+      return {
+        ...fxOf(w.r),
+        name: w.name, img: w.img, lvl: w.lvl, rar: RAR[w.r][0],
+        price: lockLvl ? 'NIV. ' + w.lvl + ' REQUIS' : fmt(w.price),
+        rounds: w.rounds + (w.rounds > 1 ? ' manches' : ' manche'),
+        rarStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: ' + RAR[w.r][1],
+        priceStyle: 'font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 700; color: ' + (lockLvl ? '#FF7A5C' : poor ? '#FF7A5C' : '#F2F0EA'),
+        rarLine: 'position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + RAR[w.r][1],
+        pick: () => this.setState({ sel: w.id }),
+        style: 'position: relative; display: flex; flex-direction: column; gap: 3px; width: 100%; box-sizing: border-box; padding: 8px 10px 8px 13px; text-align: left; cursor: pointer; font-family: inherit; color: #F2F0EA; background: ' + (on ? 'rgba(245, 197, 66, 0.12)' : 'rgba(255, 255, 255, 0.04)') + '; border: 1px solid ' + (on ? '#F5C542' : 'rgba(255, 255, 255, 0.07)') + '; opacity: ' + (lockLvl ? '0.5' : '1'),
+        w
+      };
+    });
+    const VISIBLE = 5;
+    const levels = [...new Set(W.map((w) => w.lvl))].sort((a, b) => a - b);
+    const maxStart = Math.max(0, levels.length - VISIBLE);
+    const start = Math.min(Math.max(0, this.state.start ?? 3), maxStart);
+    const columns = levels.slice(start, start + VISIBLE).map((lvl) => {
+      const cs = cards.filter((c) => c.w.lvl === lvl).sort((a, b) => b.w.price - a.w.price);
+      const on = lvl === sel.lvl;
+      return {
+        lvl, count: cs.length, many: cs.length > 1, cards: cs,
+        labelStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; color: ' + (on ? '#F5C542' : (lvl > PLAYER ? 'rgba(242, 240, 234, 0.35)' : '#F2F0EA')),
+        nodeStyle: 'width: 8px; height: 8px; transform: rotate(45deg); background: ' + (on ? '#F5C542' : 'rgba(242, 240, 234, 0.4)')
+      };
+    });
+    const arrow = (enabled) => 'width: 32px; flex-shrink: 0; border: none; background: transparent; color: ' + (enabled ? '#F5C542' : 'rgba(242, 240, 234, 0.15)') + '; font-family: "Chakra Petch", sans-serif; font-size: 28px; cursor: pointer';
+    const ICONS = ['M12 2l2.4 6.9L21 9l-5.2 4.3L17.6 21 12 17l-5.6 4 1.8-7.7L3 9l6.6-.1z', 'M13 2L4 14h7l-1 8 9-12h-7z', 'M12 2v5M12 17v5M2 12h5M17 12h5M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6', 'M2 12h19M15 6l6 6-6 6M2 7v10', 'M5 21V9l2-5 2 5v12zM10 21V9l2-5 2 5v12zM15 21V9l2-5 2 5v12z', 'M20 12a8 8 0 1 1-2.3-5.7M20 3v5h-5'];
+    const LABELS = ['DÉGÂTS', 'CADENCE', 'PRÉCISION', 'PORTÉE', 'CHARGEUR', 'RECHARGE'];
+    const UNITS = ['', '/min', ' %', ' m', '', ' s'];
+    const base = ST[sel.cls];
+    const stats = LABELS.map((label, i) => {
+      const v = i === 0 ? base[0] * (1 + 0.1 * (sel.lvl - 1)) : base[i];
+      return { label, d: ICONS[i], value: (i === 5 ? v.toFixed(1).replace('.', ',') : fmt(Math.round(v))) + UNITS[i] };
+    });
+    const reason = why(sel);
+    const can = reason === '';
+    const slots = { c: 1, r: 2, e: 3, l: 3 }[sel.r];
+    return {
+      scrapNow: fmt(scrap), columns,
+      prev: () => this.setState({ start: Math.max(0, start - 1) }),
+      next: () => this.setState({ start: Math.min(maxStart, start + 1) }),
+      prevStyle: arrow(start > 0), nextStyle: arrow(start < maxStart),
+      job: {
+        busy: !!job, idle: !job, name: job ? job.name : '', img: job ? job.img : '', round: job ? ROUND + job.rounds - 1 : '',
+        segs: job ? Array.from({ length: job.rounds }, (_, i) => 'flex: 1; height: 5px; background: ' + (i === 0 ? 'rgba(79, 227, 193, 0.5)' : 'rgba(255, 255, 255, 0.12)')) : [],
+        style: 'display: flex; align-items: center; gap: 16px; min-height: 64px; box-sizing: border-box; padding: 10px 16px; backdrop-filter: blur(12px); background: ' + (job ? 'rgba(6, 22, 19, 0.72)' : 'rgba(10, 11, 13, 0.62)') + '; border: 1px solid ' + (job ? 'rgba(79, 227, 193, 0.45)' : 'rgba(255, 255, 255, 0.08)')
+      },
+      sel: {
+        ...fxOf(sel.r),
+        name: sel.name, lvl: sel.lvl, rar: RAR[sel.r][0], cls: CLS[sel.cls], img: sel.img, stats,
+        rarStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: ' + RAR[sel.r][1],
+        headStyle: 'padding: 18px 18px 10px; border-top: 3px solid ' + RAR[sel.r][1],
+        partsLine: sel.parts + ' / ' + slots,
+        parts: sel.parts ? 'Construite avec ses pièces de l’arsenal' : 'Aucune pièce montée',
+        partsColor: sel.parts ? '#4FE3C1' : 'rgba(242, 240, 234, 0.55)',
+        price: fmt(sel.price), readyRound: ROUND + sel.rounds - 1,
+        priceStyle: 'font-family: "JetBrains Mono", monospace; font-weight: 700; color: ' + (sel.price > scrap ? '#FF7A5C' : '#F2F0EA'),
+        btn: job && job.id === sel.id ? 'EN CONSTRUCTION' : 'CONSTRUIRE',
+        btnStyle: 'height: 48px; border: none; cursor: ' + (can ? 'pointer' : 'not-allowed') + '; font-family: "Chakra Petch", sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.14em; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); background: ' + (can ? '#F5C542' : 'rgba(255, 255, 255, 0.08)') + '; color: ' + (can ? '#0B0B0C' : 'rgba(242, 240, 234, 0.4)'),
+        note: can ? 'Il te restera ' + fmt(scrap - sel.price) + ' ferraille' : reason,
+        noteColor: can ? 'rgba(242, 240, 234, 0.6)' : '#FF7A5C'
+      },
+      build: () => { if (can) this.setState({ job: sel.id }); },
+      prompts: [{ k: '◄ ►', l: 'NIVEAU' }, { k: '▲ ▼', l: 'MÊME NIVEAU' }, { k: 'A', l: 'CONSTRUIRE' }, { k: 'R', l: 'RECHARGER' }, { k: 'Échap', l: 'FERMER' }]
+    };
+  }
+}
+</script>
+</body>
+</html>
