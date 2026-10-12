@@ -1017,8 +1017,9 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   la carte en cubes, rangée de cubes qui s'allument) ; invites d'action
   `Hud.action_prompt` (« Appuyer sur F pour ouvrir la caisse · 950
   ferraille »).
-- Inventaire et station (`InventoryPanel`, `StationPanel`) gardent leur
-  police « title » (disposition validée inchangée).
+- Inventaire et station (`InventoryPanel`, `StationPanel`) suivent leurs
+  maquettes du hub v2 (InventaireJeu.dc.html, Station.dc.html : polices et
+  éléments `Hub2*`, voile radial `InventoryDraw.Veil`).
 
 ## Ferraille (`PointsRules`, `Points`, `Session`)
 
@@ -1582,8 +1583,9 @@ GAME_CONCEPT §4.8, §4.11, §4.12 ; objet de carte : docs/MAP_OBJECTS.md § 17.
   l'interface du joueur (`_cl_open`, au seul joueur). Requêtes : RPC
   `srv_build(arme)` et `srv_refill()` sur la station (prologue
   `NetGuard.alive_sender` + limiteur, joueur à portée de la station),
-  `Combat.srv_recycle(rangée, place)` (panneau d'inventaire ou station ;
-  dernière arme : refus, message `_cl_recycle_refused` au seul joueur).
+  `Combat.srv_recycle(rangée, place)` (panneau d'inventaire seulement, plus
+  à la station ; dernière arme : refus, message `_cl_recycle_refused` au
+  seul joueur).
   Le serveur ne connaît pas l'arsenal du client : le client envoie
   l'exemplaire voulu, relu par `BuildRules.clean_weapon` (arme à feu connue,
   niveau, rareté, pièces bornées, munitions pleines) ; niveau du joueur
@@ -1594,18 +1596,33 @@ GAME_CONCEPT §4.8, §4.11, §4.12 ; objet de carte : docs/MAP_OBJECTS.md § 17.
   joueur répliqué par le message d'état des objets (`get_state` /
   `apply_state`, relu chez le client) ; le joueur local voit le voyant
   changer et un message quand son arme est prête.
-- **Interface** (`scripts/game/hud/station_panel.gd`, `Hud.station_panel`) :
-  arsenal du profil LOCAL (`BuildRules.catalog` : armes de base à feu puis
-  armes de l'arsenal à feu ; une arme de mêlée ne se construit pas), nom,
-  niveau, rareté, score, prix et durée, « NIVEAU n REQUIS » (ligne grisée) ;
-  état de la construction ; recharge de l'arme en main ; recyclage des
-  armes portées (deux appuis ; dernière arme : bouton grisé « Dernière
-  arme », raison dans l'aide). La partie continue ; `Game.menu_open()` coupe
-  les entrées du joueur ; Échap / B / [I] ferment. Panneau d'inventaire :
-  bouton RECYCLER sur une case choisie seule (deux appuis ; dernière arme :
-  bouton grisé « IMPOSSIBLE DE RECYCLER VOTRE DERNIÈRE ARME »). Un appui
-  forcé sur la dernière arme est refusé tout de suite (message), sans
-  requête.
+- **Interface** (`scripts/game/hud/station_panel.gd`, `Hud.station_panel` ;
+  éléments dessinés `scripts/game/hud/station_draw.gd`, `StationDraw` ;
+  maquette docs/hub_v2/Station.dc.html) : voile radial (`InventoryDraw.Veil`
+  .6 → .88) sur la partie qui continue, HUD dessous masqué
+  (`Hud._hud_under_menus`, comme l'inventaire) ; en-tête titre + ferraille
+  (`InventoryDraw.Header` sans étiquette) ; arsenal du profil LOCAL
+  (`BuildRules.catalog` : armes de base puis arsenal ; le couteau ne se
+  construit pas) sur le rail des niveaux de l'ARSENAL du hub
+  (`Hub2ArsenalRail` : colonnes par niveau, prix décroissant dans une
+  colonne, `fit_visible` : 5 colonnes à 100 %, moins à 130 %), filtre
+  CONSTRUCTIBLES (niveau atteint) / TOUTES (Tab / Y) ; cartes
+  `StationDraw.Card` (prix rouge si trop cher, « NIV. N REQUIS » à 50 %) ;
+  effet de rareté `StationDraw.RarityFx` : un quad au shader animé par TIME
+  (halo rarGlow 2,6 s ease-in-out, rayons rarSpin 9 s ; rien pour une
+  commune) ; fiche 360 px (`InventoryDraw.DetailHead`, `Hub2ArsenalStat`
+  28 / 16 / 14, valeurs de l'arme construite : `InventoryPanel.compare_lines`),
+  CONSTRUIRE et la raison du refus (`StationPanel.refusal` : niveau, station
+  occupée, ferraille) ; construction du joueur : « EN COURS » / « PRÊTE » sur
+  sa carte, « EN CONSTRUCTION · MANCHE N » / « PRÊTE · [F] RÉCUPÉRER » sur
+  sa fiche, [F] (« interact ») dans l'interface la récupère
+  (`InteractionSystem.srv_interact`) ; bande MUNITIONS (recharge, action
+  « reload » réelle). Plus de recyclage à la station : l'aide renvoie à
+  l'inventaire (touche réelle d'« inventory »). `Game.menu_open()` coupe les
+  entrées du joueur ; Échap / B / [I] ferment. Panneau d'inventaire : RECYCLER
+  (deux appuis ; dernière arme : « Impossible de recycler votre dernière
+  arme »). Un appui forcé sur la dernière arme est refusé tout de suite
+  (message), sans requête.
 - **Fin de partie** (`ProfileLoot.apply_evacuation`, voir « Butin des
   vagues spéciales ») : un exemplaire construit depuis l'arsenal (même
   `uid`) et amélioré en partie met à jour CETTE version (niveau, rareté,

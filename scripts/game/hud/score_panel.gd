@@ -94,6 +94,9 @@ func _on_points(pid: int, delta: int) -> void:
 	var pop := HudStyle.label(("+%d" % delta) if gain else str(delta), 26 if gain else 24,
 			HudStyle.POINTS_GAIN if gain else HudStyle.POINTS_LOSS, "condensed", 3)
 	get_parent().add_child(pop)
+	# Juste au-dessus du panneau des scores : sous l'inventaire, la station et
+	# le menu pause, qui masquent le HUD dessiné dessous (Hud._hud_under_menus).
+	get_parent().move_child(pop, get_index() + 1)
 	# BO1 : le « +10 » naît près du score et s'envole vers la gauche en
 	# s'éparpillant ; les dépenses tombent vers le bas.
 	var start := row.global_position + Vector2(row.size.x - 150.0 - randf() * 30.0, randf_range(-10.0, 6.0))

@@ -195,9 +195,17 @@ func test_liste_de_la_station() -> void:
 	var uids := list.map(func(o): return o.uid)
 	assert_eq(uids, [BaseWeapons.UID_PREFIX + PISTOL, BaseWeapons.UID_PREFIX + WeaponDB.BASE_MELEE, a.uid, b.uid], "armes de base (pistolet, batte) puis arsenal, sans le couteau (attaque séparée)")
 	assert_eq(BuildRules.catalog(null).size(), 2, "sans profil : armes de base")
-	assert_true(StationPanel.row_info(b, 5).contains(Lang.t("NIVEAU 9 REQUIS", "LEVEL 9 REQUIRED")), "niveau requis affiché")
-	assert_false(StationPanel.row_info(a, 5).contains(Lang.t("REQUIS", "REQUIRED")), "constructible")
-	assert_true(StationPanel.row_info(a, 5).contains("SCORE 4"), "score affiché")
+	# Raison du refus affichée par la fiche (ordre de la maquette : niveau,
+	# station occupée, ferraille).
+	var pa := BuildRules.owned_price(a)
+	assert_eq(StationPanel.refusal(b, 5, 99999, true), Lang.t("NIV. 9 REQUIS", "LVL 9 REQUIRED"), "niveau requis d'abord")
+	assert_eq(StationPanel.refusal(a, 5, 99999, true), Lang.t("STATION OCCUPÉE", "STATION BUSY"), "une construction à la fois")
+	assert_eq(StationPanel.refusal(a, 5, pa - 120, false), Lang.t("IL MANQUE 120", "120 SHORT"), "ferraille manquante")
+	assert_eq(StationPanel.refusal(a, 5, pa, false), "", "constructible")
+	# Rail : armes d'un même niveau par prix décroissant.
+	var rare := OwnedWeapon.create("mp40", 4, OwnedWeapon.Rarity.RARE)
+	var common := OwnedWeapon.create("m14", 4, OwnedWeapon.Rarity.COMMON)
+	assert_true(StationPanel.weapon_before(rare, common) and not StationPanel.weapon_before(common, rare), "la plus chère d'abord")
 
 
 # --------------------------------------------------------------------------

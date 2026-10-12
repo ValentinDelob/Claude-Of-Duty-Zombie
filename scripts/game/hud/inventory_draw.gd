@@ -17,7 +17,10 @@ const VEIL_SHADER := """
 shader_type canvas_item;
 // radial-gradient(ellipse at 50% 55%, rgba(8,9,11,.55), rgba(8,9,11,.85)) :
 // ellipse « farthest-corner » aux proportions de « closest-side » (CSS).
+// Station de construction (Station.dc.html) : .6 -> .88.
 uniform vec2 rect_size = vec2(1280.0, 720.0);
+uniform float alpha_in = 0.55;
+uniform float alpha_out = 0.85;
 void fragment() {
 	vec2 p = UV * rect_size;
 	vec2 c = vec2(0.5, 0.55) * rect_size;
@@ -28,22 +31,25 @@ void fragment() {
 	float ry = sqrt(rx0 * rx0 + fc.y * fc.y);
 	vec2 d = (p - c) / vec2(ratio * ry, ry);
 	float t = clamp(length(d), 0.0, 1.0);
-	COLOR = vec4(8.0 / 255.0, 9.0 / 255.0, 11.0 / 255.0, mix(0.55, 0.85, t));
+	COLOR = vec4(8.0 / 255.0, 9.0 / 255.0, 11.0 / 255.0, mix(alpha_in, alpha_out, t));
 }
 """
 
 
-## Voile plein cadre sur la partie.
+## Voile plein cadre sur la partie (opacité au centre et au bord : .55 / .85
+## pour l'inventaire, .6 / .88 pour la station).
 class Veil extends ColorRect:
 	var _mat: ShaderMaterial
 
-	func _init() -> void:
+	func _init(a_in := 0.55, a_out := 0.85) -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		set_anchors_preset(Control.PRESET_FULL_RECT)
 		var sh := Shader.new()
 		sh.code = VEIL_SHADER
 		_mat = ShaderMaterial.new()
 		_mat.shader = sh
+		_mat.set_shader_parameter("alpha_in", a_in)
+		_mat.set_shader_parameter("alpha_out", a_out)
 		material = _mat
 		resized.connect(func(): _mat.set_shader_parameter("rect_size", size))
 
@@ -108,7 +114,9 @@ class Header extends Control:
 		cx += nw + Hub2Style.px(8)
 		Hub2ArsenalDraw.text(self, scrap_word, Hub2Style.BARLOW, 400, 13, Hub2Style.text_a(0.6), 0.0, cx,
 				Hub2ArsenalDraw.baseline(Hub2Style.BARLOW, 400, 13, cy, ih))
-		# Étiquette « LA PARTIE CONTINUE », à droite.
+		# Étiquette « LA PARTIE CONTINUE », à droite (aucune : station).
+		if tag == "":
+			return
 		var tf := Hub2Style.font(Hub2Style.CHAKRA, 700)
 		var ts := Hub2Style.fs(12)
 		var tw := Hub2Style.text_width(tag, tf, ts, Hub2Style.tracking_px(0.14, ts))
@@ -165,6 +173,8 @@ class DetailHead extends Control:
 	var level_color := Hub2Style.text_a(0.7)
 	## [avant, nom, après] ; vide : pas de comparaison.
 	var compare: Array = []
+	## padding-bottom (px de la maquette) : 14 (inventaire), 10 (station).
+	var pad_bottom := 14.0
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -194,7 +204,7 @@ class DetailHead extends Control:
 
 	func _h() -> float:
 		var h := Hub2Style.px(3) + Hub2Style.px(18) + _kicker_box().x + Hub2Style.px(4) \
-			+ Hub2Style.px(30) + Hub2Style.px(14)
+			+ Hub2Style.px(30) + Hub2Style.px(pad_bottom)
 		if not compare.is_empty():
 			h += Hub2Style.px(8) + Hub2ArsenalDraw.line_h(Hub2Style.BARLOW, 400, 13)
 		return h

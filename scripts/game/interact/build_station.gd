@@ -6,9 +6,11 @@ extends Interactable
 ##
 ## [F] / X à la station ouvre son interface (StationPanel, chez le joueur qui
 ## l'utilise ; la partie continue) : armes de l'ARSENAL du profil local avec
-## leur prix en ferraille, recharge des munitions de l'arme en main, recyclage.
-## Quand la construction du joueur est prête, [F] la récupère (une place libre
-## dans l'inventaire de partie est nécessaire : Session.give_to_bag).
+## leur prix en ferraille, recharge des munitions de l'arme en main (le
+## recyclage se fait dans l'inventaire de partie). Quand la construction du
+## joueur est prête, [F] la récupère, à la station ou interface ouverte (une
+## place libre dans l'inventaire de partie est nécessaire :
+## Session.give_to_bag).
 ##
 ## Le SERVEUR décide de tout (comme la caisse) : joueur debout et à portée de
 ## la station, arme relue (BuildRules.clean_weapon : le serveur ne connaît pas
@@ -138,8 +140,8 @@ func local_build() -> Dictionary:
 # --------------------------------------------------------------------------
 
 ## [F] à la station : récupère l'arme prête (place libre exigée), sinon ouvre
-## l'interface du joueur (inventaire plein : message, et l'interface s'ouvre
-## pour recycler ou s'organiser).
+## l'interface du joueur (inventaire plein : message, et l'interface s'ouvre ;
+## on fait de la place dans l'inventaire, [I]).
 func srv_use(pid: int) -> void:
 	var b: Dictionary = builds.get(pid, {})
 	if bool(b.get("ready", false)):

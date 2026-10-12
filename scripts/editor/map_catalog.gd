@@ -753,8 +753,8 @@ static func _build() -> void:
 	# Format 19 : station de construction (GAME_CONCEPT.md §4.11), obligatoire.
 	_add({"id": "station", "cat": "joueurs", "fr": "Station de construction", "en": "Construction station", "tool": "wall_item", "color": Color(0.25, 0.6, 1.0),
 		"make": {"type": "station"}, "fp": [4, 2],
-		"hint_fr": "Obligatoire, une par carte, contre un mur (établi de 1,6 m) : on y construit les armes de son arsenal contre de la ferraille, on y recharge ses munitions et on y recycle",
-		"hint_en": "Required, one per map, against a wall (1.6 m workbench): build arsenal weapons for scrap, refill ammo and recycle there"})
+		"hint_fr": "Obligatoire, une par carte, contre un mur (établi de 1,6 m) : on y construit les armes de son arsenal contre de la ferraille et on y recharge ses munitions",
+		"hint_en": "Required, one per map, against a wall (1.6 m workbench): build arsenal weapons for scrap and refill ammo there"})
 	_add({"id": "apparition", "cat": "joueurs", "fr": "Zombie qui sort du sol", "en": "Ground spawn", "tool": "floor_item", "color": Color(0.5, 0.05, 0.05),
 		"make": {"type": "apparition"}, "fp": [1, 1], "hint_fr": "En plus des fenêtres (facultatif)", "hint_en": "In addition to windows (optional)"})
 	# Décor et obstacles : caisse et baril (types historiques), puis les prefabs.
