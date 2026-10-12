@@ -137,7 +137,7 @@ func _build_lamps() -> void:
 func _fixture_lamp(l: Dictionary) -> void:
 	var col := Color.html(String(l.get("color", "ffbd80"))) if Color.html_is_valid(String(l.get("color", ""))) else PowerGrid.ON_COLOR
 	add_lamp(MeshMapLayout.vec(l.p), float(l.get("energy", 2.2)), float(l.get("range", 10.0)), bool(l.get("flicker", false)),
-		col, bool(l.get("power", true)))
+		col, bool(l.get("power", true)), String(l.fixture))
 	var fx := EditorPrefabs.fixture(String(l.fixture), models_dir, _model)
 	if fx == null:
 		return

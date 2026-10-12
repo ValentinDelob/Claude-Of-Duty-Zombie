@@ -51,6 +51,30 @@
                   {
                       "en":  "Each rarity has its own pickup sound, from a soft click to a sparkling fanfare, and a legendary drop rings out so you never miss it.",
                       "fr":  "Chaque rareté a son propre son de ramassage, du petit clic à la fanfare scintillante, et une arme légendaire qui tombe se fait entendre pour ne jamais passer inaperçue."
+                  },
+                  {
+                      "en":  "The whole game has a new mood: shadows and unlit areas take on a cold blue-green tint, while lamps cast warm pools of light on the floor and leave the ceilings in the dark.",
+                      "fr":  "Tout le jeu change d'ambiance : les ombres et les zones éteintes prennent une teinte bleu-vert froide, tandis que les lampes posent des flaques de lumière chaude au sol et laissent les plafonds dans l'ombre."
+                  },
+                  {
+                      "en":  "Light beams from the lamps can be seen in the dust (medium and high graphics quality), and lamp shadows are now cast downward from under the lampshade.",
+                      "fr":  "Les faisceaux des lampes se voient dans la poussière (qualité graphique moyenne et haute), et les ombres des lampes tombent maintenant de sous l'abat-jour."
+                  },
+                  {
+                      "en":  "Concrete and tiled floors have puddles that catch the light; in high quality they reflect the room.",
+                      "fr":  "Les sols en béton et en carrelage ont des flaques qui accrochent la lumière ; en qualité haute, elles reflètent la pièce."
+                  },
+                  {
+                      "en":  "Walls, floors and props look less flat: each cube varies slightly in tone, grime darkens some areas, and wall bases sit in shadow.",
+                      "fr":  "Murs, sols et décors paraissent moins plats : chaque cube varie un peu de teinte, la crasse assombrit certaines zones et le pied des murs est dans l'ombre."
+                  },
+                  {
+                      "en":  "Zombies get a faint cold rim light so their silhouette stands out even in the dark.",
+                      "fr":  "Les zombies ont un léger contre-jour froid : leur silhouette se détache même dans le noir."
+                  },
+                  {
+                      "en":  "The main menu corridor gets the same mood, with light pools under the neon tubes and a lit desk lamp.",
+                      "fr":  "Le couloir du menu principal adopte la même ambiance, avec des flaques de lumière sous les néons et une lampe de bureau allumée."
                   }
               ]
 }

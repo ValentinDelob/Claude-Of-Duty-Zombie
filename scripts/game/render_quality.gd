@@ -43,6 +43,7 @@ const PRESETS := [
 		"glow": false,
 		"glow_bicubic": false,
 		"ssao": false,
+		"ssr": false,              # reflets en espace écran (flaques)
 		"scale_3d": 0.85,
 		"msaa": Viewport.MSAA_DISABLED,
 		"decal_fade": 14.0,
@@ -68,7 +69,8 @@ const PRESETS := [
 		"shadow_fade": 16.0,
 		"glow": true,
 		"glow_bicubic": false,
-		"ssao": false,
+		"ssao": false,              # +0,66 ms GPU (GTX 1070, 1080p) : trop pour la GTX 1050 ; ombres de contact peintes (pixel_surface) à la place
+		"ssr": false,
 		"scale_3d": 1.0,
 		"msaa": Viewport.MSAA_DISABLED,
 		"decal_fade": 24.0,
@@ -95,6 +97,7 @@ const PRESETS := [
 		"glow": true,
 		"glow_bicubic": true,
 		"ssao": true,
+		"ssr": true,
 		"scale_3d": 1.0,
 		"msaa": Viewport.MSAA_2X,
 		"decal_fade": 32.0,
@@ -192,11 +195,23 @@ func _apply_environment(q: Dictionary) -> void:
 		RenderingServer.environment_set_volumetric_fog_filter_active(true)
 	if q.ssao:
 		# SSAO discret : assombrit les coins et le pied des caisses, sans halo.
-		environment.ssao_radius = 0.8
-		environment.ssao_intensity = 1.2
-		environment.ssao_power = 1.4
-		environment.ssao_detail = 0.3
+		# Ombres de contact (cubes posés au sol, coins des pièces) : aussi
+		# sous les lampes (light_affect), sinon les flaques de lumière
+		# effacent le relief.
+		environment.ssao_radius = 0.9
+		environment.ssao_intensity = 1.8
+		environment.ssao_power = 1.5
+		environment.ssao_detail = 0.4
+		environment.ssao_light_affect = 0.25
 		RenderingServer.environment_set_ssao_quality(RenderingServer.ENV_SSAO_QUALITY_LOW, true, 0.5, 2, 20.0, 40.0)
+	# Reflets en espace écran (HIGH) : les flaques des sols mouillés
+	# reflètent lampes, zombies et murs.
+	environment.ssr_enabled = q.ssr
+	if q.ssr:
+		environment.ssr_max_steps = 48
+		environment.ssr_fade_in = 0.15
+		environment.ssr_fade_out = 2.0
+		environment.ssr_depth_tolerance = 0.3
 
 
 func _apply_viewport(q: Dictionary) -> void:
@@ -220,12 +235,28 @@ func _apply_brightness() -> void:
 		environment.adjustment_color_correction = WorldLook.map_lut(environment.get_meta("grade", {}))
 
 
+## Lampe de la carte : ombre (sur la flaque LampPool quand la lampe en a une :
+## l'ombre d'un projecteur coûte moins qu'une ombre omnidirectionnelle, et
+## c'est la flaque qui éclaire le sol) et distances de fondu.
 static func apply_lamp(l: OmniLight3D, q: Dictionary) -> void:
-	l.shadow_enabled = lamp_has_shadow(int(l.get_meta("lamp_index", 0)), q)
-	l.distance_fade_enabled = true
-	l.distance_fade_begin = q.light_fade_begin
-	l.distance_fade_length = q.light_fade_length
-	l.distance_fade_shadow = q.shadow_fade
+	var shadow := lamp_has_shadow(int(l.get_meta("lamp_index", 0)), q)
+	var pool := l.get_node_or_null("Pool") as SpotLight3D
+	l.shadow_enabled = shadow and pool == null
+	for light: Light3D in [l, pool]:
+		if light == null:
+			continue
+		light.distance_fade_enabled = true
+		light.distance_fade_begin = q.light_fade_begin
+		light.distance_fade_length = q.light_fade_length
+		light.distance_fade_shadow = q.shadow_fade
+	if pool:
+		pool.shadow_enabled = shadow
+
+
+## La lampe projette-t-elle une ombre (elle-même ou sa flaque) ?
+static func lamp_casts_shadow(l: OmniLight3D) -> bool:
+	var pool := l.get_node_or_null("Pool") as SpotLight3D
+	return l.shadow_enabled or (pool != null and pool.shadow_enabled)
 
 
 static func apply_decal(d: Decal, q: Dictionary) -> void:

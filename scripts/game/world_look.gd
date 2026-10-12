@@ -22,14 +22,28 @@ const SURFACES := {
 	"carpet_theater": "sol", "ceiling_theater": "plafond", "dark_wood": "sol",
 }
 
+## Sols mouillés : flaques en pixels, presque lisses (pixel_surface.gdshader,
+## paramètre `wet`, posé par PixelSurfaces.material) ; clé -> intensité.
+## Bois, moquettes, parquets restent secs.
+const WET_SURFACES := {
+	"floor": 1.0, "concrete": 1.0, "concrete_dark": 1.0, "tiles": 1.0, "metal": 0.6,
+	"cobble": 1.0, "marble": 0.5,
+}
+
 ## Environnement normal.
-const BASE_FOG_COLOR := Color(0.085, 0.09, 0.105)
-const BASE_FOG_DENSITY := 0.016
-const BASE_AMBIENT_ENERGY := 0.5
-const BASE_SATURATION := 0.78
-## Brume volumétrique (qualités MEDIUM et HIGH, voir RenderQuality) : fine,
-## elle ne se voit que dans les halos et faisceaux des lampes (BO1).
-const BASE_VOLUMETRIC_DENSITY := 0.006
+## Lumière et ambiance (docs/ART_DIRECTION.md « Lumière et ambiance », cible
+## docs/art/gemini_target.webp) : ambiante FROIDE bleu-vert partout, lampes
+## CHAUDES en flaques (LampStyle), brume qui rend les faisceaux visibles.
+const BASE_FOG_COLOR := Color(0.045, 0.085, 0.095)
+const BASE_FOG_DENSITY := 0.018
+const BASE_AMBIENT_COLOR := Color(0.24, 0.48, 0.53)
+const BASE_AMBIENT_ENERGY := 1.3
+const BASE_SATURATION := 0.9
+## Brume volumétrique (qualités MEDIUM et HIGH, voir RenderQuality) : voile
+## bleu-vert léger (part de l'ambiante diffusée) et faisceaux des lampes.
+const BASE_VOLUMETRIC_DENSITY := 0.016
+const VOLUMETRIC_ALBEDO := Color(0.7, 0.86, 0.88)
+const VOLUMETRIC_AMBIENT_INJECT := 0.25
 
 ## Étalonnage BO1 (table de correspondance 3D procédurale, voir grade_color).
 ## Surchargeable par carte : MapDef.look["grade"].
@@ -41,13 +55,13 @@ const BASE_VOLUMETRIC_DENSITY := 0.006
 ##   desat          : désaturation des couleurs vives (image « délavée »)
 ##   gain           : gain final (compense le pied de courbe : pas plus sombre)
 const GRADE_DEFAULT := {
-	"shadow_tint": Color(0.84, 1.0, 1.04),
-	"highlight_tint": Color(1.05, 1.0, 0.92),
-	"lift_tint": Color(0.7, 1.0, 1.15),
-	"toe": 1.3,
-	"lift": 0.016,
-	"desat": 0.3,
-	"gain": 1.06,
+	"shadow_tint": Color(0.74, 1.0, 1.08),
+	"highlight_tint": Color(1.12, 1.0, 0.82),
+	"lift_tint": Color(0.45, 1.0, 1.1),
+	"toe": 1.25,
+	"lift": 0.022,
+	"desat": 0.18,
+	"gain": 1.05,
 }
 const LUT_SIZE := 24
 ## Poids des niveaux de glow 1 à 7 (index 0 à 6) : surtout les niveaux larges.
@@ -72,18 +86,18 @@ static func setup_environment(parent: Node3D, look := {}, with_outline := true) 
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.0, 0.0, 0.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.36, 0.38, 0.44)
+	env.ambient_light_color = BASE_AMBIENT_COLOR
 	env.ambient_light_energy = BASE_AMBIENT_ENERGY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.3
 	# Bloom BO1 : halo large et doux autour des ampoules, des écrans et des
 	# néons des machines ; seul ce qui dépasse le blanc (sources) « bave ».
 	env.glow_enabled = true
-	env.glow_intensity = 0.6
+	env.glow_intensity = 0.8
 	env.glow_strength = 1.0
 	env.glow_bloom = 0.0
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
-	env.glow_hdr_threshold = 1.1
+	env.glow_hdr_threshold = 1.0
 	env.glow_hdr_scale = 1.4
 	for i in GLOW_LEVELS.size():
 		env.set_glow_level(i, GLOW_LEVELS[i])
@@ -92,11 +106,11 @@ static func setup_environment(parent: Node3D, look := {}, with_outline := true) 
 	env.fog_density = BASE_FOG_DENSITY
 	# Brume volumétrique : activée par RenderQuality (MEDIUM, HIGH).
 	env.volumetric_fog_density = BASE_VOLUMETRIC_DENSITY
-	env.volumetric_fog_albedo = Color(0.78, 0.8, 0.76)
+	env.volumetric_fog_albedo = VOLUMETRIC_ALBEDO
 	env.volumetric_fog_anisotropy = 0.7
 	env.volumetric_fog_length = 32.0
 	env.volumetric_fog_detail_spread = 1.6
-	env.volumetric_fog_ambient_inject = 0.0
+	env.volumetric_fog_ambient_inject = VOLUMETRIC_AMBIENT_INJECT
 	env.volumetric_fog_gi_inject = 0.0
 	env.volumetric_fog_sky_affect = 0.0
 	env.volumetric_fog_temporal_reprojection_enabled = true

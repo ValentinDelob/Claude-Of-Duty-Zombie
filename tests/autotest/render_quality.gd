@@ -40,7 +40,7 @@ func run() -> void:
 		await seconds(0.4)  # rendu posé après le changement de préréglage, avant la mesure
 		var shadows := 0
 		for l: OmniLight3D in lamps:
-			if l.shadow_enabled:
+			if RenderQuality.lamp_casts_shadow(l):
 				shadows += 1
 		at.check(shadows == [0, 8, 16][q], "%s : %d lampes à ombre" % [preset.name, shadows])
 		at.check(env.glow_enabled == preset.glow, "%s : glow %s" % [preset.name, env.glow_enabled])

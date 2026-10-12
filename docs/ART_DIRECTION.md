@@ -50,9 +50,9 @@ dépôt.
   référence : rendu des planches de validation par coque inversée ; en jeu,
   passe en espace écran `ScreenOutline` (voir « Contour noir en jeu » plus
   bas ; option OPTIONS > VIDÉO > CONTOUR, activée par défaut).
-- Ciel des cartes cubique (fait : voir « Ciel » plus bas) ; ❓ lumières et
-  post-traitement restent à décider (§ 4.19) ; l'étalonnage ci-dessous est
-  celui du code actuel.
+- Ciel des cartes cubique (fait : voir « Ciel » plus bas) ; lumières,
+  ambiance et post-traitement : voir « Lumière et ambiance » plus bas (cible
+  `docs/art/gemini_target.webp`).
 
 ## Chaîne de production cubique (tools/blender/voxel/voxel_lib.py)
 
@@ -713,7 +713,92 @@ voir tomber, le repérer de loin et savoir ce qu'il vaut d'un regard.
   (quelques dizaines de cubes), 0 ou 1 lumière sans ombre par objet ;
   étoiles masquées au-delà de 28 m.
 
-## Étalonnage et post-traitement (code actuel, à revoir pour le style cubique)
+## Lumière et ambiance (cible : docs/art/gemini_target.webp)
+
+Refonte du 12/10/2026 : l'image était « trop plate, simple, sans vie ». La
+cible est l'image de référence `docs/art/gemini_target.webp` : ambiance
+**bleu-vert (sarcelle)** dans les ombres et les zones éteintes, **flaques de
+lumière chaude** sous les lampes, plafonds laissés dans l'ombre, faisceaux
+visibles dans la poussière, sols mouillés qui brillent, silhouettes qui se
+détachent par un contre-jour froid. Tout reste cubique : les effets de
+matière suivent la grille de 5 cm (variation par cube, flaques en pixels).
+
+### Règles
+
+- **Ambiante froide, lampes chaudes.** Lumière ambiante bleu-vert
+  (`WorldLook.BASE_AMBIENT_COLOR` 0,24 / 0,48 / 0,53, énergie 1,3), brume de
+  fond bleu-vert sombre ; les lampes gardent leur couleur chaude
+  (`PowerGrid.ON_COLOR`, couleur des luminaires de l'éditeur).
+- **Lampes sous abat-jour = flaque vers le bas** (`LampStyle`, règle
+  GLOBALE appliquée par `MapProps.add_lamp` à toutes les cartes : BUNKER
+  K-7, lampes automatiques et luminaires de l'éditeur, aperçu de l'éditeur
+  compris, sans toucher aux données des cartes). La lampe (OmniLight3D
+  « LampN », pilotée par le courant et le grésillement) n'est plus qu'une
+  faible lueur de proximité (30 % de l'énergie, 55 % de la portée) ; un
+  projecteur enfant `LampPool` (« Pool ») dirigé vers le bas (cône de 50°,
+  bord adouci) porte l'essentiel (x 3,4), recopie couleur et énergie de la
+  lampe à chaque image, porte l'ombre (une ombre de projecteur coûte moins
+  qu'une ombre omnidirectionnelle) et un faisceau dans la brume
+  volumétrique. Résultat : flaque chaude au sol, plafond sombre, murs lus
+  par l'ambiante. Par type de luminaire : néon et lustre plus larges et plus
+  diffus, lampe de bureau en cône serré ; appliques, bougies, feu et
+  projecteur de chantier restent une lumière omnidirectionnelle seule
+  (atténuation 1,6). Les écarts se règlent dans `LampStyle.CEILING` /
+  `FIXTURES` / `OMNI`.
+- **Étalonnage** (table 3D, voir plus bas) : ombres franchement bleu-vert
+  (`shadow_tint` 0,74 / 1,0 / 1,08), hautes lumières chaudes (1,12 / 1,0 /
+  0,82), noirs relevés bleu-vert, désaturation légère (0,18 : l'image de
+  référence est plus colorée que BO1), saturation 0,9.
+- **Bloom** sur les sources (ampoules, écrans, yeux, faces émissives du décor
+  cubique : `voxel_prop.gdshader` `glow_energy` 3,5) : seuil HDR 1,0,
+  intensité 0,8.
+- **Vignettage** plus marqué (`FilmPost.VIGNETTE` 0,42).
+- **Réponse des matières** (`pixel_surface.gdshader`, toutes les surfaces
+  pixel art) : chaque cube de 5 cm +/- 4 % de luminosité, grandes taches de
+  crasse (~1,5 m) plus sombres et plus mates, pied des murs assombri sur
+  45 cm en paliers de 5 cm (occlusion de contact, gratuite, même en LOW),
+  **sols mouillés** (`WorldLook.WET_SURFACES` : béton, carrelage, tôle,
+  pavés, marbre ; bois et moquettes secs) : flaques aux bords en pixels,
+  sombres et presque lisses (reflets des lampes ; SSR en HIGH) avec un reflet
+  bleu-vert en vue rasante (Fresnel) et un liseré humide. Décor cubique
+  (`voxel_prop.gdshader`) : +/- 4,5 % par cube de 5 cm pris sur la grille du
+  monde (les grandes faces fusionnées ne sont plus des aplats).
+- **Contre-jour froid des créatures** (`zombie_body.gdshaderinc`, modèles
+  cubiques) : les faces vues de biais prennent un peu de bleu-vert
+  (`rim_color` x couleur de la face, Fresnel puissance 3) : la silhouette se
+  détache du fond sombre ; les yeux émissifs restent.
+- **Contour noir** inchangé (ScreenOutline).
+- **Fond 3D du menu** (`MenuBackdrop`) : même ambiante, même étalonnage,
+  flaques froides sous les néons (LampPool), lampe de bureau chaude allumée,
+  brume volumétrique en MEDIUM et HIGH.
+
+### Par préréglage de qualité (RenderQuality.PRESETS)
+
+| | LOW | MEDIUM | HIGH |
+|---|---|---|---|
+| Ambiante bleu-vert, étalonnage, flaques de lumière (LampPool), matières (variation, crasse, pied des murs, flaques d'eau), contre-jour | oui | oui | oui |
+| Ombres des lampes (sur la flaque) | aucune | 1 lampe sur 3, filtre dur | 2 sur 3, filtre doux |
+| Brume volumétrique (faisceaux, voile bleu-vert) | non | 48x48x32 | 64x64x48 |
+| SSAO (ombres de contact des cubes) | non | non (+0,66 ms mesuré : trop pour la GTX 1050) | demi-résolution, basse |
+| SSR (reflets des flaques) | non | non | oui (48 pas) |
+| Bloom | non | oui | oui (bicubique) |
+
+Il n'y a pas de préréglage ULTRA (Settings.Quality : LOW, MEDIUM, HIGH).
+Coûts mesurés : docs/ARCHITECTURE.md (« Rendu et performances ») ;
+captures avant / après : scénario `lighting_look` (`-- --tag=<préfixe>`).
+
+### Écarts restants avec la cible
+
+- Plafonds plus noirs que sur l'image (texture de plafond sombre + pied de
+  courbe) ; la cible garde un plafond bleu-vert lisible.
+- Pas de faisceau de lumière par les fenêtres (les fenêtres de BUNKER K-7
+  donnent sur des poches fermées) ; en LOW, aucun faisceau (pas de brume).
+- Les flaques ne reflètent vraiment la scène qu'en HIGH (SSR) ; ailleurs,
+  reflets des lampes et Fresnel bleu-vert seulement.
+- Relief des sols et murs, planches des barricades, effets du butin :
+  hors de cette refonte (autres lots).
+
+## Étalonnage et post-traitement
 
 
 ### Ce qui caractérise l'image de BO1 Zombies
@@ -745,8 +830,10 @@ voir tomber, le repérer de loin et savoir ce qu'il vaut d'un regard.
   intacts), relèvement bleu-vert du noir, léger gain. Surcharge par carte :
   `MapDef.look["grade"]`.
 - Bloom : glow en mode « écran », seuil HDR 1,0, niveaux larges (3 à 5).
-- Brume volumétrique fine (anisotropie 0,7 : halos vers les lampes) en MEDIUM
-  et HIGH (les vagues de chiens ne la changent plus : GAME_CONCEPT.md § 5).
+- Brume volumétrique (densité 0,016, albédo bleu-vert, 25 % de l'ambiante
+  diffusée, anisotropie 0,7 : halos vers les lampes, faisceaux des flaques
+  LampPool) en MEDIUM et HIGH (les vagues de chiens ne la changent plus :
+  GAME_CONCEPT.md § 5).
 - `FilmPost` (CanvasLayer 5, sous le HUD) : grain animé à 24 images/s,
   vignettage ovale, aberration chromatique radiale (MEDIUM/HIGH) ; variante LOW
   multiplicative sans lecture de l'écran. Option **OPTIONS > VIDÉO > GRAIN DE

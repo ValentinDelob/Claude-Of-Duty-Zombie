@@ -99,7 +99,12 @@ func _modes(zombies: bool) -> Array:
 	m.append(["étalonnage (LUT)", func(on: bool): env.adjustment_enabled = on])
 	m.append(["ombres des lampes", func(on: bool):
 		for l: OmniLight3D in tree().get_nodes_in_group(RenderQuality.LAMP_GROUP):
-			l.shadow_enabled = on and RenderQuality.lamp_has_shadow(int(l.get_meta("lamp_index", 0)), RenderQuality.current())])
+			var sh := on and RenderQuality.lamp_has_shadow(int(l.get_meta("lamp_index", 0)), RenderQuality.current())
+			var pool := l.get_node_or_null("Pool") as SpotLight3D
+			if pool:
+				pool.shadow_enabled = sh
+			else:
+				l.shadow_enabled = sh])
 	m.append(["lampes (toutes)", func(on: bool):
 		for l: OmniLight3D in tree().get_nodes_in_group(RenderQuality.LAMP_GROUP):
 			l.visible = on])
@@ -159,6 +164,13 @@ func _modes(zombies: bool) -> Array:
 			l.omni_range = float(l.get_meta("range0")) * (1.0 if on else 0.85)])
 	if RenderQuality.current().ssao:
 		m.append(["SSAO", func(on: bool): env.ssao_enabled = on])
+	if RenderQuality.current().ssr:
+		m.append(["SSR (flaques)", func(on: bool): env.ssr_enabled = on])
+	m.append(["flaques de lumière des lampes (LampPool)", func(on: bool):
+		for l: OmniLight3D in tree().get_nodes_in_group(RenderQuality.LAMP_GROUP):
+			var pool := l.get_node_or_null("Pool") as SpotLight3D
+			if pool:
+				pool.visible = on])
 	if at.get_viewport().msaa_3d != Viewport.MSAA_DISABLED:
 		m.append(["MSAA", func(on: bool): at.get_viewport().msaa_3d = RenderQuality.current().msaa if on else Viewport.MSAA_DISABLED])
 	if zombies:

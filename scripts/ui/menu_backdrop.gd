@@ -144,8 +144,17 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0, 0, 0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.36, 0.42, 0.5)
-	env.ambient_light_energy = 0.12
+	# Ambiance des cartes (WorldLook, « Lumière et ambiance ») : ambiante
+	# bleu-vert, étalonnage du jeu, brume volumétrique (MEDIUM et HIGH).
+	env.ambient_light_color = WorldLook.BASE_AMBIENT_COLOR
+	env.ambient_light_energy = 0.3
+	env.adjustment_color_correction = WorldLook.map_lut({})
+	env.volumetric_fog_density = 0.03
+	env.volumetric_fog_albedo = WorldLook.VOLUMETRIC_ALBEDO
+	env.volumetric_fog_anisotropy = 0.6
+	env.volumetric_fog_length = 24.0
+	env.volumetric_fog_ambient_inject = WorldLook.VOLUMETRIC_AMBIENT_INJECT
+	env.volumetric_fog_temporal_reprojection_enabled = true
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.15
 	env.glow_enabled = true
@@ -251,6 +260,23 @@ func _build_props() -> void:
 	_prop("flaque_eau", Vector3(0.45, 0, -11.4), 0)
 	_prop("bureau", Vector3(-w + 0.35, 0, -12.4), 1)
 	_prop("lampe_bureau", Vector3(-w + 0.3, 1.0, -12.0), 1)
+	# Lampe de bureau allumée : seule source chaude du couloir (contraste
+	# chaud / froid de la direction artistique), flaque sur le bureau.
+	var desk := OmniLight3D.new()
+	desk.light_color = Color(1.0, 0.68, 0.38)
+	desk.light_energy = 0.6
+	desk.omni_range = 2.5
+	desk.omni_attenuation = 1.8
+	desk.position = Vector3(-w + 0.45, 1.45, -12.0)
+	add_child(desk)
+	var desk_pool := LampPool.new()
+	desk_pool.ratio = 5.0
+	desk_pool.rotation.x = -PI * 0.5
+	desk_pool.spot_range = 4.0
+	desk_pool.spot_angle = 50.0
+	desk_pool.spot_angle_attenuation = 1.8
+	desk_pool.light_volumetric_fog_energy = 2.5
+	desk.add_child(desk_pool)
 	_prop("bobine_tesla", Vector3(w - 0.35, 0, -14.9), 0)
 	_prop("gravats", Vector3(-4.6, 0, -6.5), 0)
 	_prop("caisses", Vector3(4.9, 0, -6.5), 1)
@@ -278,6 +304,18 @@ func _build_props() -> void:
 		l.omni_attenuation = 1.3
 		l.position = Vector3(0, H - 0.4, z)
 		add_child(l)
+		# Flaque froide au sol et faisceau dans la brume (comme les lampes
+		# des cartes, LampStyle) : suit l'énergie du néon (grésillement).
+		var pool := LampPool.new()
+		pool.ratio = 2.6
+		pool.rotation.x = -PI * 0.5
+		pool.spot_range = 6.0
+		pool.spot_angle = 62.0
+		pool.spot_angle_attenuation = 1.3
+		pool.light_volumetric_fog_energy = 3.0
+		pool.distance_fade_enabled = false
+		l.add_child(pool)
+		l.light_volumetric_fog_energy = 0.6
 		_neons.append([l, tube, int(s[1]), n])
 
 
@@ -390,6 +428,10 @@ func _build_dust() -> void:
 func _apply_quality() -> void:
 	var q: int = Settings.quality
 	_env.glow_enabled = q >= Settings.Quality.MEDIUM
+	_env.volumetric_fog_enabled = q >= Settings.Quality.MEDIUM
+	if _env.volumetric_fog_enabled:
+		var fv: Array = RenderQuality.preset(q).fog_volume
+		RenderingServer.environment_set_volumetric_fog_volume_size(fv[0], fv[1])
 	for sp in _beacons:
 		sp.shadow_enabled = q >= Settings.Quality.HIGH
 	for n in _neons:

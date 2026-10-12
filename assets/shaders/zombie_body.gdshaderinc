@@ -30,6 +30,8 @@ instance uniform float heart_glow = 1.0;
 // Teinte de variante (modèle cubique, ZombieModel.MODEL_TINTS) : blouse
 // (rgb) et peau (a).
 instance uniform vec4 look_tint = vec4(1.0);
+// Contre-jour froid (x couleur de la face) : lumière d'ambiance des cartes.
+uniform vec4 rim_color : source_color = vec4(0.35, 0.75, 0.8, 1.0);
 #endif
 
 varying vec3 rest_pos;
@@ -91,6 +93,11 @@ void fragment() {
 	float heart_k = step(0.25, COLOR.a) * step(COLOR.a, 0.75);
 	EMISSION = emission_color.rgb * emission_energy * eye_k * eye_glow
 		+ COLOR.rgb * heart_energy * heart_k * heart_glow + vec3(0.6, 0.05, 0.02) * hit_flash;
+	// Contre-jour froid (docs/ART_DIRECTION.md « Lumière et ambiance ») :
+	// les faces vues de biais prennent un peu de la lumière bleu-vert de la
+	// pièce : la silhouette se détache du fond même dans le noir.
+	float rim = pow(clamp(1.0 - dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
+	EMISSION += rim_color.rgb * rim * vcol;
 #ifdef DISSOLVE
 	// Cubes au bord de la dissolution : braise.
 	EMISSION += vec3(1.0, 0.3, 0.05) * step(h, dissolve + 0.08) * 3.0;

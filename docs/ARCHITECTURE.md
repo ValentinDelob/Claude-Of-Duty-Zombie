@@ -536,6 +536,25 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
 | Résolution 3D (x ÉCHELLE DE RENDU 3D des options) | 85 % (bilinéaire) | 100 % | 100 % |
 | Décalques / particules | 50 % / 50 % | 100 % | 100 % |
 | Brume volumétrique | non | 48x48x32 | 64x64x48 |
+| SSR (reflets des flaques d'eau) | non | non | oui (48 pas) |
+| Flaques de lumière des lampes (`LampPool`), ambiante bleu-vert, matières | oui | oui | oui |
+
+- **Refonte de l'éclairage** (12/10/2026, docs/ART_DIRECTION.md « Lumière et
+  ambiance ») : temps GPU moyen `tools/perf.sh` en 1080p, GTX 1070, avant ->
+  après (machine partagée : ~ +/- 0,2 ms de bruit). Les ombres des lampes
+  passent sur la flaque (projecteur, une carte d'ombre au lieu d'une
+  omnidirectionnelle) : MEDIUM devient un peu moins cher ; le SSAO, mesuré
+  à +0,66 ms en MEDIUM (`perf_costs`), reste réservé à HIGH ; les flaques
+  LampPool coûtent +0,03 ms GPU, +0,15 ms CPU de rendu (`perf_costs`).
+
+| Vue | LOW | MEDIUM | HIGH |
+|---|---|---|---|
+| menu | 1,35 -> 1,72 ms | 1,84 -> 2,27 ms | 2,32 -> 2,77 ms |
+| map_tour garde | 1,80 -> 1,87 ms | 3,09 -> 2,85 ms | 5,15 -> 4,91 ms |
+| map_tour labo | 1,67 -> 1,48 ms | 3,06 -> 2,62 ms | 5,17 -> 5,04 ms |
+| map_tour couloir | 1,69 -> 1,66 ms | 3,05 -> 2,91 ms | 4,65 -> 4,88 ms |
+| 24 zombies | 1,31 -> 1,31 ms | 2,56 -> 2,38 ms | 4,57 -> 4,19 ms |
+| arène (fps_controller) | 1,83 -> 1,85 ms | 3,30 -> 3,31 ms | 6,06 -> 5,38 ms |
 | Post-traitement (`FilmPost`) | multiplicatif (grain, vignette) | lecture d'écran + aberration | idem |
 | Contour noir (`ScreenOutline`, option CONTOUR) | oui | oui | oui |
 
@@ -675,7 +694,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
      APU Radeon Graphics / Vega, rendu logiciel -> LOW d'office ;
   2. mini-banc d'essai : 2 s de stabilisation puis 3 s de mesure du temps GPU du
      menu principal (MEDIUM imposé), ramené à 1080p au prorata des pixels et
-     comparé à la GTX 1070 (`REF_MENU_MS` = 2,9 ms, `DEV_SCORE` = 3,5) ; abandonné
+     comparé à la GTX 1070 (`REF_MENU_MS` = 3,55 ms depuis la refonte de
+     l'éclairage, 2,9 ms avant, `DEV_SCORE` = 3,5) ; abandonné
      si le joueur quitte le menu pendant la mesure ;
   3. indice mesuré prioritaire (sinon celui du modèle, sinon MEDIUM) :
      < 0,9 -> LOW, 0,9 à 2,6 -> MEDIUM, >= 2,6 -> HIGH ; appliqué, enregistré avec

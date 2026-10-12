@@ -2,7 +2,7 @@ extends TestCase
 ## Préréglages de qualité graphique (RenderQuality).
 
 const KEYS := ["name", "lamp_shadows", "shadow_atlas", "shadow_filter", "light_fade_begin",
-	"light_fade_length", "shadow_fade", "glow", "glow_bicubic", "ssao", "scale_3d", "msaa",
+	"light_fade_length", "shadow_fade", "glow", "glow_bicubic", "ssao", "ssr", "scale_3d", "msaa",
 	"decal_fade", "decals", "particles"]
 
 
