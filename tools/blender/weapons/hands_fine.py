@@ -24,6 +24,9 @@
 #     qui montent sur le flanc droit, pouce à gauche ;
 #   * throw_r : main droite autour de la grenade (7,5 cm, centrée en 0) ;
 #   * throw_l : pince du pouce et de l'index (goupille) ;
+#   Gants SOMBRES vus de l'œil (vue FPS, comme la planche validée) : le cuir
+#   clair de la paume n'est peint que sur les faces qui serrent l'objet ;
+#   manchettes en cuir sombre en haut, bracelet d'équipe dessous.
 #   * forearm, forearm_l : du coude (z = 0) au poignet (z = -ARM_LEN = -0,3 m),
 #     section qui s'affine vers le poignet, manche courte du maillot derrière
 #     le coude ; forearm_l porte le bandage taché de sang.
@@ -93,10 +96,17 @@ def fist(h, g, side, index_on_trigger):
     for j in range(-7, 0):
         box(2, 3, j, j, -2, 3, "glove")
         h.paint(3 * s, j, -2, "+x" if s > 0 else "-x", "glove_knuckle", g=g)
-    # Talon de la paume derrière la poignée, éminence du pouce sur l'autre flanc.
+    # Talon de la paume derrière la poignée, éminence du pouce sur l'autre
+    # flanc : gant sombre dehors, cuir clair seulement sur la face qui serre
+    # la poignée (vue FPS : l'œil voit le dos du talon, qui doit rester sombre
+    # comme sur la planche validée hands_m1911.png).
     for j in range(-7, -1):
-        box(-1, 1, j, j, 2, 2, "glove_palm")
-        box(-2, -2, j, j, 1, 2, "glove_palm")
+        box(-1, 1, j, j, 2, 2, "glove")
+        box(-2, -2, j, j, 1, 2, "glove")
+        for i in (-1, 0, 1):
+            h.paint(i, j, 2, "-z", "glove_palm", g=g)
+        h.paint(-2 * s, j, 1, "+x" if s > 0 else "-x", "glove_palm", g=g)
+        h.paint(-2 * s, j, 2, "+x" if s > 0 else "-x", "glove_palm", g=g)
     # Doigts autour de l'avant, bouts sur l'autre flanc (2 rangées par doigt).
     rows = [(-4, -3), (-6, -5), (-8, -7)] if index_on_trigger else [(-2, -1), (-4, -3), (-6, -5), (-8, -7)]
     for n, (j0, j1) in enumerate(rows):
@@ -112,8 +122,10 @@ def fist(h, g, side, index_on_trigger):
     # Pouce vers l'avant le long de l'autre flanc, en haut.
     box(-2, -2, 0, 0, -5, 0, "glove")
     box(-2, -2, -1, 0, 1, 2, "glove")
-    # Bracelet du gant (zone d'équipe) au poignet.
-    box(-1, 3, -7, -2, 4, 5, "strap")
+    # Manchette du gant : cuir sombre en haut (vue de l'œil, derrière le
+    # poing), bracelet d'équipe dessous (au poignet).
+    box(-1, 3, -3, -2, 4, 5, "glove")
+    box(-1, 3, -7, -4, 4, 5, "strap")
     h.wrist(g, 1.0 * s, -4.5, 6.0)
 
 
@@ -130,7 +142,8 @@ def pistol_support(h):
         F(4, 4, j0, j1, -4, -2, key, g=g)
     F(-2, -2, -1, -1, -6, 0, "glove", g=g)       # pouce sous le pouce droit
     F(-3, -3, -2, -1, 0, 2, "glove", g=g)
-    F(-6, -3, -8, -2, 3, 4, "strap", g=g)
+    F(-6, -3, -3, -2, 3, 4, "glove", g=g)        # manchette sombre en haut
+    F(-6, -3, -8, -4, 3, 4, "strap", g=g)
     h.wrist(g, -4.5, -5.0, 5.0)
 
 
@@ -148,13 +161,17 @@ def bat_fist(h, g, side):
 
     for j in range(-8, 0):
         box(1, 2, j, j, -2, 3, "glove")          # dos de la main
-        box(-2, 0, j, j, 1, 2, "glove_palm")     # paume derrière le manche
+        box(-2, 0, j, j, 1, 2, "glove")          # paume derrière le manche
+        for i in (-2, -1, 0):
+            ii = i if s > 0 else -1 - i
+            h.paint(ii, j, 1, "-z", "glove_palm", g=g)   # cuir clair contre le manche
     for n, (j0, j1) in enumerate([(-2, -1), (-4, -3), (-6, -5), (-8, -7)]):
         key = finger_key(n)
         box(-3, 2, j0, j1, -3, -2, key)          # doigts devant le manche
         box(-3, -2, j0, j1, -1, 0, key)          # bouts sur l'autre flanc
     box(-3, -3, 0, 0, -3, 1, "glove")            # pouce replié par-dessus
-    box(-2, 2, -7, -2, 4, 5, "strap")
+    box(-2, 2, -3, -2, 4, 5, "glove")            # manchette sombre en haut
+    box(-2, 2, -7, -4, 4, 5, "strap")
     h.wrist(g, 0.5 * s, -4.5, 6.0)
 
 
@@ -163,7 +180,10 @@ def cradle(h):
     montent sur le flanc droit, pouce le long du flanc gauche."""
     g = h.start("cradle", ODD)
     F = h.fill
-    F(-2, 1, -2, -1, -4, 2, "glove_palm", g=g)   # paume
+    F(-2, 1, -2, -1, -4, 2, "glove", g=g)        # paume : gant sombre dehors,
+    for i in range(-2, 2):                        # cuir clair contre le garde-main
+        for k in range(-4, 3):
+            h.paint(i, -1, k, "+y", "glove_palm", g=g)
     for n in range(4):                            # doigts sur le flanc droit
         k0 = -4 + 2 * n
         k1 = min(k0 + 1, 2)
@@ -184,7 +204,10 @@ def throw_r(h):
     for n, (j0, j1) in enumerate([(1, 2), (-1, 0), (-3, -2)]):
         F(-3, 4, j0, j1, -5, -4, finger_key(n), g=g)   # doigts devant
         F(-4, -4, j0, j1, -3, -1, finger_key(n), g=g)  # bouts à gauche
-    F(-3, 2, -5, -4, -3, 2, "glove_palm", g=g)    # paume dessous
+    F(-3, 2, -5, -4, -3, 2, "glove", g=g)         # paume dessous (cuir clair
+    for i in range(-3, 3):                        # contre la grenade)
+        for k in range(-3, 3):
+            h.paint(i, -4, k, "+y", "glove_palm", g=g)
     F(-4, -4, 0, 2, 0, 2, "glove", g=g)           # pouce
     F(1, 4, -4, -1, 3, 4, "strap", g=g)
     h.wrist(g, 2.0, -2.5, 5.0)

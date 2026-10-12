@@ -437,9 +437,13 @@ et exporte.
   pulpe devant la détente), mêmes pièces, repères et points `wrist_<pièce>`
   qu'avant ; avant-bras de 24 cubes (0,3 m) qui s'affine vers le poignet
   (6,25 cm). `weapons_voxel.py` ne les construit plus (`hands` absent de ses
-  `BUILDERS` et de son cache). Prise du pistolet : avant-bras en V étroit
-  sous la glissière (`ViewHands.PISTOL_ARM_R` / `_L`), cran et guidon
-  dégagés au-dessus des mains en visée.
+  `BUILDERS` et de son cache). Prise du pistolet : avant-bras en V qui plongent hors
+  de l'écran sous la glissière (`ViewHands.PISTOL_ARM_R` / `_L`), cran et guidon
+  dégagés au-dessus des mains en visée. Vus de l'œil, les gants restent
+  SOMBRES comme sur la planche : talon de la paume et haut de la manchette
+  en cuir sombre (le cuir clair n'est que sur les faces qui serrent la
+  poignée, le manche ou le garde-main ; le bracelet d'équipe est sous la
+  manchette). Captures de mise au point : scénario `hands_look` (`@rendu`).
   ```
   sh tools/blender.sh tools/blender/weapons/hands_fine.py --export [--sheet DOSSIER]
   ```

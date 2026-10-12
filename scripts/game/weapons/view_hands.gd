@@ -40,10 +40,13 @@ const ELBOW_L := Vector3(-0.19, -0.2, 0.3)
 const ELBOW_R_CAM := Vector3(0.14, -0.3, 0.2)
 const ELBOW_L_CAM := Vector3(-0.06, -0.32, 0.22)
 ## Pistolet tenu à deux mains : direction du poignet vers le coude (repère
-## de l'arme), celle de la prise validée le 2026-10-12 (hands_m1911.png :
-## 0,4 cube vers l'extérieur et 0,5 vers le bas par cube vers l'arrière).
-const PISTOL_ARM_R := Vector3(0.2, -0.6, 1.0)
-const PISTOL_ARM_L := Vector3(-0.2, -0.6, 1.0)
+## de l'arme). Comme sur la prise validée le 2026-10-12 (hands_m1911.png),
+## les avant-bras plongent vite hors de l'écran en V, vers le bas et
+## l'extérieur : en visée, seuls les poings (sous la glissière) et les
+## poignets prennent le bas de l'image ; la caméra est plus près que sur la
+## planche (cran à 0,4 m, champ de 72°) : pente plus forte que la planche.
+const PISTOL_ARM_R := Vector3(0.9, -1.6, 0.4)
+const PISTOL_ARM_L := Vector3(-0.9, -1.6, 0.4)
 ## Longueur de l'avant-bras, du coude au poignet (24 cubes de 1,25 cm).
 const ARM_LEN := 0.3
 ## La manche continue derrière le coude (haut du bras) sur cette fraction de
