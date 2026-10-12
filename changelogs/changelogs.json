@@ -2999,6 +2999,25 @@
     "en": "A brand-new match inventory and a simpler evacuation vote",
     "fr": "Un tout nouvel inventaire de partie et un vote d'évacuation plus simple"
    }
+  },
+  "v0.2.1-snapshot.716": {
+   "channel": "snapshot",
+   "date": "2026-10-12",
+   "images": [],
+   "items": [
+    {
+     "en": "The construction station got a full makeover: your arsenal sorted by level like in the hub, each weapon with its price in scrap and its build time, a glow behind rare and better weapons (legendaries even get spinning rays), and a sheet with its stats, its parts and the round it will be ready. Your build in progress shows right on its card; press the interact key to collect it once it's ready. Ammo refills use your real reload key.",
+     "fr": "La station de construction fait peau neuve : votre arsenal rangé par niveau comme au hub, chaque arme avec son prix en ferraille et sa durée de construction, un halo derrière les armes rares et au-delà (les légendaires ont même des rayons qui tournent), et une fiche avec ses stats, ses pièces et la manche où elle sera prête. Votre construction en cours s'affiche sur sa carte ; touche d'interaction pour la récupérer quand elle est prête. La recharge des munitions passe par votre vraie touche de rechargement."
+    },
+    {
+     "en": "Recycling is no longer done at the station: open your inventory (I) to recycle a weapon, wherever you are.",
+     "fr": "Le recyclage ne se fait plus à la station : ouvrez votre inventaire (I) pour recycler une arme, où que vous soyez."
+    }
+   ],
+   "title": {
+    "en": "A brand-new construction station",
+    "fr": "Une toute nouvelle station de construction"
+   }
   }
  }
 }
