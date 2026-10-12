@@ -16,7 +16,8 @@ extends Node3D
 ##     z de -2,5 à +2,5 cm), poing sous y = 0 ;
 ##   * pistol_support : main gauche qui enveloppe le poing droit ;
 ##   * cradle : paume sous un garde-main (origine : milieu du dessous), doigts
-##     sur le flanc droit, pouce à gauche ;
+##     sur le flanc droit, pouce à gauche ; cradle_narrow : le même pour le
+##     garde-main étroit d'une arme fine (info « narrow_support ») ;
 ##   * throw_r / throw_l : main du lancer (grenade centrée) et pince ;
 ##   * bat_r / bat_l : poings serrés sur un manche d'un cube (batte) ;
 ##   * forearm / forearm_l (bandage) : du coude (z = 0) au poignet
@@ -42,7 +43,7 @@ const ARM_LEN := 0.3
 ## qui flotte, même quand la main gauche descend au rechargement).
 const SLEEVE_BACK := 0.9
 ## Pièces du modèle des mains.
-const PIECES := ["grip", "pistol_support", "foregrip", "cradle", "forearm", "forearm_l", "knife", "throw_r", "throw_l", "bat_r", "bat_l"]
+const PIECES := ["grip", "pistol_support", "foregrip", "cradle", "cradle_narrow", "forearm", "forearm_l", "knife", "throw_r", "throw_l", "bat_r", "bat_l"]
 
 var hand_r: Node3D
 var hand_l: Node3D
@@ -152,6 +153,9 @@ func setup(mid: String, team: Color) -> void:
 		pname = "foregrip"
 	else:
 		lxf = Transform3D(Basis.IDENTITY, support)
+		# Garde-main étroit d'une arme fine (3,75 cm) : berceau de deux cubes.
+		if WeaponModels.info(mid, "narrow_support", false):
+			pname = "cradle_narrow"
 	_wrist_l = lxf * wrist(pname)
 	if WeaponModels.info(mid, "elbows_cam", false):
 		_elbow_l = support + elbow_l_off

@@ -8,7 +8,7 @@
 #
 # ARMES FINES : les armes refaites d'après une arme réelle (refonte du
 # 2026-10-12, cubes de 1,25 cm, fiches docs/weapons/<id>.md ; aujourd'hui
-# m1911) sont construites par weapons_fine.py, PAS ici : elles sont absentes
+# m1911, mp40, ak74u, ak47, famas) sont construites par weapons_fine.py, PAS ici : elles sont absentes
 # de BUILDERS et du cache, et la fusion de weapons_voxel.json garde leurs
 # entrées (seuls les objets reconstruits ici sont remplacés).
 #
@@ -487,32 +487,8 @@ def finish_long(it, rw=1, rh=3, ez=0, ads=0.3, hold=None):
     return it
 
 
-def b_mp40():
-    # CRÉCELLE : vieille mitraillette à tube fin, bas de boîtier en bakélite,
-    # manchon ajouré devant, crosse en fil d'acier repliée sur le flanc gauche.
-    it = Item("mp40", "smg")
-    it.box(0, 1, 0, 2, -5, 9, "gun_dark")
-    it.box(0, 1, -1, 0, -2, 7, "brown")
-    for k in (5, 6, 7):
-        it.paint(0, 1, k, "+x", "gun_black")
-        it.paint(0, 1, k, "-x", "gun_black")
-    # Manchon ajouré (garde-main) autour du canon.
-    it.box(-1, 2, 0, 2, -9, -5, "gun_black")
-    for k in (-8, -6):
-        it.clear(-1, 0, 1, 2, k, k + 1)
-        it.clear(1, 2, 1, 2, k, k + 1)
-    barrel(it, -12, -9, 1, "gun_dark", "nub")
-    cradle_support(it, -9, -5, 0)
-    # Chargeur droit long devant la détente.
-    box_mag(it, -4, 7, "gun_black")
-    trigger(it, 1, -1)
-    handle(it, 1, -1, 4, "brown")
-    # Crosse en fil repliée sur le flanc gauche, plaque de couche.
-    it.box(-1, 0, 0, 1, 0, 10, "gun_black")
-    it.box(-1, 0, -2, 1, 10, 11, "gun_black")
-    charge(it, -1, 1, 2)
-    iron(it, 7, -11, 2, 2)
-    return finish_long(it, rw=0, rh=2, ez=-1, ads=0.22)
+# mp40 (MR-40) : arme fine en cubes de 1,25 cm, construite par
+# weapons_fine.py (plus ici : ce script ne doit pas l'écraser).
 
 
 def b_mp5k():
@@ -604,24 +580,8 @@ def b_spectre():
     return finish_long(it, rh=2, ez=-2, ads=0.22)
 
 
-def b_ak74u():
-    # BRISE-OS : carabine courte, garde-main en bois clair, gros frein carré,
-    # chargeur incurvé, poignée et crosse squelette entourées de ruban blanc.
-    it = Item("ak74u", "smg")
-    receiver(it, -5, 6, "gun_dark")
-    it.box(-1, 2, 0, 2, -10, -5, "wood_light")
-    it.box(0, 1, 2, 3, -9, -5, "wood")
-    barrel(it, -11, -10, 1, "gun_dark", "brake", "gun_black")
-    cradle_support(it, -10, -5, 0)
-    curved_mag(it, -4, 7, "rust")
-    trigger(it, 1, 0)
-    handle(it, 1, 0, 4, "bone")
-    it.box(0, 1, 1, 2, 6, 14, "gun_black")
-    it.box(0, 1, -1, 0, 6, 14, "gun_black")
-    it.box(0, 1, -2, 3, 14, 15, "bone")
-    charge(it, 2, 1, 3)
-    iron(it, -3, -12, 3, 2)
-    return finish_long(it, ez=-1, ads=0.3)
+# ak74u (KA-74U) : arme fine en cubes de 1,25 cm, construite par
+# weapons_fine.py (plus ici : ce script ne doit pas l'écraser).
 
 
 def b_m14():
@@ -754,25 +714,8 @@ def b_galil():
     return finish_long(it, ez=-1, ads=0.24)
 
 
-def b_famas():
-    # CIGALE : fusil compact à chargeur derrière la poignée, longues « ailes »
-    # vertes translucides plaquées sur les flancs, crête de visée au dos.
-    it = Item("famas", "rifle")
-    it.box(-1, 2, -1, 3, -10, 9, "olive_dark")
-    for i in (-2, 2):
-        it.box(i, i + 1, 0, 3, -8, 7, "tube_glass")
-        it.box(i, i + 1, 1, 2, -8, 7, "olive")
-    it.box(-1, 2, 3, 4, -6, 9, "poly")
-    barrel(it, -15, -10, 1, "gun_dark", "cage")
-    trigger(it, -4, -1)
-    handle(it, -4, -1, 4, "poly")
-    box_mag(it, 2, 6, "gun_black", top=-1)
-    it.a("support", 0, -1, -9)
-    charge(it, -2, 3, -4)
-    # Œilleton tout au bout de la crête (rien entre l'œil et le cran).
-    iron(it, 8, -9, 4, 3)
-    it.box(-1, 2, -3, 1, 9, 10, "poly")
-    return finish_long(it, ez=2, ads=0.16, hold=[0.0, 0.0, -0.14])
+# famas (FAMAX F1) : arme fine en cubes de 1,25 cm, construite par
+# weapons_fine.py (plus ici : ce script ne doit pas l'écraser).
 
 
 def b_commando():
@@ -1263,6 +1206,22 @@ def b_hands():
         it.put(*c, "glove", g=g)
     for c in ((-1, -2, 2), (0, -2, 2)):
         it.put(*c, "strap", g=g)
+    # Berceau ÉTROIT (armes fines en cubes de 1,25 cm, garde-main de 3,75 cm,
+    # info « narrow_support ») : même main, paume de deux cubes (largeur
+    # paire, axe entre les colonnes -1 et 0, sans décalage), les doigts et
+    # le pouce touchent les flancs au lieu de flotter à 2 cm.
+    g = "cradle_narrow"
+    it.piece(g, (0.0, 0.0, 0.0))
+    for i in (-1, 0):
+        for k in range(-2, 2):
+            it.put(i, -1, k, "glove_palm", g=g)
+    for k in range(-2, 2):
+        for j in (-1, 0, 1):
+            it.put(1, j, k, "glove" if k % 2 else "glove_knuckle", g=g)
+    for c in ((-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0)):
+        it.put(*c, "glove", g=g)
+    for c in ((-1, -2, 2), (0, -2, 2)):
+        it.put(*c, "strap", g=g)
     # Lancer : main droite autour d'une grenade centrée (3 × 3 × 3).
     g = "throw_r"
     it.piece(g, (-0.5, -0.5, -0.5))
@@ -1325,6 +1284,7 @@ def b_hands():
     it.a("wrist_knife", -1.0, -5.0, 1.5)
     it.a("wrist_pistol_support", -2.0, -5.0, -0.5)
     it.a("wrist_cradle", -0.5, -2.0, 2.5)
+    it.a("wrist_cradle_narrow", 0.0, -2.0, 2.5)
     it.a("wrist_throw_r", 2.0, -2.0, 1.0)
     it.a("wrist_throw_l", 1.0, -4.0, 0.5)
     return it
@@ -1405,8 +1365,8 @@ def b_round_40mm():
 
 BUILDERS = {
     "cz75": b_cz75, "python": b_python,
-    "mp40": b_mp40, "mp5k": b_mp5k, "pm63": b_pm63, "mpl": b_mpl, "spectre": b_spectre, "ak74u": b_ak74u,
-    "m14": b_m14, "m16": b_m16, "fnfal": b_fnfal, "g11": b_g11, "galil": b_galil, "famas": b_famas,
+    "mp5k": b_mp5k, "pm63": b_pm63, "mpl": b_mpl, "spectre": b_spectre,
+    "m14": b_m14, "m16": b_m16, "fnfal": b_fnfal, "g11": b_g11, "galil": b_galil,
     "commando": b_commando, "aug": b_aug,
     "rpk": b_rpk, "hk21": b_hk21,
     "olympia": b_olympia, "stakeout": b_stakeout, "spas12": b_spas12, "hs10": b_hs10,

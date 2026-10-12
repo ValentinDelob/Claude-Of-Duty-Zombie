@@ -65,7 +65,7 @@ const SPECS := {
 	"m1911": "pistol", "cz75": "pistol", "python": "revolver",
 	"mp40": "smg", "mp5k": "smg", "pm63": "smg", "mpl": "smg", "spectre": "smg", "ak74u": "smg",
 	"m14": "rifle", "m16": "rifle", "fnfal": "rifle", "g11": "rifle", "galil": "rifle", "famas": "rifle",
-	"commando": "rifle", "aug": "rifle",
+	"commando": "rifle", "aug": "rifle", "ak47": "rifle",
 	"rpk": "lmg", "hk21": "lmg",
 	"olympia": "shotgun", "stakeout": "shotgun", "spas12": "shotgun", "hs10": "shotgun",
 	"l96a1": "sniper", "dragunov": "sniper",
