@@ -95,6 +95,13 @@ func _modes(zombies: bool) -> Array:
 		probe.code = ScreenOutline.SHADER.code.replace("\tif (dc <= 0.0 || dc > weapon_depth) {", "\tif (dc >= 0.0) {")
 		m.append(["~ contour : une lecture puis discard", func(on: bool):
 			outline.material.shader = ScreenOutline.SHADER if on else probe])
+	var ill := game.world.get_node_or_null("IllustratedPost") as IllustratedPost
+	if ill and IllustratedStyle.active():
+		# Style ILLUSTRÉ (`--style=illustre`) : post-traitement plein écran.
+		m.append(["post-traitement illustré (tout)", func(on: bool): ill.visible = on])
+		if IllustratedPost.radius_for(RenderQuality.current()) > 0.0:
+			m.append(["~ illustré : sans filtre de Kuwahara", func(on: bool):
+				ill.kuwahara.set_shader_parameter("radius", IllustratedPost.radius_for(RenderQuality.current()) if on else 0.0)])
 	m.append(["glow", func(on: bool): env.glow_enabled = on and RenderQuality.current().glow])
 	m.append(["étalonnage (LUT)", func(on: bool): env.adjustment_enabled = on])
 	m.append(["ombres des lampes", func(on: bool):

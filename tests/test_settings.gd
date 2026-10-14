@@ -9,7 +9,7 @@ extends TestCase
 const TMP := "user://settings_unittest.cfg"
 const SAVED_KEYS := ["bindings", "pad_bindings", "pad_look_sensitivity", "using_pad", "pad_device",
 	"render_scale", "max_fps", "brightness", "ads_sensitivity",
-	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "outline", "quality", "editor_ui_scale", "menu_ui_scale", "character"]
+	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "outline", "art_style", "quality", "editor_ui_scale", "menu_ui_scale", "character"]
 
 var _saved := {}
 
@@ -1128,6 +1128,37 @@ func test_outline_saved_and_reloaded() -> void:
 	Settings.outline = true
 	assert_true(Settings.load_from(TMP))
 	assert_true(Settings.outline, "valeur invalide ignorée")
+
+
+## Style de rendu (OPTIONS > VIDÉO > STYLE) : CLASSIQUE par défaut,
+## enregistré (video/art_style), relu ; valeur hors bornes ramenée ; noms du
+## drapeau `--style=`.
+func test_art_style_saved_and_reloaded() -> void:
+	var fresh: Node = (Settings.get_script() as Script).new()
+	assert_eq(fresh.art_style, Settings.ArtStyle.CLASSIC, "CLASSIQUE par défaut")
+	fresh.free()
+	Settings.art_style = Settings.ArtStyle.ILLUSTRATED
+	Settings.save_to(TMP)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(TMP), OK)
+	assert_eq(cfg.get_value("video", "art_style", -1), Settings.ArtStyle.ILLUSTRATED, "clé video/art_style écrite")
+	Settings.art_style = Settings.ArtStyle.CLASSIC
+	assert_true(Settings.load_from(TMP))
+	assert_eq(Settings.art_style, Settings.ArtStyle.ILLUSTRATED, "ILLUSTRÉ relu")
+	cfg.set_value("video", "art_style", 7)
+	cfg.save(TMP)
+	assert_true(Settings.load_from(TMP))
+	assert_eq(Settings.art_style, Settings.ArtStyle.ILLUSTRATED, "valeur hors bornes ramenée")
+	cfg.set_value("video", "art_style", "illustre")
+	cfg.save(TMP)
+	Settings.art_style = Settings.ArtStyle.CLASSIC
+	assert_true(Settings.load_from(TMP))
+	assert_eq(Settings.art_style, Settings.ArtStyle.CLASSIC, "valeur invalide ignorée")
+	for n in ["illustre", "ILLUSTRÉ", "illustrated"]:
+		assert_eq(Settings.parse_art_style(n), Settings.ArtStyle.ILLUSTRATED, n)
+	for n in ["classique", "Classic"]:
+		assert_eq(Settings.parse_art_style(n), Settings.ArtStyle.CLASSIC, n)
+	assert_eq(Settings.parse_art_style("bd"), -1, "nom inconnu")
 
 
 # ------------------------------------------------------------------ fenêtre

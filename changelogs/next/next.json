@@ -1,0 +1,12 @@
+{
+    "title":  {
+                  "en":  "A painted look, as an option",
+                  "fr":  "Un rendu peint, en option"
+              },
+    "items":  [
+                  {
+                      "fr":  "Nouvelle option à l’essai OPTIONS > VIDÉO > STYLE : ILLUSTRÉ donne à l’image un aspect peint (aplats de couleur adoucis, ombres bleu-vert, lueurs chaudes des lampes, vignette douce). CLASSIQUE reste le réglage par défaut.",
+                      "en":  "New trial option OPTIONS > VIDEO > STYLE: ILLUSTRATED gives the picture a painted look (smoothed colour areas, teal shadows, warm lamp glows, soft vignette). CLASSIC stays the default."
+                  }
+              ]
+}

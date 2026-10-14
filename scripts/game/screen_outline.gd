@@ -62,6 +62,8 @@ func _ready() -> void:
 	extra_cull_margin = 16384.0
 	ignore_occlusion_culling = true
 	Settings.changed.connect(_refresh)
+	# Style ILLUSTRÉ : post-traitement plein écran voisin (IllustratedPost).
+	IllustratedPost.attach(self)
 	_refresh()
 
 
