@@ -398,6 +398,7 @@ static func _special(key: String) -> Material:
 		# Décor cubique (assets/models/props/voxel/) : couleur de face du modèle.
 		var vm := ShaderMaterial.new()
 		vm.shader = load("res://assets/shaders/voxel_prop.gdshader")
+		IllustratedStyle.bind(vm, IllustratedStyle.Kind.PROP)
 		_specials[key] = vm
 		return vm
 	var m: StandardMaterial3D = null

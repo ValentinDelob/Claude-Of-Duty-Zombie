@@ -89,7 +89,16 @@ func _modes(zombies: bool) -> Array:
 	m.append(["brume volumétrique", func(on: bool): env.volumetric_fog_enabled = on and RenderQuality.current().volumetric_fog])
 	m.append(["post-traitement", func(on: bool): post.visible = on])
 	var outline := game.world.get_node_or_null("ScreenOutline") as ScreenOutline
-	if outline and ScreenOutline.wanted():
+	if outline and ScreenOutline.wanted() and IllustratedStyle.active():
+		# Style ILLUSTRÉ (`--style=illustre`) : encrage, éclairage en aplats.
+		m.append(["encrage illustré (ScreenOutline, 2 passes)", func(on: bool): outline.visible = on])
+		m.append(["~ encrage : sans arêtes intérieures", func(on: bool):
+			var inner := 1.0 if on and RenderQuality.current().ink_inner else 0.0
+			outline.material.set_shader_parameter("inner", inner)
+			outline.ink_objects.set_shader_parameter("inner", inner)])
+		m.append(["éclairage en aplats (vs moteur)", func(on: bool): IllustratedStyle.apply_all(on)])
+		m.append(["lumière de modelé (illustré)", func(on: bool): outline.key_light.visible = on])
+	elif outline and ScreenOutline.wanted():
 		m.append(["contour (ScreenOutline)", func(on: bool): outline.visible = on])
 		var probe := Shader.new()
 		probe.code = ScreenOutline.SHADER.code.replace("\tif (dc <= 0.0 || dc > weapon_depth) {", "\tif (dc >= 0.0) {")

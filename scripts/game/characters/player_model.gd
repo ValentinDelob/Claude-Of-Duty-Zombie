@@ -110,6 +110,7 @@ static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = preload("res://assets/shaders/player_voxel.gdshader")
+		IllustratedStyle.bind(_material, IllustratedStyle.Kind.CHAR)
 	return _material
 
 

@@ -18,6 +18,23 @@ extends MeshInstance3D
 ## arrondies), le ciel, la brume et les particules transparentes.
 
 const SHADER := preload("res://assets/shaders/screen_outline.gdshader")
+## Style ILLUSTRÉ (IllustratedStyle) : encrage épais des silhouettes et
+## arêtes intérieures plus fines (screen_ink.gdshader). Réglages choisis sur
+## la planche de style_look (tests/_out/shots/style_look_*).
+const INK_SHADER := preload("res://assets/shaders/screen_ink.gdshader")
+## Épaisseurs à 1080p (pixels, proportionnelles à la hauteur de l'image).
+const INK_PX := 4.0
+const INK_CREASE_PX := 2.0
+const INK_STRENGTH := 1.0
+## Arêtes intérieures : architecture plus discrète que les personnages, le
+## décor cubique et les armes (marqués dans le stencil par leurs variantes
+## illustrées, IllustratedStyle.STENCIL_OBJECT) : deux passes du même
+## shader, l'une sur l'architecture, l'autre (next_pass) sur les objets.
+const INK_CREASE_ARCHI := 0.55
+const INK_CREASE_OBJECTS := 0.9
+## Fondu des arêtes intérieures de l'architecture (m) : plus tôt que celles
+## des objets (la grille des dalles du plafond au loin deviendrait un treillis).
+const INK_ARCHI_FADE := Vector2(8.0, 18.0)
 ## Seuils et fondu (réglables ici, valeurs choisies sur les captures de
 ## outline_look : BUNKER K-7 avec zombies).
 ## Pli tracé, en angles de pixel (une arête de cube de 90° en vaut >= 2).
@@ -31,6 +48,19 @@ const FADE_END := 24.0
 const STRENGTH := 0.95
 
 var material: ShaderMaterial
+## Lumière de MODELÉ du style ILLUSTRÉ : directionnelle faible, sans ombre,
+## bleu-vert, venue d'en haut et de biais. Ses paliers (cel_light) donnent à
+## chaque face de cube un ton selon son orientation (dessus clair, côtés en
+## demi-ton, dessous dans l'ombre), même loin des lampes : les volumes se
+## lisent comme sur la planche cible. Sœur de ce nœud (visible même si le
+## contour est désactivé), affichée seulement en ILLUSTRÉ.
+var key_light: DirectionalLight3D
+const KEY_ENERGY := 0.45
+const KEY_COLOR := Color(0.62, 0.86, 0.9)
+const KEY_ROTATION := Vector3(-58.0, 32.0, 0.0)
+## Seconde passe de l'encrage (objets marqués dans le stencil).
+var ink_objects: ShaderMaterial
+static var _ink_shaders := {}
 
 
 ## Le moteur fournit-il la profondeur de la pré-passe (Forward+, vérifié) ?
@@ -61,9 +91,69 @@ func _ready() -> void:
 	# Le quad est placé par le vertex shader : jamais écarté par le frustum.
 	extra_cull_margin = 16384.0
 	ignore_occlusion_culling = true
+	key_light = DirectionalLight3D.new()
+	key_light.name = "InkKeyLight"
+	key_light.light_energy = KEY_ENERGY
+	key_light.light_color = KEY_COLOR
+	key_light.light_specular = 0.0
+	key_light.shadow_enabled = false
+	key_light.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	key_light.rotation_degrees = KEY_ROTATION
+	key_light.visible = false
+	get_parent().add_child.call_deferred(key_light)
 	Settings.changed.connect(_refresh)
 	_refresh()
 
 
+func _exit_tree() -> void:
+	# La lumière sœur part avec ce nœud (retrait seul du contour, tests).
+	if is_instance_valid(key_light) and not key_light.is_queued_for_deletion():
+		key_light.queue_free()
+
+
+## Encrage limité par le stencil : pixels des objets (`objects`) ou de
+## l'architecture (tout le reste).
+static func ink_shader(objects: bool) -> Shader:
+	if not _ink_shaders.has(objects):
+		var sh := Shader.new()
+		sh.code = INK_SHADER.code.replace("shader_type spatial;", "shader_type spatial;\nstencil_mode read, %s, %d;"
+				% ["compare_equal" if objects else "compare_not_equal", IllustratedStyle.STENCIL_OBJECT])
+		_ink_shaders[objects] = sh
+	return _ink_shaders[objects]
+
+
+## Shader du trait dans le style courant (contour classique ou encrage).
+static func shader_for_style() -> Shader:
+	return ink_shader(false) if IllustratedStyle.active() else SHADER
+
+
 func _refresh() -> void:
 	visible = wanted()
+	var ink := IllustratedStyle.active()
+	var sh := shader_for_style()
+	if material.shader != sh:
+		material.shader = sh
+	material.set_shader_parameter("strength", INK_STRENGTH if ink else STRENGTH)
+	if is_instance_valid(key_light):
+		key_light.visible = ink
+	if not ink:
+		material.next_pass = null
+		return
+	if ink_objects == null:
+		ink_objects = ShaderMaterial.new()
+		ink_objects.shader = ink_shader(true)
+		ink_objects.render_priority = Material.RENDER_PRIORITY_MIN
+	var inner := 1.0 if RenderQuality.current().get("ink_inner", true) else 0.0
+	for m: ShaderMaterial in [material, ink_objects]:
+		m.set_shader_parameter("ink_px", INK_PX)
+		m.set_shader_parameter("crease_px", INK_CREASE_PX)
+		m.set_shader_parameter("strength", INK_STRENGTH)
+		m.set_shader_parameter("inner", inner)
+		m.set_shader_parameter("crease_threshold", CREASE_THRESHOLD)
+		m.set_shader_parameter("concave_balance", CONCAVE_BALANCE)
+		m.set_shader_parameter("slope_tolerance", SLOPE_TOLERANCE)
+	material.set_shader_parameter("crease_strength", INK_CREASE_ARCHI)
+	material.set_shader_parameter("crease_fade_begin", INK_ARCHI_FADE.x)
+	material.set_shader_parameter("crease_fade_end", INK_ARCHI_FADE.y)
+	ink_objects.set_shader_parameter("crease_strength", INK_CREASE_OBJECTS)
+	material.next_pass = ink_objects

@@ -40,6 +40,11 @@ var film_grain := 0.5
 ## des marches de cubes, comme la planche de référence). Sans effet si le
 ## moteur de rendu ne fournit pas les normales (ScreenOutline.supported).
 var outline := true
+## Style de rendu (OPTIONS > VIDÉO > STYLE, prototype à valider) : CLASSIC
+## (rendu de référence) ou ILLUSTRATED (encrage des arêtes et éclairage en
+## aplats, IllustratedStyle). CLASSIQUE par défaut pour l'instant.
+enum ArtStyle { CLASSIC, ILLUSTRATED }
+var art_style: ArtStyle = ArtStyle.CLASSIC
 ## Échelle de la résolution 3D (1 = 100 %), multipliée par celle du préréglage
 ## de qualité (RenderQuality : 85 % en BASSE). L'interface reste nette.
 var render_scale := 1.0
@@ -307,15 +312,31 @@ func start_quality_probe() -> QualityProbe:
 
 
 ## `--quality=low|medium|high` impose la qualité graphique (tests de perf) ;
-## `--outline=on|off` impose le contour (mesures avant / après).
+## `--outline=on|off` impose le contour (mesures avant / après) ;
+## `--style=illustre|classique` (ou illustrated|classic) impose le style.
 func _apply_cmdline_quality() -> void:
 	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--style="):
+			var st := parse_art_style(a.substr(8))
+			if st >= 0:
+				art_style = st as ArtStyle
 		if a.begins_with("--outline="):
 			outline = a.substr(10).to_lower() in ["on", "1", "true"]
 		if a.begins_with("--quality="):
 			var q := Quality.keys().find(a.substr(10).to_upper())
 			if q >= 0:
 				quality = q as Quality
+
+
+## Nom de style (« illustre », « illustré », « illustrated », « classique »,
+## « classic ») -> ArtStyle, -1 si inconnu.
+static func parse_art_style(style_name: String) -> int:
+	match style_name.strip_edges().to_lower():
+		"illustre", "illustré", "illustrated":
+			return ArtStyle.ILLUSTRATED
+		"classique", "classic":
+			return ArtStyle.CLASSIC
+	return -1
 
 
 func _register_inputs() -> void:
@@ -866,6 +887,7 @@ func load_from(file: String) -> bool:
 	_needs_probe = not cfg.has_section_key("video", "quality")
 	film_grain = SafeConfig.get_float(cfg, "video", "film_grain", film_grain, 0.0, 1.0)
 	outline = SafeConfig.get_bool(cfg, "video", "outline", outline)
+	art_style = SafeConfig.get_int(cfg, "video", "art_style", art_style, ArtStyle.CLASSIC, ArtStyle.ILLUSTRATED) as ArtStyle
 	render_scale = SafeConfig.get_float(cfg, "video", "render_scale", render_scale,
 			RENDER_SCALE_RANGE.x, RENDER_SCALE_RANGE.y)
 	max_fps = SafeConfig.get_int(cfg, "video", "max_fps", max_fps)
@@ -918,6 +940,7 @@ func save_to(file: String) -> void:
 		cfg.set_value("video", "quality_auto", quality_auto)
 	cfg.set_value("video", "film_grain", film_grain)
 	cfg.set_value("video", "outline", outline)
+	cfg.set_value("video", "art_style", art_style)
 	cfg.set_value("video", "render_scale", render_scale)
 	cfg.set_value("video", "max_fps", max_fps)
 	cfg.set_value("video", "brightness", brightness)

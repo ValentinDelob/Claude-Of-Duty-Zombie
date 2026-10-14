@@ -853,6 +853,62 @@ captures avant / après : scénario `lighting_look` (`-- --tag=<préfixe>`).
 - Relief des sols et murs, planches des barricades, effets du butin :
   hors de cette refonte (autres lots).
 
+## Style illustré (prototype, à valider ; scripts/game/illustrated_style.gd)
+
+La cible (docs/art/gemini_target.webp) est une planche DESSINÉE : trait
+d'encre épais sur les silhouettes et les arêtes de cubes, aplats de couleur
+en 2-3 tons, ombres teintées. Prototype derrière une option, pour comparer
+en jeu : OPTIONS > VIDÉO > STYLE : CLASSIQUE / ILLUSTRÉ (Settings.art_style,
+`video/art_style`, CLASSIQUE par défaut). Drapeau de test :
+`-- --style=illustre` (ou `classique`). Le style CLASSIQUE est inchangé
+(aucun shader du jeu n'a été modifié).
+
+- **Encrage** (assets/shaders/screen_ink.gdshader, pris par ScreenOutline) :
+  profondeur seule (dérivée seconde, comme le contour classique : rien sur
+  les aplats des textures pixel art, aucun trait tiré de la couleur).
+  Silhouettes (sauts de profondeur) : trait de 4 px à 1080p (3 px en 720p,
+  proportionnel à la hauteur de l'image), le plus foncé. Arêtes intérieures
+  (plis de 90°, coins rentrants, creux du relief) : 2 px à 1080p, plus
+  légères. Les marches de 5 cm du relief restent des arêtes fines
+  (`jump_min`). L'arme et les mains FPS sont encrées aussi (profondeur
+  écrasée dépliée). Deux passes séparées par le STENCIL : les variantes
+  illustrées des personnages, du décor cubique et des armes écrivent
+  `IllustratedStyle.STENCIL_OBJECT` ; arêtes intérieures à 90 % sur eux,
+  55 % sur l'architecture, dont le trait intérieur s'efface aussi plus tôt
+  (8 à 18 m : la grille des dalles du plafond ne devient pas un treillis).
+- **Aplats** (assets/shaders/cel_light.gdshaderinc) : IllustratedStyle
+  génère une VARIANTE de chaque shader du jeu (pixel_surface, voxel_prop,
+  zombies, joueur, armes) : `#define STYLE_CEL` + sorte de surface
+  (CEL_ARCHI / PROP / CHAR / WEAPON) après `shader_type`, la fonction
+  light() ajoutée à la fin. Par lampe : N·L ramené à 3 tons (dos, demi-ton,
+  plein ; niveaux conservant l'énergie moyenne), faces rasantes laissées
+  dans l'ombre, flaques de lumière ramenées en partie à des paliers (milieu
+  de la plage), demi-ton teinté bleu-vert, plein ton chaud, un seul reflet
+  net sur les matières lisses. Émissions (yeux, ampoules, butin) intactes.
+  Les matériaux partagés s'inscrivent à leur création
+  (`IllustratedStyle.bind`) et changent de shader en direct.
+- **Lumière de modelé** : en ILLUSTRÉ, ScreenOutline ajoute une
+  directionnelle faible bleu-vert sans ombre (InkKeyLight) : chaque face de
+  cube prend un ton selon son orientation, même loin des lampes.
+- **Coût** (perf_costs, 1080p, GTX 1070, mesures bruitées par d'autres jeux
+  ouverts) : encrage +0,2 à +0,35 ms GPU (contour classique : ~0,2 ms),
+  arêtes intérieures ≤ 0,1 ms, aplats 0 à +0,25 ms, lumière de modelé
+  ~+0,1 à 0,2 ms ; map_tour MEDIUM : +0,1 à +0,3 ms GPU par vue, seuils
+  tenus. Les arêtes intérieures restent donc en BASSE aussi
+  (`RenderQuality.PRESETS[].ink_inner`, coupables si besoin).
+- **Comparaison** : `sh tools/scenario.sh style_look` (et
+  `STYLE_SHOT_RES=1920x1080`) : laboratoire, couloir, salle avec zombies,
+  fond du menu, CLASSIQUE | ILLUSTRÉ | cible dans
+  tests/_out/shots/style_look_planche_<hauteur>.png, gros plans
+  style_look_<vue>_zoom_<hauteur>.png.
+
+Écarts restants : les décors en StandardMaterial3D (vitres, ampoules,
+quelques matières spéciales) gardent l'éclairage du moteur ; le gyrophare et
+les cônes des lampes dessinent un disque net sur les murs ; peu d'arêtes
+intérieures sur les grands aplats des zombies (le modèle a peu de plis) ; la
+cible reste plus claire et plus saturée (affaire de lumières, hors de ce
+prototype).
+
 ## Étalonnage et post-traitement
 
 

@@ -31,6 +31,7 @@ static func _mat(dissolve: bool) -> ShaderMaterial:
 	mat.set_shader_parameter("emission_energy", EYE_ENERGY)
 	mat.set_shader_parameter("heart_energy", HEART_ENERGY)
 	mat.set_shader_parameter("voxel_cell", MODEL_CUBE)
+	IllustratedStyle.bind(mat, IllustratedStyle.Kind.CHAR)
 	return mat
 
 

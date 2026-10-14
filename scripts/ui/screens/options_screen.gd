@@ -330,6 +330,10 @@ func _page_graphics() -> void:
 				else "Indisponible avec ce moteur de rendu (Forward+ nécessaire).",
 				"Black line around characters and cube steps." if ScreenOutline.supported()
 				else "Unavailable with this renderer (Forward+ required)."))
+	_add("art_style", MenuOptionRow.make_choice(Lang.t("STYLE", "STYLE"),
+			PackedStringArray([Lang.t("CLASSIQUE", "CLASSIC"), Lang.t("ILLUSTRÉ", "ILLUSTRATED")]), int(Settings.art_style)),
+			Lang.t("Illustré (essai) : traits d'encre sur les arêtes et éclairage en aplats, façon planche dessinée.",
+				"Illustrated (trial): ink lines on the edges and flat cel shading, like a drawn comic panel."))
 
 
 func _page_audio() -> void:
@@ -371,6 +375,8 @@ func _on_changed(key: String, v: float) -> void:
 			Settings.set(key, v > 0.5)
 		"quality":
 			Settings.quality = int(v) as Settings.Quality
+		"art_style":
+			Settings.art_style = clampi(int(v), 0, Settings.ArtStyle.size() - 1) as Settings.ArtStyle
 		"max_fps":
 			Settings.max_fps = Settings.FPS_LIMITS[clampi(int(v), 0, Settings.FPS_LIMITS.size() - 1)]
 		"language":
