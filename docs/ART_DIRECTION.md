@@ -972,18 +972,98 @@ foncé lisible ; les faisceaux des lampes sont pleins de poussière.
 | SSAO (ombres de contact des cubes) | non | non (+0,66 ms mesuré : trop pour la GTX 1050) | demi-résolution, basse |
 | SSR (reflets des flaques) | non | non | oui (48 pas) |
 | Bloom | non | oui | oui (bicubique) |
+| Dehors des fenêtres : vitre rétroéclairée | fixe | silhouettes, raies, faisceaux (10 pas), poussière | idem, faisceaux 12 pas |
 
 Il n'y a pas de préréglage ULTRA (Settings.Quality : LOW, MEDIUM, HIGH).
 Coûts mesurés : docs/ARCHITECTURE.md (« Rendu et performances ») ;
 captures avant / après : scénario `lighting_look` (`-- --tag=<préfixe>`).
+
+### Fenêtres : le dehors (scripts/game/barricades/window_outside.gd)
+
+Cible : la fenêtre barricadée de `docs/art/gemini_target.webp`, qui laisse
+entrer une lumière bleu-verte et derrière laquelle passent des silhouettes de
+zombies. Les fenêtres et portes à zombies donnent sur des **poches fermées**
+(où apparaissent les vrais zombies) : `WindowOutside`, enfant de chaque
+`Barricade`, y pose un **dehors factice**, purement visuel (aucune
+collision, aucune navigation, aucun état réseau : tout se déduit du masque
+des planches, déjà diffusé, et de la phase de la manche), déterministe (graine
+de la fenêtre, `WindowOutside.params_for`).
+
+- **Mur du fond de la poche** mesuré au chargement (rayons contre le monde,
+  depuis la face extérieure du mur percé : murs de 1 m de BUNKER K-7 comme
+  murs de 0,5 m de l'éditeur) ; fenêtre de 0,8 à 2 m de large selon la place,
+  vitre de 0,90 à 2,45 m ; rien si aucun mur derrière (dehors ouvert).
+- **Carte du dehors** (`window_outside.gdshader`, UN dessin par fenêtre,
+  matériau partagé, paramètres par instance) : vitres crasseuses en pixels de
+  5 cm (2 x 2 ou 3 x 2 ; une ou deux cassées — liseré et éclats en escalier
+  dans les coins —, une fêlée), brume rétroéclairée bleu-vert (plus claire en
+  haut, grande source diffuse, poteaux lointains à peine marqués), sol du
+  dehors 50 cm plus haut que la salle (soupirail : les silhouettes passent au
+  milieu de la vitre). **Profondeur par parallaxe** (le rayon de la caméra
+  est prolongé derrière la vitre) : rien n'est dessiné derrière le mur.
+- **Silhouettes** : 5 places, cycles de 9 à 16 s tirés de la graine et du
+  numéro de cycle : traversée de profil à 0,5 - 3,4 m derrière la vitre
+  (jambes qui balancent, buste penché, bras tendus), ou, pour les deux
+  premières places, approche, **collé à la vitre** de face bras levés
+  (balancement, yeux jaunes faibles qui clignent), puis départ. Grille de
+  5 cm, bord adouci, couleur rendue à la brume avec la profondeur et voilée
+  par le verre : on les lit comme **lointaines**, jamais comme de vrais
+  zombies. Activité (`activity_for`) : pleine pendant une manche, 35 %
+  entre deux manches, moindre quand des planches manquent, **nulle (fondu
+  de 1,7 s) quand la fenêtre est grande ouverte** (le vrai zombie passe).
+- **Porte à zombies** : pas de vitre, un **couloir sombre** qui s'enfonce de
+  7 m (lancer de rayon dans une boîte, dalles de 20 cm), néon au fond qui
+  grésille, fente claire d'une porte entrouverte ; les silhouettes traversent
+  sa lumière. Chambranle cubique de 3 cubes et seuil.
+- **Cadre cubique** (cubes de 5 cm, matériau du décor, sans ombre) : châssis
+  de 2 cubes, petits bois, appui en saillie ; la vitre est à 10 cm du mur
+  (devant la plinthe et la lisse du relief).
+- **Lumière qui entre** : projecteur bleu-vert sans ombre et sans
+  atténuation (« Shaft ») placé haut derrière la poche ; sa **texture de
+  projection** est l'ouverture vue de la source — embrasure (faces
+  extérieure et intérieure du mur) et planches présentes en noir — : raies
+  de lumière au sol de la salle. Elle est refaite à chaque planche arrachée
+  ou reposée (masque `gap_mask` de l'ouverture, remplissage natif ;
+  correspondance texel -> masque calculée une fois).
+- **Faisceaux visibles** (`window_beams.gdshader`) : la brume volumétrique de
+  Godot ignore la texture de projection (elle dessinait un cône plein à
+  travers le mur) ; le faisceau est donc **marché** dans une boîte devant
+  l'ouverture (faces arrière seulement, 10 pas en MEDIUM, 12 en HIGH, arrêt
+  sur la profondeur de la scène) : un point est éclairé si le rayon venu de
+  la source passe par l'embrasure et un interstice des planches. Additif,
+  plus dense près de l'ouverture, nul au sol ; projecteur sans part
+  volumétrique.
+- **Poussière** (`window_motes.gdshader`) : 40 cubes de 2,5 cm qui dérivent
+  devant l'ouverture (animés dans le shader, un MultiMesh), allumés seulement
+  dans les raies (même règle), effacés près de la caméra.
+- **Lueur de la poche** (« OutsideGlow », sans ombre) : les zombies qui
+  attendent dehors se découpent en contre-jour.
+- **Accroche des ambiances** : `WindowOutside.mood_provider`
+  (Callable(zone) -> Color), lue à la pose, teinte le dehors, la lueur, le
+  projecteur, le faisceau et la poussière ; `apply_tint(couleur)` la change
+  ensuite (ambiance qui varie) ;
+  vide : `WindowOutside.TINT`.
+- **Coût** : par fenêtre, 1 carte + 1 cadre + (MEDIUM, HIGH) 1 boîte de
+  faisceau + 1 MultiMesh de poussière + 1 projecteur sans ombre ; tout
+  s'efface au loin (carte et cadre 36 m, faisceau et projecteur 16 m,
+  poussière 12 m). **LOW** (`RenderQuality` « window_life ») : carte fixe
+  seulement (ni silhouettes, ni raies, ni faisceaux, ni poussière).
+- Fond 3D du menu : pas de fenêtre (seuls les hublots éclairés de la porte du
+  laboratoire), rien à faire.
+- Captures avant / après : scénario `window_look` (`WINDOW_TAG=<préfixe>
+  sh tools/scenario.sh window_look`).
 
 ### Écarts restants avec la cible
 
 - Plafonds : lisibles depuis l'ambiance des pièces (rebond des lampes,
   texture moins sombre, ambiante relevée), mais encore plus sombres que sur
   l'image loin des lampes.
-- Pas de faisceau de lumière par les fenêtres (les fenêtres de BUNKER K-7
-  donnent sur des poches fermées) ; en LOW, aucun faisceau (pas de brume).
+- Fenêtres : la cible montre une grande baie vitrée au ras de la salle ; les
+  ouvertures des cartes (1 m de large, mur de 1 m à BUNKER K-7) ne laissent
+  voir qu'une partie de la vitre du fond, surtout entre les planches. Vues
+  de biais, les nappes de lumière se superposent en un faisceau doux (pas de
+  raies séparées) ; les raies se lisent surtout au sol. En LOW, ni faisceau
+  ni raies.
 - Les flaques ne reflètent vraiment la scène qu'en HIGH (SSR) ; ailleurs,
   reflets des lampes et Fresnel bleu-vert seulement.
 - Relief des sols et murs, planches des barricades, effets du butin :

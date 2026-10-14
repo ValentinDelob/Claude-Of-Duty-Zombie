@@ -1,8 +1,5 @@
 {
-    "title":  {
-                  "en":  "Scarier zombies, moodier bunker",
-                  "fr":  "Des zombies plus effrayants, un bunker plein d'ambiance"
-              },
+    "title":  null,
     "items":  [
                   {
                       "en":  "Zombies have a meaner face: glowing yellow-green eyes deep in dark sockets, a frowning brow, hollow cheeks and a gaping mouth full of crooked teeth. Their eyes flicker and stay visible at the far end of a dark corridor.",
@@ -33,8 +30,8 @@
                       "en":  "Map editor: pick the mood of a room or zone (cold, warm, alarm, neon, lights out), or let the game guess it from its name."
                   },
                   {
-                      "fr":  "Nouvelle option à l’essai OPTIONS > VIDÉO > STYLE : ILLUSTRÉ donne à l’image un aspect peint (aplats de couleur adoucis, ombres bleu-vert, lueurs chaudes des lampes, vignette douce). CLASSIQUE reste le réglage par défaut.",
-                      "en":  "New trial option OPTIONS > VIDEO > STYLE: ILLUSTRATED gives the picture a painted look (smoothed colour areas, teal shadows, warm lamp glows, soft vignette). CLASSIC stays the default."
+                      "fr":  "Nouvelle option à l’essai OPTIONS \u003e VIDÉO \u003e STYLE : ILLUSTRÉ donne à l’image un aspect peint (aplats de couleur adoucis, ombres bleu-vert, lueurs chaudes des lampes, vignette douce). CLASSIQUE reste le réglage par défaut.",
+                      "en":  "New trial option OPTIONS \u003e VIDEO \u003e STYLE: ILLUSTRATED gives the picture a painted look (smoothed colour areas, teal shadows, warm lamp glows, soft vignette). CLASSIC stays the default."
                   }
               ]
 }
