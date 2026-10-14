@@ -239,11 +239,18 @@ func _apply_brightness() -> void:
 ## l'ombre d'un projecteur coûte moins qu'une ombre omnidirectionnelle, et
 ## c'est la flaque qui éclaire le sol) et distances de fondu.
 static func apply_lamp(l: OmniLight3D, q: Dictionary) -> void:
-	var shadow := lamp_has_shadow(int(l.get_meta("lamp_index", 0)), q)
+	# Sources d'appoint colorées (LampStyle.ACCENT) : jamais d'ombre.
+	var shadow := lamp_has_shadow(int(l.get_meta("lamp_index", 0)), q) and not l.has_meta("no_shadow")
 	var pool := l.get_node_or_null("Pool") as SpotLight3D
 	l.shadow_enabled = shadow and pool == null
-	for light: Light3D in [l, pool]:
-		if light == null:
+	# Rebond vers le plafond (LampStyle) et faisceaux d'un gyrophare (BeaconSpin) :
+	# même fondu que la lampe, jamais d'ombre.
+	var extra: Array = [l, pool, l.get_node_or_null("Bounce")]
+	var beacon := l.get_node_or_null("Beacon")
+	if beacon:
+		extra.append_array(beacon.get_children())
+	for light in extra:
+		if not light is Light3D:
 			continue
 		light.distance_fade_enabled = true
 		light.distance_fade_begin = q.light_fade_begin

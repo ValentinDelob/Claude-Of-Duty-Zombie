@@ -1,7 +1,7 @@
 {
     "title":  {
-                  "en":  "Scarier, more expressive zombies",
-                  "fr":  "Des zombies plus expressifs et plus effrayants"
+                  "en":  "Scarier zombies, moodier bunker",
+                  "fr":  "Des zombies plus effrayants, un bunker plein d'ambiance"
               },
     "items":  [
                   {
@@ -15,6 +15,22 @@
                   {
                       "en":  "Blood now stays red in dim rooms instead of turning black, and dogs, the Stretcher-Bearer, the Nurse and the Surgeon get the same darker eye sockets and flickering eyes.",
                       "fr":  "Le sang reste rouge dans les pièces sombres au lieu de virer au noir, et les chiens, le Brancardier, l'Infirmière et le Chirurgien ont eux aussi des orbites sombres et des yeux qui vacillent."
+                  },
+                  {
+                      "fr":  "La lumière raconte le bunker : salle de garde et dortoir chauds, couloir et labo froids, générateur en alarme rouge qui pulse, salle du rituel plongée dans le noir.",
+                      "en":  "Light tells the bunker's story: a warm guard room and barracks, a cold corridor and lab, a generator pulsing with red alarm light, a ritual room left in the dark."
+                  },
+                  {
+                      "fr":  "Nouvelles sources de lumière colorée : gyrophares d'alarme qui tournent, écrans de contrôle, tubes à essai lumineux, panneaux de sortie et enseigne au néon.",
+                      "en":  "New coloured light sources: spinning alarm beacons, monitor screens, glowing test tubes, exit signs and a neon sign."
+                  },
+                  {
+                      "fr":  "Plafonds lisibles, poussière qui danse dans les faisceaux des lampes et halos plus marqués.",
+                      "en":  "Readable ceilings, dust drifting in the lamp beams and stronger light shafts."
+                  },
+                  {
+                      "fr":  "Éditeur de cartes : choisissez l'ambiance d'une pièce ou d'une zone (froid, chaud, alarme, néon, éteint), ou laissez le jeu la deviner d'après son nom.",
+                      "en":  "Map editor: pick the mood of a room or zone (cold, warm, alarm, neon, lights out), or let the game guess it from its name."
                   }
               ]
 }

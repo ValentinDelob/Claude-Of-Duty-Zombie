@@ -67,6 +67,24 @@ var look: Dictionary = {}
 ## format 22). Carte sans boss : « premiere » 0 dans « boss »
 ## (WaveRules.has_boss).
 var waves: Dictionary = WaveRules.default_schedule()
+## Ambiance des zones (RoomMood : « froid », « chaud », « alarme », « neon »,
+## « eteint ») : lettre -> préréglage ; absente : déduite du nom de la zone
+## et de son sol (zone_mood).
+var zone_moods: Dictionary = {}
+## Sources d'appoint colorées (luminaires « accent » de MapCatalog.LIGHTS :
+## gyrophare, ecran, tubes, sortie, enseigne) posées par PropBuilder :
+##   {light, cell: Vector2i, support?: float}          au sol ou sur un meuble
+##   {light, at: Vector2 (point de la face du mur, en cellules),
+##    wall: Vector2i (vers le mur), y?: float}         au mur
+## Facultatif : « yaw » (rad, objet au sol).
+var accent_lights: Array = []
+
+
+## Ambiance d'une zone : celle de zone_moods, sinon déduite (« » : standard).
+func zone_mood(zone: String) -> String:
+	var zm: Array = zone_materials.get(zone, [])
+	var derived := RoomMood.derive([String(zone_names.get(zone, ""))], String(zm[0]) if zm.size() > 0 else "")
+	return RoomMood.resolve(zone_moods.get(zone), null, derived)
 
 
 func player_spawn_marker() -> String:

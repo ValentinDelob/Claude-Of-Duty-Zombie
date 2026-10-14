@@ -372,6 +372,178 @@ def feu():
 feu.kind = "ns"
 
 
+# ------------------------------------------------------------------ sources d'appoint colorées
+# (MapCatalog.LIGHTS « accent » : la lumière est courte et sans ombre,
+# LampStyle.ACCENT ; leurs faces lumineuses sont en « glow », couleur vive.)
+
+RED_GLOW = (0.85, 0.09, 0.04)
+RED_CORE = (0.95, 0.4, 0.25)
+# Faces « glow » : couleur x glow_energy (3,5) dans le jeu, donc des teintes
+# moyennes (au-delà, le halo du bloom mange l'objet).
+MINT_GLOW = (0.1, 0.5, 0.3)
+MINT_DARK = (0.03, 0.18, 0.1)
+TOXIC = (0.13, 0.4, 0.04)
+TOXIC_DEEP = (0.07, 0.3, 0.03)
+BLUE_GLOW = (0.12, 0.42, 0.7)
+AMBER_GLOW = (0.7, 0.4, 0.06)
+EXIT_GREEN = (0.03, 0.3, 0.11)
+EXIT_WHITE = (0.3, 0.34, 0.31)
+NEON_PINK = (0.8, 0.14, 0.55)
+NEON_CYAN = (0.14, 0.6, 0.7)
+
+
+def gyrophare():
+    """Gyrophare d'alarme mural (y 2,3 m) : platine et console d'acier
+    sombre, socle cerclé de jaune de danger, coupole rouge (glow) arrondie en
+    escalier, 0,2 m de large et 0,2 m de haut, centrée à 0,15 m du mur, cœur
+    plus clair (lampe) ; la lumière au centre de la coupole (faisceaux
+    tournants : BeaconSpin)."""
+    m = vx.Model(C.CUBE)
+    dark = C.col("metal_dark", 1.1)
+    # Platine contre le mur (0,2 × 0,15 m) et console sous le socle.
+    C.fill(m, -2, 2, -1, 0, -5, -2, "metal", dark, seed=400, amp=0.04, levels=2)
+    C.fill(m, -1, 1, -3, -1, -4, -3, "metal", dark, seed=401, amp=0.04, levels=2)
+    # Socle (0,3 × 0,25 m), cerclé de jaune de danger.
+    for x in range(-3, 3):
+        for y in range(-6, -1):
+            m.set(x, y, -2, "metal", color=C.col("hazard_yellow", 0.85) if x in (-3, 2) or y in (-6, -2) else dark)
+    # Coupole : 4 × 4 cubes sur deux rangées, 2 × 2 au sommet.
+    for z in (-1, 0):
+        for x in range(-2, 2):
+            for y in range(-5, -1):
+                core = x in (-1, 0) and y in (-4, -3)
+                m.set(x, y, z, "glow", color=RED_CORE if core and z == 0 else vx.tone(RED_GLOW, 0.92 + 0.08 * vx.noise((x, y, z), 402)))
+    for x in (-1, 0):
+        for y in (-4, -3):
+            m.set(x, y, 1, "glow", color=vx.tone(RED_GLOW, 1.0))
+    # Petit bouton d'acier au sommet.
+    m.set(-1, -4, 2, "metal", color=dark)
+    return m
+gyrophare.kind = "ns"
+
+
+def ecran():
+    """Écran de contrôle (y 0,22 m, au sol ou sur un meuble) : moniteur
+    cathodique gris de 0,4 × 0,3 m sur un pied, dalle menthe (glow) de
+    lignes de balayage et de texte plus sombre, voyant rouge ; la lumière
+    au centre de la dalle. Avant vers -Y."""
+    m = vx.Model(C.CUBE)
+    case = C.col("case_grey", 1.1)
+    # Pied et socle.
+    C.fill(m, -3, 3, -2, 2, 0, 1, "metal", C.col("case_black"), seed=410, amp=0.03, levels=2)
+    C.fill(m, -1, 1, -1, 1, 1, 2, "metal", C.col("case_black"), seed=411, amp=0.03, levels=2)
+    # Boîtier (8 × 6 × 7 cubes), arrière plus étroit (tube cathodique).
+    C.fill(m, -4, 4, -3, 1, 2, 9, "metal", case, seed=412, amp=0.04, levels=2)
+    C.fill(m, -3, 3, 1, 3, 3, 8, "metal", C.col("case_grey", 0.9), seed=413, amp=0.04, levels=2)
+    # Dalle (6 × 5) en creux d'un cube dans la façade : lignes de « texte »
+    # sombres (rangées du haut z 7 vers le bas z 3), une courbe en bas.
+    text = ["##.#..", "......", "###.##", "......", ".#..#."]
+    for x in range(-3, 3):
+        for z in range(3, 8):
+            m.vox.pop((x, -3, z), None)
+            col = MINT_GLOW if z % 2 else vx.tone(MINT_GLOW, 0.85)
+            if text[7 - z][x + 3] == "#":
+                col = MINT_DARK
+            m.set(x, -2, z, "glow", color=col)
+    # Voyant rouge et boutons sous la dalle.
+    m.set(3, -3, 2, "glow", color=RED_GLOW)
+    m.set(-3, -3, 2, "metal", color=C.col("steel", 0.9))
+    m.set(-2, -3, 2, "metal", color=C.col("steel", 0.9))
+    return m
+ecran.kind = "ns"
+
+
+def tubes():
+    """Portoir de tubes à essai lumineux (y 0,12 m, au sol ou sur un
+    meuble) : plateau d'acier de 0,35 × 0,1 m, deux traverses, six tubes de
+    verre (0,15 à 0,25 m) remplis de liquide qui luit (glow : vert toxique,
+    un bleu, un ambre), bouchons de caoutchouc ; la lumière au milieu."""
+    m = vx.Model(C.CUBE)
+    steel = C.col("steel", 0.95)
+    C.fill(m, -4, 3, -1, 1, 0, 1, "metal", steel, seed=420, amp=0.04, levels=2)
+    for x in (-4, 2):
+        for z in (1, 2, 3):
+            m.set(x, -1, z, "metal", color=steel)
+            m.set(x, 0, z, "metal", color=steel)
+    tubes_def = ((-3, 4, TOXIC), (-2, 5, TOXIC_DEEP), (-1, 3, BLUE_GLOW), (0, 5, TOXIC), (1, 4, AMBER_GLOW))
+    for x, h, liquid in tubes_def:
+        for z in range(1, 1 + h):
+            # Liquide jusqu'aux deux tiers, verre clair au-dessus.
+            if z <= max(1, (h * 2) // 3):
+                m.set(x, -1, z, "glow", color=vx.tone(liquid, 0.9 + 0.1 * vx.noise((x, 0, z), 421)))
+            else:
+                m.set(x, -1, z, "stone", color=C.col("crystal", 0.9))
+        m.set(x, -1, 1 + h, "rubber", color=(0.45, 0.12, 0.1))
+    # Traverse haute du portoir (devant et derrière les tubes).
+    for x in range(-4, 3):
+        m.set(x, 0, 3, "metal", color=steel)
+    return m
+tubes.kind = "ns"
+
+
+def sortie():
+    """Panneau de sortie de secours mural (y 2,45 m) : caisson blanc de
+    0,45 × 0,25 m à 0,1 m du mur, face verte lumineuse (glow) avec un
+    personnage qui court vers une flèche, en blanc ; la lumière devant."""
+    m = vx.Model(C.CUBE)
+    white = C.col("paint_white", 0.95)
+    # Pattes de fixation, caisson.
+    for x in (-3, 2):
+        m.set(x, -1, 0, "metal", color=C.col("steel", 0.8))
+    C.fill(m, -5, 4, -2, -1, -2, 3, "metal", white, seed=430, amp=0.02, levels=2)
+    # Face lumineuse (9 × 5) sur -Y : fond vert, pictogramme blanc (rangées
+    # du haut z 2 vers le bas z -2, colonnes x -5 à 3).
+    rows = [
+        "..#...#..",
+        ".###..##.",
+        "..#..####",
+        ".#.#..##.",
+        "#...#.#..",
+    ]
+    for r, line in enumerate(rows):
+        for i, c in enumerate(line):
+            m.set(-5 + i, -3, 2 - r, "glow", color=EXIT_WHITE if c == "#" else EXIT_GREEN)
+    return m
+sortie.kind = "ns"
+
+
+# Lettres de 3 × 5 cubes (rangées du haut vers le bas) de l'enseigne.
+_LETTERS = {
+    "L": ["#..", "#..", "#..", "#..", "###"],
+    "A": [".#.", "#.#", "###", "#.#", "#.#"],
+    "B": ["##.", "#.#", "##.", "#.#", "##."],
+}
+
+
+def enseigne():
+    """Enseigne au néon murale (y 2,0 m, 1 m le long du mur) : panneau noir
+    de 0,9 × 0,45 m, lettres « LAB » en tubes néon roses (glow) et un trait
+    cyan dessous, tenus à 0,1 m du panneau ; la lumière devant."""
+    m = vx.Model(C.CUBE)
+    C.fill(m, -9, 9, -1, 0, -5, 4, "metal", C.col("case_black", 1.2), seed=440, amp=0.05, levels=2)
+    # Cadre d'acier.
+    for x in range(-9, 9):
+        for z in (-5, 3):
+            m.set(x, -2, z, "metal", color=C.col("steel", 0.7))
+    for z in range(-5, 4):
+        for x in (-9, 8):
+            m.set(x, -2, z, "metal", color=C.col("steel", 0.7))
+    # Lettres (3 de large, 1 d'écart), du haut (z 2) vers le bas (z -2).
+    x0 = -6
+    for ch in "LAB":
+        rows = _LETTERS[ch]
+        for r, line in enumerate(rows):
+            for i, c in enumerate(line):
+                if c == "#":
+                    m.set(x0 + i, -3, 2 - r, "glow", color=NEON_PINK)
+        x0 += 4
+    # Trait cyan sous les lettres.
+    for x in range(-6, 6):
+        m.set(x, -3, -4, "glow", color=NEON_CYAN)
+    return m
+enseigne.kind = "ns"
+
+
 BUILDERS = {
     "ampoule": ampoule,
     "suspension": suspension,
@@ -382,6 +554,11 @@ BUILDERS = {
     "projecteur": projecteur,
     "bougies": bougies,
     "feu": feu,
+    "gyrophare": gyrophare,
+    "ecran": ecran,
+    "tubes": tubes,
+    "sortie": sortie,
+    "enseigne": enseigne,
 }
 # Anciens modèles (planches « avant ») : le lustre est l'ancien chandelier
 # ramené à l'échelle 0,25 du jeu.

@@ -120,8 +120,11 @@ func _build_effects() -> void:
 			fx.set_budget(k)
 
 
-## Lampes automatiques (une sur cinq grésille) et luminaires de l'éditeur.
+## Lampes automatiques (une sur cinq grésille) et luminaires de l'éditeur,
+## après les ambiances des pièces (clé « moods », format 23 de l'éditeur :
+## couleur de leur pièce) ; poussière dans les cônes à la fin.
 func _build_lamps() -> void:
+	_build_moods()
 	var lamps: Array = layout.get("markers", {}).get("lamps", [])
 	for i in lamps.size():
 		var l: Dictionary = lamps[i]
@@ -130,14 +133,37 @@ func _build_lamps() -> void:
 			continue
 		# Une lampe sur cinq grésille (déterministe).
 		add_lamp(MeshMapLayout.vec(l.p), float(l.get("energy", 2.2)), float(l.get("range", 10.0)), i % 5 == 3)
+	finish_lamps()
+
+
+## Ambiances des pièces : clé « moods » = [{mood, boxes [[x0,y0,z0,x1,y1,z1]...]}]
+## (MapLayoutExport ; préréglage inconnu ou boîte mal formée : ignorés).
+func _build_moods() -> void:
+	var list: Variant = layout.get("moods", [])
+	if not list is Array or (list as Array).is_empty():
+		return
+	var areas := []
+	for e in list:
+		if not e is Dictionary or not RoomMood.is_preset(e.get("mood")) or not e.get("boxes") is Array:
+			continue
+		var boxes := []
+		for b in e.boxes:
+			if b is Array and b.size() == 6 and b.all(func(v): return (v is float or v is int) and is_finite(float(v))):
+				boxes.append(MeshMapLayout.box(b))
+		areas.append([String(e.mood), boxes])
+	add_moods(areas)
 
 
 ## Luminaire de l'éditeur de cartes : lumière (code commun des lampes :
 ## courant, grésillement, RenderQuality) et son objet (EditorPrefabs.fixture).
+## Laissé à la couleur du catalogue, il prend la couleur de l'ambiance de sa
+## pièce ; recoloré par l'auteur, il la garde.
 func _fixture_lamp(l: Dictionary) -> void:
 	var col := Color.html(String(l.get("color", "ffbd80"))) if Color.html_is_valid(String(l.get("color", ""))) else PowerGrid.ON_COLOR
+	var d: Dictionary = MapCatalog.LIGHTS.get(String(l.fixture), {})
+	var tint := d.has("couleur") and Color.html(String(d.couleur)).is_equal_approx(col)
 	add_lamp(MeshMapLayout.vec(l.p), float(l.get("energy", 2.2)), float(l.get("range", 10.0)), bool(l.get("flicker", false)),
-		col, bool(l.get("power", true)), String(l.fixture))
+		col, bool(l.get("power", true)), String(l.fixture), tint)
 	var fx := EditorPrefabs.fixture(String(l.fixture), models_dir, _model)
 	if fx == null:
 		return

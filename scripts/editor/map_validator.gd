@@ -142,6 +142,9 @@ var ceil_mats: Dictionary = {}
 var room_surfaces: Dictionary = {}
 ## Zone (lettre) de chaque pièce de l'éditeur : sol dessiné sous le décor.
 var room_zone: Dictionary = {}
+## Format 23 : ambiance de chaque pièce (RoomMood, choisie ou déduite) ; id de
+## pièce -> préréglage (absente : ambiance standard).
+var room_mood: Dictionary = {}
 var floors: Array[Floor] = []
 ## Portes : clé de la case (« porte#id ») -> {cost, power, debris, eid}.
 var door_info: Dictionary = {}

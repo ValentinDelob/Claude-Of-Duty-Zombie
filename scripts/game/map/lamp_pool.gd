@@ -4,10 +4,15 @@ extends SpotLight3D
 ## dirigé vers le bas, enfant de la lampe (OmniLight3D), qui recopie à
 ## chaque image sa couleur, son énergie (x `ratio`) et sa visibilité : le
 ## courant (PowerGrid) et le grésillement (LightFlicker) ne pilotent que la
-## lampe. Ombre et distances de fondu : RenderQuality.apply_lamp.
+## lampe. Il pilote aussi le rebond vers le plafond (`bounce`, LampStyle) :
+## `bounce_ratio` x sa propre énergie. Ombre et distances de fondu :
+## RenderQuality.apply_lamp.
 
 ## Énergie de la flaque / énergie de la lampe.
 var ratio := 1.0
+## Rebond vers le plafond (SpotLight3D, enfant de la lampe) ou null.
+var bounce: SpotLight3D
+var bounce_ratio := 0.0
 var _lamp: OmniLight3D
 
 
@@ -25,3 +30,6 @@ func sync() -> void:
 		return
 	light_energy = _lamp.light_energy * ratio
 	light_color = _lamp.light_color
+	if bounce:
+		bounce.light_energy = light_energy * bounce_ratio
+		bounce.light_color = light_color

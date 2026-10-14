@@ -18,6 +18,14 @@ const VIEWS := [
 	["garde", Vector2i(9, 29), Vector2i(9, 17), 1.0],
 	["generateur", Vector2i(55, 22), Vector2i(61, 28), 1.0],
 	["quai", Vector2i(20, 9), Vector2i(46, 4), 1.0],
+	# Ambiances des pièces (RoomMood) : du couloir froid vers la salle de
+	# garde chaude (porte 2), paillasse du labo (écran, tubes), dortoir chaud,
+	# salle du rituel éteinte.
+	["garde_depuis_couloir", Vector2i(28, 24), Vector2i(8, 24), 1.2],
+	["generateur_depuis_labo", Vector2i(44, 25), Vector2i(58, 24), 1.3],
+	["paillasse", Vector2i(41, 24), Vector2i(38, 21), 0.9],
+	["dortoir", Vector2i(9, 13), Vector2i(9, 3), 1.0],
+	["rituel", Vector2i(53, 9), Vector2i(57, 4), 1.0],
 ]
 const MIN_LUM := 0.05
 

@@ -565,6 +565,7 @@ contrôle refuserait les clés qu'il ne connaît pas).
 - Format 18 : porte d'évacuation obligatoire (type `evacuation`) et schéma
   des vagues `carte.vagues` (§ 16).
 - Format 19 : station de construction obligatoire (type `station`, § 17).
+- Format 23 : ambiance des pièces et des zones (clé `ambiance`, § 18).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -1717,3 +1718,63 @@ Nouvelle direction du jeu (GAME_CONCEPT.md §4.8, §4.11, §4.12).
 relue, liste, évacuation, modèle sur la grille, validateur, export, cartes
 livrées) ; scénarios `station` et `station_lost` ; `sh tools/mp_test.sh
 station` (construction par un client).
+
+## 18. Ambiance des pièces et sources d'appoint colorées (format 23)
+
+La lumière raconte la pièce (docs/ART_DIRECTION.md « Ambiance des pièces ») :
+un couloir froid, une salle chaude, un générateur en alarme.
+
+### Dans l'éditeur
+
+- **Ambiance** (liste) d'une pièce (onglet Propriétés) et d'une zone (onglet
+  Zones) : « Auto » ou **Froid**, **Chaud**, **Alarme**, **Néon**,
+  **Éteint**. « Auto » d'une pièce montre l'ambiance qu'elle prendra :
+  celle de sa zone, sinon celle déduite de son nom, du nom de sa zone, de
+  son sol et de ses luminaires (« Auto (déduite : Froid) » pour un
+  « Laboratoire »). La pièce l'emporte sur la zone. Une étape d'annulation.
+- **Sources d'appoint colorées** (onglet Lumières, `MapCatalog.LIGHTS` avec
+  la clé `accent`) :
+
+| Luminaire | Montage | Couleur, intensité, portée | Courant | Particularité |
+|---|---|---|---|---|
+| `gyrophare` (Gyrophare d'alarme) | mur, 2,3 m | rouge, 1,4, 4,5 m | non (secours) | deux faisceaux tournants ; met sa pièce en alarme (ambiance déduite) |
+| `ecran` (Écran de contrôle) | sol ou meuble | menthe, 0,55, 2,5 m | oui | dalle à lignes de texte |
+| `tubes` (Tubes à essai lumineux) | sol ou meuble | vert, 0,4, 2,6 m | non | liquides vert, bleu, ambre |
+| `sortie` (Panneau de sortie) | mur, 2,45 m | vert, 0,25, 2,5 m | non (secours) | personnage et flèche |
+| `enseigne` (Enseigne au néon) | mur, 2 m, 1 m de large | rose, 1,0, 4 m | oui | « LAB », grésille ; met sa pièce en néon |
+
+  Modèles cubiques de 5 cm (`tools/blender/voxel_props/luminaires.py`,
+  `assets/models/props/voxel/<id>.glb`, contrôlés par `tools/voxel_check.gd`) ;
+  aucune collision (petits objets ; `bloque` : non) ; couleur, intensité,
+  portée, courant et vacillement réglables comme tout luminaire.
+
+### En jeu
+
+- `MapProps.add_lamp` : lumière courte (`LampStyle.ACCENT`), **jamais
+  d'ombre**, sans reflet spéculaire ; le gyrophare ajoute `BeaconSpin`
+  (deux SpotLight3D sans ombre qui tournent, énergie recopiée de la lampe).
+- Ambiance : `RoomMood` (préréglages, déduction, couleur des lampes) et
+  `MoodZones` (remplissage, brume teintée, pulsation de l'alarme, courant).
+  Cartes de l'éditeur : clé `moods` de la description (`MapLayoutExport` :
+  [{mood, boxes}] par zone, ambiance et niveau, du sol au plafond des
+  salles) ; BUNKER K-7 : `MapDef.zone_moods` et `MapDef.accent_lights`.
+
+### Format
+
+Clé facultative `"ambiance"` d'une pièce (`pieces.json`) ou d'une zone
+(`zones.json`) : `"froid"`, `"chaud"`, `"alarme"`, `"neon"` ou `"eteint"`.
+Jamais écrite pour « Auto » (`EditorMap.set_mood`). Format 22 et avant : lu
+tel quel (ambiances déduites, rien d'écrit). Valeur inconnue dans un fichier
+écrit à la main : retirée au chargement avec une note ; refusée par le
+contrôle des cartes reçues (`CustomMapGuard`, énumération de
+`MapCatalog.room_keys` / `zone_keys`).
+
+### Preuves automatiques
+
+`tests/test_room_mood.gd` (déduction, résolution, couleur des lampes,
+remplissage et brume, courant, rebond et poussière, sources d'appoint et
+gyrophare sans ombre à toutes les qualités, BUNKER K-7, aller-retour dans
+l'éditeur, migration, description exportée, contrôle des cartes reçues) ;
+`tests/test_voxel_decor.gd` (modèles cubiques du catalogue) ; scénario
+`lighting_look` (captures) ; coûts : `perf_costs` (postes « ambiances »,
+« rebond », « poussière », « appoint »).

@@ -236,7 +236,8 @@ func _build_environment() -> void:
 	# Ambiance des cartes (WorldLook, « Lumière et ambiance ») : ambiante
 	# bleu-vert, étalonnage du jeu, brume volumétrique (MEDIUM et HIGH).
 	env.ambient_light_color = WorldLook.BASE_AMBIENT_COLOR
-	env.ambient_light_energy = 0.3
+	# Un peu relevée : plafond et tons moyens lisibles (bleu-vert foncé).
+	env.ambient_light_energy = 0.4
 	env.adjustment_color_correction = WorldLook.map_lut({})
 	env.volumetric_fog_density = 0.03
 	env.volumetric_fog_albedo = WorldLook.VOLUMETRIC_ALBEDO
@@ -366,6 +367,22 @@ func _build_props() -> void:
 	desk_pool.spot_angle_attenuation = 1.8
 	desk_pool.light_volumetric_fog_energy = 2.5
 	desk.add_child(desk_pool)
+	# Sources d'appoint colorées des cartes (MapCatalog.LIGHTS « accent ») :
+	# écran de contrôle sur le bureau, tubes à essai sur le chariot, panneau
+	# de sortie au-dessus de la porte latérale ; lumières courtes sans ombre.
+	_accent("ecran", Vector3(-w + 0.35, 0.8, -12.75), 1, Vector3(-w + 0.65, 1.05, -12.75), 0.45, 2.6)
+	_accent("tubes", Vector3(-w + 0.35, 0.85, -2.25), 1, Vector3(-w + 0.55, 1.0, -2.25), 0.35, 2.0)
+	_accent("sortie", Vector3(w, 2.45, -3.9), 3, Vector3(w - 0.25, 2.45, -3.9), 0.3, 2.4)
+	# Salle chaude du couloir transversal (à gauche) : sa lumière orange
+	# déborde dans le couloir froid (contraste de l'image de référence).
+	var warm := OmniLight3D.new()
+	warm.light_color = RoomMood.PRESETS.chaud.lamp
+	warm.light_energy = 2.6
+	warm.omni_range = 6.0
+	warm.omni_attenuation = 1.1
+	warm.light_volumetric_fog_energy = 2.0
+	warm.position = Vector3(-3.2, 1.9, -6.5)
+	add_child(warm)
 	_prop("bobine_tesla", Vector3(w - 0.35, 0, -14.9), 0)
 	_prop("gravats", Vector3(-4.6, 0, -6.5), 0)
 	_prop("caisses", Vector3(4.9, 0, -6.5), 1)
@@ -401,11 +418,27 @@ func _build_props() -> void:
 		pool.spot_range = 6.0
 		pool.spot_angle = 62.0
 		pool.spot_angle_attenuation = 1.3
-		pool.light_volumetric_fog_energy = 3.0
+		pool.light_volumetric_fog_energy = 4.0
 		pool.distance_fade_enabled = false
 		l.add_child(pool)
 		l.light_volumetric_fog_energy = 0.6
 		_neons.append([l, tube, int(s[1]), n])
+
+
+## Source d'appoint colorée : objet cubique du luminaire `id` (couleur du
+## catalogue) et sa lumière courte, sans ombre.
+func _accent(id: String, pos: Vector3, quarter: int, light_pos: Vector3, energy: float, light_range: float) -> void:
+	var d: Dictionary = MapCatalog.LIGHTS.get(id, {})
+	_prop(id, pos, quarter)
+	var l := OmniLight3D.new()
+	l.light_color = Color.html(String(d.get("couleur", "#ffffff")))
+	l.light_energy = energy
+	l.omni_range = light_range
+	l.omni_attenuation = float(LampStyle.ACCENT.att)
+	l.light_specular = float(LampStyle.ACCENT.specular)
+	l.light_volumetric_fog_energy = float(LampStyle.ACCENT.fog)
+	l.position = light_pos
+	add_child(l)
 
 
 func _build_lights() -> void:

@@ -700,6 +700,10 @@ func _floor(k: int) -> void:
 		var rc := room_cells(poly)
 		var z := zone_letter(p)
 		v.room_zone[String(p.id)] = z
+		# Format 23 : ambiance de la pièce (choisie ou déduite, RoomMood).
+		var mood := doc.mood_of(p)
+		if mood != "":
+			v.room_mood[String(p.id)] = mood
 		var ce := _ceil_of(p, k)
 		v.room_polys[k].append({"id": String(p.id), "poly": poly, "zone": z, "ceil": ce, "open": EditorMap.no_ceiling(p)})
 		# Plafond de la pièce : 2,8 m au moins (sans maximum, format 17 ; mêmes

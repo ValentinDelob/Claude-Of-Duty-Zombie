@@ -827,7 +827,8 @@ matière suivent la grille de 5 cm (variation par cube, flaques en pixels).
 ### Règles
 
 - **Ambiante froide, lampes chaudes.** Lumière ambiante bleu-vert
-  (`WorldLook.BASE_AMBIENT_COLOR` 0,24 / 0,48 / 0,53, énergie 1,3), brume de
+  (`WorldLook.BASE_AMBIENT_COLOR` 0,24 / 0,48 / 0,53, énergie 1,45 depuis
+  l'ambiance des pièces, 1,3 avant), brume de
   fond bleu-vert sombre ; les lampes gardent leur couleur chaude
   (`PowerGrid.ON_COLOR`, couleur des luminaires de l'éditeur).
 - **Lampes sous abat-jour = flaque vers le bas** (`LampStyle`, règle
@@ -873,6 +874,91 @@ matière suivent la grille de 5 cm (variation par cube, flaques en pixels).
   flaques froides sous les néons (LampPool), lampe de bureau chaude allumée,
   brume volumétrique en MEDIUM et HIGH.
 
+### Ambiance des pièces : la lumière raconte (14/10/2026)
+
+Point 3 du plan validé : sur l'image de référence, le couloir de labo froid
+bleu-vert donne sur une salle du fond orange chaud ; un gyrophare rouge, des
+écrans et des fioles colorent leurs coins ; le plafond reste un bleu-vert
+foncé lisible ; les faisceaux des lampes sont pleins de poussière.
+
+- **Ambiance par pièce** (`RoomMood`, `scripts/game/map/room_mood.gd`) :
+  cinq préréglages, **froid** (bleu-vert), **chaud** (orange), **alarme**
+  (rouge qui pulse), **néon** (violet), **éteint** (presque noir) ; sans
+  ambiance : standard (lampes chaudes sur l'ambiante bleu-vert). Une
+  ambiance règle, dans sa pièce :
+  - la couleur des lampes du réseau électrique (lampes automatiques,
+    luminaires laissés à leur couleur du catalogue : `lamp`, mélange
+    `lamp_mix`) et leur énergie (`lamp_energy`) ; un luminaire recoloré par
+    l'auteur garde sa couleur ; flammes (bougies, feu) et sources d'appoint
+    gardent la leur ;
+  - une **lumière de remplissage** (`MoodZones` : OmniLight3D sans ombre au
+    centre des deux plus grandes boîtes de la pièce, aux trois quarts de la
+    hauteur, atténuation douce, 11 m au plus, 16 par carte ; LOW : une par
+    pièce) : murs et plafond prennent la couleur de la pièce ; liée au
+    courant (35 % courant coupé), sauf l'alarme (secours) qui pulse
+    (période 1,6 s) ;
+  - une **brume teintée** (un FogVolume par boîte de la pièce, matériau
+    partagé par ambiance : albédo, densité, émission ; l'alarme pulse aussi),
+    visible avec la brume volumétrique (MEDIUM, HIGH ; rien en LOW).
+- **Ambiance déduite** quand l'auteur n'a rien choisi (`RoomMood.derive`) :
+  luminaire fort de la pièce (gyrophare -> alarme, enseigne -> néon), puis
+  mots du nom de la pièce et de sa zone, en français et en anglais (labo,
+  couloir, cellule, infirmerie, chambre froide... -> froid ; garde,
+  dortoir, bureau, cuisine, atelier... -> chaud ; générateur, salle des
+  machines, chaufferie... -> alarme ; rituel, crypte, égout... -> éteint ;
+  serveur, arcade... -> néon), puis indices faibles (flammes et lustre ->
+  chaud, tubes néon -> froid ; parquet, bois, moquette -> chaud ;
+  carrelage, métal -> froid). Les anciennes cartes en profitent sans être
+  modifiées (DRAFT ARENA : salle des machines en alarme, couloir de service
+  froid, atelier et passerelle chauds).
+- **BUNKER K-7** (`MapDef.zone_moods`) : salle de garde et dortoir chauds
+  (on y vivait), couloir des cellules et laboratoire froids, générateur en
+  alarme, salle du rituel éteinte, quai standard.
+- **Sources d'appoint colorées** (luminaires « accent » de l'éditeur,
+  `MapCatalog.LIGHTS`, modèles cubiques de 5 cm,
+  `tools/blender/voxel_props/luminaires.py`) : **gyrophare** d'alarme (mur,
+  deux faisceaux rouges tournants `BeaconSpin`, un tour en 1,6 s),
+  **écran de contrôle** (sol ou meuble, menthe), **tubes à essai**
+  lumineux (sol ou meuble : vert toxique, bleu, ambre), **panneau de
+  sortie** (mur, vert), **enseigne au néon** « LAB » (mur, rose et cyan,
+  grésille). Lumière omnidirectionnelle courte qui tombe vite
+  (`LampStyle.ACCENT`), **jamais d'ombre** (gyrophare compris, à toutes les
+  qualités), sans reflet spéculaire (pas de point vif sur les sols
+  mouillés). Faces lumineuses en teintes moyennes : x 3,5 dans le jeu, le
+  bloom ne mange pas l'objet. Aucune collision (petits objets muraux ou
+  posés sur un meuble). BUNKER K-7 (`MapDef.accent_lights`) : écrans et
+  tubes sur les paillasses du labo, deux gyrophares au générateur, panneaux
+  de sortie au-dessus de la porte 3 et de la porte d'évacuation, enseigne du
+  quai près du téléporteur.
+- **Plafonds et tons moyens** : ambiante relevée (énergie 1,3 -> 1,45),
+  texture de plafond moins sombre (`PixelSurfaces` « ceiling », 0,4 ->
+  0,55), **rebond** de chaque lampe de plafond (`LampStyle` « bounce » :
+  SpotLight3D sans ombre ni brume, 2 m sous la lampe, dirigé vers le haut,
+  cône de 58°, 24 % de l'énergie de la flaque, recopié par `LampPool`) : le
+  plafond s'éclaire autour de chaque lampe, le contraste reste (lampe de
+  bureau : pas de rebond).
+- **Faisceaux et poussière** : faisceaux des flaques plus visibles en
+  MEDIUM et HIGH (énergie dans la brume 1,6 -> 2,6, densité 0,016 ->
+  0,019) ; **poussière en suspension** dans les cônes (`LampDust` : un seul
+  GPUParticles3D par carte, cubes de 1,5 à 2,5 cm éclairés qui ne brillent
+  que dans la lumière, émis sur des points tirés dans chaque cône, effacés
+  près de la caméra par tramage ; aucun en LOW, 18 par lampe en MEDIUM, 30
+  en HIGH, 1 400 au plus).
+- **Fond du menu** : écran de contrôle sur le bureau, tubes à essai sur le
+  chariot, panneau de sortie au-dessus de la porte latérale, lumière orange
+  d'une salle chaude qui déborde du couloir transversal, ambiante un peu
+  relevée, faisceaux des néons plus marqués.
+- Éditeur : choix **Ambiance** d'une pièce (onglet Propriétés) et d'une zone
+  (onglet Zones) : « Auto (déduite : …) » ou un préréglage ; clé facultative
+  « ambiance » (format 23, docs/MAP_AUTHORING.md).
+- Captures : scénario `lighting_look` (vues `garde_depuis_couloir`,
+  `generateur_depuis_labo`, `paillasse`, `dortoir`, `rituel` en plus) ; coûts :
+  docs/ARCHITECTURE.md (« Rendu et performances »).
+- Écarts restants : vue depuis un couloir froid, une salle chaude lointaine
+  reste peu orange (brume de fond et distance) ; seul le générateur vu du
+  labo (porte rouge) donne le contraste de l'image dans une même vue. La
+  poussière se voit surtout de près, dans les flaques des lampes.
+
 ### Par préréglage de qualité (RenderQuality.PRESETS)
 
 | | LOW | MEDIUM | HIGH |
@@ -880,6 +966,9 @@ matière suivent la grille de 5 cm (variation par cube, flaques en pixels).
 | Ambiante bleu-vert, étalonnage, flaques de lumière (LampPool), matières (variation, crasse, pied des murs, flaques d'eau), contre-jour | oui | oui | oui |
 | Ombres des lampes (sur la flaque) | aucune | 1 lampe sur 3, filtre dur | 2 sur 3, filtre doux |
 | Brume volumétrique (faisceaux, voile bleu-vert) | non | 48x48x32 | 64x64x48 |
+| Ambiance des pièces : couleur des lampes, sources d'appoint (sans ombre), rebond vers le plafond | oui | oui | oui |
+| Remplissage d'ambiance (MoodZones) | 1 par pièce | 2 par pièce | 2 par pièce |
+| Brume teintée par pièce (FogVolume), poussière des cônes (LampDust) | non | oui, 18 grains par lampe | oui, 30 grains par lampe |
 | SSAO (ombres de contact des cubes) | non | non (+0,66 ms mesuré : trop pour la GTX 1050) | demi-résolution, basse |
 | SSR (reflets des flaques) | non | non | oui (48 pas) |
 | Bloom | non | oui | oui (bicubique) |
@@ -890,8 +979,9 @@ captures avant / après : scénario `lighting_look` (`-- --tag=<préfixe>`).
 
 ### Écarts restants avec la cible
 
-- Plafonds plus noirs que sur l'image (texture de plafond sombre + pied de
-  courbe) ; la cible garde un plafond bleu-vert lisible.
+- Plafonds : lisibles depuis l'ambiance des pièces (rebond des lampes,
+  texture moins sombre, ambiante relevée), mais encore plus sombres que sur
+  l'image loin des lampes.
 - Pas de faisceau de lumière par les fenêtres (les fenêtres de BUNKER K-7
   donnent sur des poches fermées) ; en LOW, aucun faisceau (pas de brume).
 - Les flaques ne reflètent vraiment la scène qu'en HIGH (SSR) ; ailleurs,
