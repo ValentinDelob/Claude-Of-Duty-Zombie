@@ -138,8 +138,8 @@ et exporte.
   **cuisses**, moitié gauche / droite : chaque pan suit sa jambe (fente devant
   et derrière) au lieu d'être traversé par elle ; le haut reste sur le bassin.
   Liaison seule, faite par le script (le cache garde le bassin).
-- En jeu (`ZombieModel`, `ZombieGlb`) : un mesh partagé (16 428 sommets,
-  8 214 triangles, un draw call), shaders `zombie_voxel.gdshader` /
+- En jeu (`ZombieModel`, `ZombieGlb`) : un mesh partagé (16 768 sommets,
+  8 384 triangles, un draw call), shaders `zombie_voxel.gdshader` /
   `zombie_voxel_dissolve.gdshader` (couleur de face telle quelle, sans
   crasse ni marbrures ; yeux émissifs ; dissolution **cube par cube** grâce
   à la normale de repos en CUSTOM0) ; six teintes légères de variante
@@ -165,7 +165,7 @@ et exporte.
   escalier en sortent en marches de cubes. Puis : jupe creuse (parois d'un
   cube) autour des jambes, bas déchiré mesuré paroi par paroi sur la vue qui
   la montre ; yeux 3 × 2 émissifs au fond d'orbites, arcades en saillie, nez
-  creusé, bouche ouverte de deux cubes de profondeur et six dents d'un cube,
+  creusé, bouche ouverte de deux cubes de profondeur et six dents d'un cube (neuf avec la passe d'expressivité),
   oreilles, encolure en V (couche de tissu ôtée, peau du cou derrière), trois
   doigts séparés et recourbés, orteils marqués.
 - 72 × 38 × 20 cubes, ~16 600 cellules, ~8 200 triangles : tête 18 × 18 × 16
@@ -176,6 +176,52 @@ et exporte.
   palette réduite à ~90 teintes.
 - Cache : `tools/blender/zombies/zombie_voxel_cells.json` (suivi par git) ;
   sans la planche (ou avec `--cache`), le modèle est reconstruit à l'identique.
+- **Expressivité** (d'après `docs/art/gemini_target.webp` : gros zombie
+  lisible, yeux jaunes qui brillent, bouche béante, blouse déchirée et
+  ensanglantée, visage contrasté). Passe déterministe `expressive_pass`
+  rejouée APRÈS la planche ou le cache (comme `split_skirt`, le cache garde
+  le modèle prélevé) :
+  - orbites (`voxel_lib.eye_sockets`) : parois du trou devant chaque œil en
+    matière **« socket »** (quasi noire, alpha `ZombieGlb.SOCKET_ALPHA` = 0,9 :
+    reflet de la lueur des yeux en jeu), surface autour de l'orbite assombrie ;
+    cernes sous les yeux ;
+  - arcades **froncées** : la saillie descend d'un cube vers le nez (bout
+    extérieur ôté, bout intérieur prolongé), face avant assombrie, dessous
+    noir ; joues creuses (x 0,72) et pommettes claires (x 1,14), côtés de la
+    tête creusés sous les pommettes ;
+  - bouche béante : trois dents de plus (dont un croc), neuf en tout ;
+  - blouse (`GOWN_MARKS`, motifs en caractères par rangée) : déchirure en
+    biais sur le ventre (cube de devant ôté : peau sombre derrière, bords
+    effilochés), accroc au bas de la blouse (on voit dedans), accroc et
+    traînée de sang dans le dos, coulure de sang craché de l'encolure, tache
+    sur la hanche ; sang séché (0,30, 0,06, 0,05) et frais (0,44, 0,05, 0,04).
+  - Coût : ~8 400 triangles (+170), toujours un draw call.
+- Shader (`assets/shaders/zombie_expressive.gdshaderinc`, inclus par
+  `zombie_body.gdshaderinc` en variante VOXEL ; fonctions à part, deux lignes
+  d'appel) :
+  - **yeux jaune-vert** (`ZombieModel.EYE_EMISSION` = (0,88, 1, 0,26),
+    énergie 5 de près : le halo ne noie plus le visage) ; **scintillement**
+    léger et rares baisses brèves, en phase propre à chaque zombie ;
+    **renfort avec la distance** (x 1 + `eye_far_boost` = 1,6 entre 5 et
+    22 m) : deux points lumineux au fond d'un couloir sombre ; reflet dans les
+    orbites (`socket_spill`) ;
+  - **sang lisible** : les faces nettement rouges s'éclairent un peu
+    elles-mêmes (`blood_lift` = 0,45) : sous la lumière bleu-vert des cartes,
+    le rouge sombre virait au noir ;
+  - zombies « patient » seulement (`face_detail` = 1, `ZombieModel`) : peau
+    plus saturée (x 1,6) et un peu plus sombre (x 0,9) : le vert ressort sous
+    la lumière froide au lieu de blanchir ; **variantes par zombie**
+    (`look_seed`, instance, tirée de la variante : la même sur tous les
+    pairs), peintes **cube par cube** (cellule de repos) : un visage parmi
+    quatre (tel quel, menton et cou ensanglantés, orbites meurtries
+    violacées, crâne entaillé) et des éclaboussures de sang en grappes de
+    cubes sur la blouse.
+  - Chiens, Brancardier, Infirmière et Chirurgien gardent leurs couleurs et
+    leur lueur propres, mais ont la même passe de lisibilité : orbites
+    `eye_sockets` (sauf la gorge de l'Infirmière), scintillement, renfort à
+    distance, sang lisible.
+  - Mesure (`sh tools/perf.sh zombie_entity`, 24 zombies, 1080p) : GPU 2,43 ms
+    contre 2,49 ms avant (bruit de mesure), même nombre de draw calls.
 - Planche de validation : `--sheet tests/_out/voxel/zombie_voxel_sheet_25.png`
   (rangée 1 : planche ; rangée 2 : rendu au même cadrage et à la même échelle,
   contour noir compris ; rangée 3 : les deux à 50 % pour comparer pixel à

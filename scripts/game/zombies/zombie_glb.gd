@@ -20,6 +20,9 @@ extends RefCounted
 
 ## Alpha des sommets du cœur mutant (« heart ») : ni 0 (yeux) ni 1 (corps).
 const HEART_ALPHA := 0.5
+## Alpha des faces d'orbite (« socket », voxel_lib.eye_sockets) : sombres,
+## avec un reflet de la lueur des yeux (zombie_expressive.gdshaderinc).
+const SOCKET_ALPHA := 0.9
 
 const MATS := {
 	"skin": [RigBuilder.MAT_SKIN, Color(0.52, 0.53, 0.46)],
@@ -27,6 +30,7 @@ const MATS := {
 	# Cœur mutant du Chirurgien (point faible) : émissif à part (alpha
 	# HEART_ALPHA, lueur `heart_glow` de zombie_body.gdshaderinc).
 	"heart": [RigBuilder.MAT_WOUND, Color(0.95, 0.18, 0.22), HEART_ALPHA],
+	"socket": [RigBuilder.MAT_SKIN, Color(0.06, 0.07, 0.05), SOCKET_ALPHA],
 	"cloth": [RigBuilder.MAT_CLOTH, Color(0.42, 0.43, 0.35)],
 	"leather": [RigBuilder.MAT_LEATHER, Color(0.075, 0.065, 0.055)],
 	"metal": [RigBuilder.MAT_METAL, Color(0.27, 0.29, 0.25)],

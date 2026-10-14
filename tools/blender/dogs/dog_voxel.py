@@ -636,6 +636,8 @@ def build(use_cache=False):
     else:
         m = build_model()
         vx.save_cache(m, CACHE)
+    # Orbites lisibles (lueur des yeux dans un creux sombre).
+    info["sockets"] = vx.eye_sockets(m)
     ob, mi = vx.build_mesh(m, "dog_voxel")
     info.update(mi)
     rig = vx.build_armature("dog_voxel_rig", BONES, CUBE)
