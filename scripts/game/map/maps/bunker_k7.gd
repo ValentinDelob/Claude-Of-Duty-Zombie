@@ -48,6 +48,26 @@ func _init() -> void:
 		"p": ["stone", "wall_ritual"],
 	}
 	pipe_zones = ["b", "e", "f"]
+	# Ambiances (docs/ART_DIRECTION.md « Ambiance des pièces ») : la lumière
+	# raconte le bunker. Salle de garde et dortoir chauds (on y vivait),
+	# couloir des cellules et laboratoire froids, générateur en alarme, salle
+	# du rituel éteinte ; le quai garde les lampes chaudes standard.
+	zone_moods = {"a": "chaud", "b": "froid", "c": "froid", "d": "chaud", "e": "alarme", "p": "eteint"}
+	# Sources d'appoint colorées : moniteurs et tubes à essai sur les
+	# paillasses du labo, gyrophares du générateur, panneaux de sortie
+	# au-dessus de la porte 3 et de la porte d'évacuation, enseigne au néon
+	# du quai, près du téléporteur.
+	accent_lights = [
+		{"light": "ecran", "cell": Vector2i(38, 21), "support": 0.93},
+		{"light": "tubes", "cell": Vector2i(40, 21), "support": 0.93},
+		{"light": "ecran", "cell": Vector2i(46, 27), "support": 0.93, "yaw": PI},
+		{"light": "tubes", "cell": Vector2i(48, 27), "support": 0.93, "yaw": PI},
+		{"light": "gyrophare", "at": Vector2(57.5, 21.0), "wall": Vector2i(0, -1)},
+		{"light": "gyrophare", "at": Vector2(63.0, 23.5), "wall": Vector2i(1, 0)},
+		{"light": "sortie", "at": Vector2(34.0, 24.0), "wall": Vector2i(-1, 0), "y": 2.75},
+		{"light": "sortie", "at": Vector2(2.0, 24.5), "wall": Vector2i(-1, 0), "y": 2.75},
+		{"light": "enseigne", "at": Vector2(40.0, 2.0), "wall": Vector2i(0, -1), "y": 2.3},
+	]
 	rows = PackedStringArray([
 		"                                                                ",
 		" #################################################              ",

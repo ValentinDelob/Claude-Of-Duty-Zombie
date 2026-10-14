@@ -60,7 +60,11 @@ func build(parent: Node3D) -> void:
 		_blood(c)
 	_windows()
 	_pipes()
+	# Ambiances des zones avant les lampes (couleur de leur pièce).
+	_moods()
 	_lamps()
+	_accents()
+	finish_lamps()
 
 	for tkey in _tools:
 		var key: String = tkey.get_slice("@", 0)
@@ -307,3 +311,63 @@ func _lamps() -> void:
 ## Lampe de la carte (groupe RenderQuality, courant, grésillement 1 sur 5).
 func _map_light(c: Vector2i, pos: Vector3, energy: float, light_range: float) -> OmniLight3D:
 	return add_lamp(pos, energy, light_range, _h(c, 9) < 0.22)
+
+
+## Ambiance de chaque zone (MapDef.zone_mood : choisie ou déduite de son
+## nom) : rectangles de ses cellules, du sol au plafond (MoodZones).
+func _moods() -> void:
+	if def == null:
+		return
+	var seen := {}
+	var areas := []
+	for y in data.height:
+		for x in data.width:
+			var z := data.zone_at(Vector2i(x, y))
+			if z == "" or seen.has(z):
+				continue
+			seen[z] = true
+			var mood := def.zone_mood(z)
+			if mood != "":
+				areas.append([mood, MoodZones.grid_boxes(data, z, MapBuilder.WALL_HEIGHT)])
+	add_moods(areas)
+
+
+## Sources d'appoint colorées de la carte (MapDef.accent_lights) : objet
+## cubique du luminaire (EditorPrefabs.fixture, matériau « voxel », sans
+## ombre) et sa lumière (add_lamp : courant, grésillement, jamais d'ombre).
+func _accents() -> void:
+	if def == null:
+		return
+	for e: Dictionary in def.accent_lights:
+		var id := String(e.get("light", ""))
+		var d: Dictionary = MapCatalog.LIGHTS.get(id, {})
+		if d.is_empty():
+			push_warning("[PropBuilder] luminaire inconnu : " + id)
+			continue
+		var fix_p: Vector3
+		var light_p: Vector3
+		var yaw := float(e.get("yaw", 0.0))
+		if String(d.mount) == "mur":
+			var w: Vector2i = e.get("wall", Vector2i(0, -1))
+			var at: Vector2 = e.get("at", Vector2.ZERO)
+			var wv := Vector3(w.x, 0, w.y)
+			fix_p = Vector3(at.x * MapData.CELL, float(e.get("y", d.get("y", 2.0))), at.y * MapData.CELL)
+			light_p = fix_p - wv * 0.2
+			# Avant du modèle (+Z) vers la pièce.
+			yaw = atan2(-wv.x, -wv.z)
+		else:
+			var c: Vector2i = e.get("cell", Vector2i.ZERO)
+			fix_p = MapData.cell_to_world(c, float(e.get("support", 0.0)))
+			light_p = fix_p + Vector3(0, float(d.get("y", 0.3)), 0)
+		add_lamp(light_p, float(d.intensite) * 1.4, float(d.portee), bool(d.vacille), Color.html(String(d.couleur)), bool(d.courant), id, false)
+		var fx := EditorPrefabs.fixture(id, "", func(n: String) -> PackedScene: return load("res://assets/models/props/" + n + ".glb") as PackedScene)
+		if fx == null:
+			continue
+		fx.position = fix_p
+		fx.rotation.y = yaw
+		root.add_child(fx)
+		var mat := MeshMapBuilder.material_for(MeshMapBuilder.VOXEL_MAT)
+		for n in fx.find_children("*", "GeometryInstance3D", true, false):
+			(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if n is MeshInstance3D:
+				(n as MeshInstance3D).material_override = mat

@@ -179,7 +179,16 @@ extends RefCounted
 ##      écrite à sa valeur par défaut, set_boss_types) ; carte sans boss :
 ##      « vagues.boss.premiere » 0. Aucune conversion : une carte au format 21
 ##      ou moins se lit telle quelle (boss toutes les 15 manches par défaut).
-const FORMAT := 22
+##  23  AMBIANCE des pièces (docs/ART_DIRECTION.md « Ambiance des pièces »,
+##      RoomMood) : clé facultative « ambiance » d'une pièce (pieces.json) ou
+##      d'une zone (zones.json), un préréglage parmi « froid », « chaud »,
+##      « alarme », « neon », « eteint » ; absente : ambiance DÉDUITE du nom de
+##      la pièce et de sa zone, de son sol et de ses luminaires (mood_of ;
+##      jamais écrite à sa valeur déduite, set_mood). La pièce l'emporte sur
+##      la zone. Aucune conversion : une carte au format 22 ou moins se lit
+##      telle quelle (ambiances déduites) ; une valeur inconnue est retirée
+##      au chargement avec une note.
+const FORMAT := 23
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 ## Écart par défaut entre deux niveaux (m) : nouveau niveau, ancien étage sans « sol ».
@@ -754,6 +763,52 @@ func room_poly(p: Dictionary) -> PackedVector2Array:
 	return MapGeom.poly(p.get("contour", []))
 
 
+# ------------------------------------------------------------------ ambiances (format 23)
+
+## Ambiance choisie d'une pièce ou d'une zone (« » : aucune, déduite).
+static func mood_value(e: Dictionary) -> String:
+	return String(e.ambiance) if RoomMood.is_preset(e.get("ambiance")) else ""
+
+
+## Choisir l'ambiance d'une pièce ou d'une zone ; « » ou RoomMood.AUTO :
+## clé retirée (ambiance déduite).
+static func set_mood(e: Dictionary, mood: String) -> void:
+	if RoomMood.is_preset(mood):
+		e["ambiance"] = mood
+	else:
+		e.erase("ambiance")
+
+
+## Luminaires posés dans la pièce `p` (même niveau, position dans son contour).
+func fixtures_in(p: Dictionary) -> Array:
+	var poly := room_poly(p)
+	var out := []
+	if poly.size() < 3:
+		return out
+	var a := alt_of(p)
+	for o in objets:
+		if String(o.get("type", "")) != "luminaire" or absf(alt_of(o) - a) > ALT_EQ:
+			continue
+		if Geometry2D.is_point_in_polygon(MapGeom.v2(o.get("position", [0, 0])), poly):
+			out.append(String(o.get("luminaire", "")))
+	return out
+
+
+## Ambiance DÉDUITE d'une pièce (RoomMood.derive) : nom de la pièce, noms de
+## sa zone, son sol (le sien ou celui de sa zone), ses luminaires.
+func derived_mood(p: Dictionary) -> String:
+	var z := zone(String(p.get("zone", "")))
+	var zn: Dictionary = z.get("nom", {})
+	var floor_key := String(p.get("surface_sol", z.get("sol", "concrete")))
+	return RoomMood.derive([String(p.get("nom", "")), String(zn.get("fr", "")), String(zn.get("en", ""))], floor_key, fixtures_in(p))
+
+
+## Ambiance d'une pièce : la sienne, sinon celle de sa zone, sinon déduite.
+func mood_of(p: Dictionary) -> String:
+	var z := zone(String(p.get("zone", "")))
+	return RoomMood.resolve(p.get("ambiance"), z.get("ambiance"), derived_mood(p))
+
+
 ## Nouvel identifiant stable : préfixe + premier numéro libre.
 func new_id(prefix: String) -> String:
 	var used := {}
@@ -1153,6 +1208,16 @@ func _migrate(from: int) -> void:
 	# Format 20 -> 21 : rien à convertir (sans « types_speciaux » : tous les
 	# types de vagues spéciales, en rotation).
 	# Format 21 -> 22 : rien à convertir (sans « types_boss » : tous les boss).
+	# Format 22 -> 23 : rien à convertir (sans « ambiance » : ambiance déduite
+	# du nom de la pièce, de sa zone, de son sol et de ses luminaires, comme
+	# l'enregistrement la laisse). Toute version : une « ambiance » inconnue
+	# (fichier écrit à la main) est retirée avec une note (déduite à la place).
+	for list in [pieces, zones]:
+		for e in list:
+			if e is Dictionary and e.has("ambiance") and not RoomMood.is_preset(e.ambiance):
+				load_notes.append(["ambiance inconnue « %s » ignorée (%s) : déduite" % [str(e.ambiance).left(24), String(e.get("id", "?"))],
+					"unknown mood \"%s\" ignored (%s): derived" % [str(e.ambiance).left(24), String(e.get("id", "?"))]])
+				e.erase("ambiance")
 
 
 ## Format 20 : toute l'architecture arrondie au cube de 5 cm (MapCubeSnap,
