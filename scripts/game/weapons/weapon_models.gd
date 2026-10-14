@@ -107,7 +107,6 @@ static func material(key: String, viewmodel: bool, pap := false) -> ShaderMateri
 	m.set_shader_parameter("viewmodel", 1.0 if viewmodel else 0.0)
 	m.set_shader_parameter("pap", 0.0)
 	m.set_shader_parameter("team", 0.0)
-	IllustratedStyle.bind(m, IllustratedStyle.Kind.WEAPON)
 	_mat_cache[cache_key] = m
 	return m
 
@@ -123,7 +122,6 @@ static func team_material(col: Color, viewmodel: bool) -> ShaderMaterial:
 	var m := material("team", viewmodel).duplicate() as ShaderMaterial
 	m.set_shader_parameter("team", 1.0)
 	m.set_shader_parameter("team_color", col)
-	IllustratedStyle.bind(m, IllustratedStyle.Kind.WEAPON)
 	_mat_cache[cache_key] = m
 	return m
 

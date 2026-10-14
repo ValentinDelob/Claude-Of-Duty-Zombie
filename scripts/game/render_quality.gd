@@ -55,7 +55,7 @@ const PRESETS := [
 		"aberration": 0.0,
 		"zombie_shadows": 0,        # zombies à ombre portée (les plus proches)
 		"zombie_shadow_dist": 0.0,  # ... à moins de cette distance (m)
-		"ink_inner": true,          # style ILLUSTRÉ : arêtes intérieures encrées (sinon silhouettes seules)
+		"illustrated_radius": 0.0,  # style ILLUSTRÉ : rayon du filtre de Kuwahara (px à 1080p, 0 : coupé)
 	},
 	# MEDIUM (défaut) — le rendu de référence.
 	{
@@ -84,7 +84,7 @@ const PRESETS := [
 		"aberration": 0.003,
 		"zombie_shadows": 6,
 		"zombie_shadow_dist": 12.0,
-		"ink_inner": true,
+		"illustrated_radius": 3.0,
 	},
 	# HIGH — ombres sur 2 lampes sur 3, filtrées et visibles plus loin,
 	# SSAO léger, glow à suréchantillonnage bicubique, MSAA 2x.
@@ -111,7 +111,7 @@ const PRESETS := [
 		"aberration": 0.0035,
 		"zombie_shadows": 12,
 		"zombie_shadow_dist": 20.0,
-		"ink_inner": true,
+		"illustrated_radius": 4.0,
 	},
 ]
 

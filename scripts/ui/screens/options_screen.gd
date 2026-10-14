@@ -332,8 +332,8 @@ func _page_graphics() -> void:
 				else "Unavailable with this renderer (Forward+ required)."))
 	_add("art_style", MenuOptionRow.make_choice(Lang.t("STYLE", "STYLE"),
 			PackedStringArray([Lang.t("CLASSIQUE", "CLASSIC"), Lang.t("ILLUSTRÉ", "ILLUSTRATED")]), int(Settings.art_style)),
-			Lang.t("Illustré (essai) : traits d'encre sur les arêtes et éclairage en aplats, façon planche dessinée.",
-				"Illustrated (trial): ink lines on the edges and flat cel shading, like a drawn comic panel."))
+			Lang.t("Illustré (essai) : image retouchée façon planche peinte (aplats adoucis, ombres bleu-vert, lueurs chaudes).",
+				"Illustrated (trial): painted-artwork look (smoothed colour areas, teal shadows, warm glows)."))
 
 
 func _page_audio() -> void:

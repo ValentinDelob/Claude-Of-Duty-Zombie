@@ -89,7 +89,6 @@ static func material() -> ShaderMaterial:
 		_material.set_shader_parameter("emission_color", EYE_EMISSION)
 		_material.set_shader_parameter("emission_energy", 6.5)
 		_material.set_shader_parameter("noise_lattice", NoiseLattice.tex3d())
-		IllustratedStyle.bind(_material, IllustratedStyle.Kind.CHAR)
 	return _material
 
 
@@ -107,7 +106,6 @@ static func dissolve_material() -> ShaderMaterial:
 		_dissolve_material.set_shader_parameter("emission_color", EYE_EMISSION)
 		_dissolve_material.set_shader_parameter("emission_energy", 6.5)
 		_dissolve_material.set_shader_parameter("noise_lattice", NoiseLattice.tex3d())
-		IllustratedStyle.bind(_dissolve_material, IllustratedStyle.Kind.CHAR)
 	return _dissolve_material
 
 
@@ -204,7 +202,6 @@ static func _voxel_mat(dissolve: bool) -> ShaderMaterial:
 	mat.set_shader_parameter("voxel_cell", MODEL_CUBE)
 	# Variantes de visage et de blouse par zombie (zombie_expressive.gdshaderinc).
 	mat.set_shader_parameter("face_detail", 1.0)
-	IllustratedStyle.bind(mat, IllustratedStyle.Kind.CHAR)
 	return mat
 
 

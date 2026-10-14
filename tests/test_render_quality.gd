@@ -3,7 +3,7 @@ extends TestCase
 
 const KEYS := ["name", "lamp_shadows", "shadow_atlas", "shadow_filter", "light_fade_begin",
 	"light_fade_length", "shadow_fade", "glow", "glow_bicubic", "ssao", "ssr", "scale_3d", "msaa",
-	"decal_fade", "decals", "particles", "ink_inner"]
+	"decal_fade", "decals", "particles", "illustrated_radius"]
 
 
 func test_one_preset_per_settings_quality() -> void:
