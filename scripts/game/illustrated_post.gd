@@ -42,7 +42,20 @@ static func attach(node: Node) -> IllustratedPost:
 		if c is FilmPost:
 			in_game = true
 	post.layer = GAME_LAYER if in_game else MENU_LAYER
-	p.add_child.call_deferred(post)
+	# Références faibles : le parent ou le contour peuvent être libérés avant.
+	var wp: WeakRef = weakref(p)
+	var wpost: WeakRef = weakref(post)
+	(func():
+		var pp := wp.get_ref() as Node
+		var po := wpost.get_ref() as Node
+		if pp and po and po.get_parent() == null:
+			pp.add_child(po)).call_deferred()
+	# Contour retiré avant l'ajout différé (monde construit puis libéré dans
+	# la même image, tests) : le post-traitement jamais ajouté est libéré.
+	node.tree_exiting.connect(func():
+		var po := wpost.get_ref() as Node
+		if po and po.get_parent() == null:
+			po.free())
 	return post
 
 
