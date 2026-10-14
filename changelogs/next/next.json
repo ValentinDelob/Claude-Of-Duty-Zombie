@@ -1,0 +1,24 @@
+{
+    "title":  {
+                  "en":  "Something moves behind the windows",
+                  "fr":  "Quelque chose bouge derrière les fenêtres"
+              },
+    "items":  [
+                  {
+                      "en":  "Barricaded windows no longer open onto a black hole: behind the planks, a dirty, cracked windowpane glows with cold blue-green light, and dark shapes shamble past in the mist. Now and then one comes to press against the glass.",
+                      "fr":  "Les fenêtres barricadées ne donnent plus sur un trou noir : derrière les planches, une vitre sale et fêlée brille d'une lumière froide bleu-vert, et des silhouettes passent en titubant dans la brume. De temps en temps, l'une d'elles vient se coller à la vitre."
+                  },
+                  {
+                      "en":  "Light from outside slips between the planks: shafts with dust floating in them and stripes on the floor, which change as the zombies tear the planks off and you nail them back.",
+                      "fr":  "La lumière du dehors passe entre les planches : des faisceaux où flotte la poussière et des raies au sol, qui changent quand les zombies arrachent les planches et quand vous les reclouez."
+                  },
+                  {
+                      "en":  "Zombie doors in custom maps open onto a dark corridor lit by a flickering tube light.",
+                      "fr":  "Les portes à zombies des cartes perso donnent sur un couloir sombre éclairé par un néon qui grésille."
+                  },
+                  {
+                      "en":  "The shapes behind the glass are only scenery: fewer between rounds, and they fade away when a real zombie climbs in.",
+                      "fr":  "Les silhouettes derrière la vitre ne sont que du décor : moins nombreuses entre deux manches, elles s'effacent quand un vrai zombie enjambe la fenêtre."
+                  }
+              ]
+}

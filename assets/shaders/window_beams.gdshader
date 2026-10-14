@@ -28,7 +28,8 @@ uniform float energy = 0.5;
 // Longueur de décroissance du faisceau dans la salle (m).
 uniform float falloff = 1.6;
 
-const int STEPS = 20;
+// Pas de la marche (préréglage : 10 en MEDIUM, 16 en HIGH).
+uniform int steps = 10;
 
 // Milieu de la boîte dans le repère de la barricade (le nœud y est placé).
 uniform vec3 offset = vec3(0.0);
@@ -78,10 +79,10 @@ void fragment() {
 	if (t_far <= t_near) {
 		discard;
 	}
-	float stp = (t_far - t_near) / float(STEPS);
+	float stp = (t_far - t_near) / float(steps);
 	float jit = fract(sin(dot(FRAGCOORD.xy, vec2(12.9898, 78.233))) * 43758.5453);
 	float acc = 0.0;
-	for (int k = 0; k < STEPS; k++) {
+	for (int k = 0; k < steps; k++) {
 		vec3 p = ro + rd * (t_near + (float(k) + jit) * stp);
 		float l = lit(p);
 		if (l > 0.0) {

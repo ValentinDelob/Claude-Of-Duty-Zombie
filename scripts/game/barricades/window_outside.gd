@@ -57,16 +57,19 @@ const OUTSIDE_GROUND := 0.5
 const CORRIDOR_HEIGHT := 2.2
 ## Texture de l'ouverture (gap_mask) et du projecteur.
 const MASK_RES := Vector2i(32, 48)
-const PROJ_RES := 64
+const PROJ_RES := 48
 ## Disparition au loin (m).
 const FAR := 36.0
-const SHAFT_FAR := 20.0
+const SHAFT_FAR := 16.0
 const MOTES := 40
 ## Projecteur (énergie, sans atténuation) ; faisceaux visibles : longueur dans
 ## la salle (m) et intensité.
-const SHAFT_ENERGY := 1.6
-const BEAM_LENGTH := 3.2
+const SHAFT_ENERGY := 2.4
+const BEAM_LENGTH := 2.8
 const BEAM_ENERGY := 0.08
+## Pas de la marche des faisceaux (par pixel) : MEDIUM, HIGH.
+const BEAM_STEPS := 10
+const BEAM_STEPS_HIGH := 16
 ## Porte : faisceau et projecteur plus faibles.
 const DOOR_LIGHT := 0.5
 ## Activité des silhouettes : manche en cours, entre deux manches.
@@ -101,6 +104,8 @@ var beams: MeshInstance3D
 var motes: MultiMeshInstance3D
 var glow: OmniLight3D
 var mask_image: Image
+## Texture de projection actuelle (raies de lumière), ligne 0 en bas.
+var proj_image: Image
 var _mask_tex: ImageTexture
 var _proj_tex: ImageTexture
 var _motes_mat: ShaderMaterial
@@ -129,7 +134,8 @@ func _place_deferred() -> void:
 	if not is_inside_tree():
 		return
 	await get_tree().physics_frame
-	if not is_inside_tree():
+	# Déjà posé (tests : place() appelé directement).
+	if not is_inside_tree() or shaft != null:
 		return
 	var probe := probe_pocket()
 	place(probe.x, probe.y, probe.z, probe.w > 0.5)
@@ -215,20 +221,23 @@ static func blockers(b: Barricade, m: int) -> Array[Rect2]:
 
 ## Masque de l'ouverture `area` (repère local) : MASK_RES texels, 255 = jour
 ## (aucun bloc `rects` devant), 0 = planche ; ligne 0 en haut.
+## Un texel est bouché si son centre est dans un bloc (remplissage natif par
+## rectangle : une planche arrachée coûte quelques microsecondes).
 static func gap_mask(area: Rect2, rects: Array[Rect2], res := MASK_RES) -> PackedByteArray:
-	var out := PackedByteArray()
-	out.resize(res.x * res.y)
-	for j in res.y:
-		var y := area.end.y - (j + 0.5) * area.size.y / res.y
-		for i in res.x:
-			var x := area.position.x + (i + 0.5) * area.size.x / res.x
-			var open := true
-			for r in rects:
-				if r.has_point(Vector2(x, y)):
-					open = false
-					break
-			out[j * res.x + i] = 255 if open else 0
-	return out
+	var img := Image.create(res.x, res.y, false, Image.FORMAT_L8)
+	img.fill(Color.WHITE)
+	var dx := area.size.x / res.x
+	var dy := area.size.y / res.y
+	for r in rects:
+		# Texels dont le centre (i + 0,5) tombe dans [début, fin[ du bloc.
+		var i0 := maxi(0, ceili((r.position.x - area.position.x) / dx - 0.5))
+		var i1 := mini(res.x - 1, ceili((r.end.x - area.position.x) / dx - 0.5) - 1)
+		# Ligne 0 en haut : y décroît avec j.
+		var j0 := maxi(0, ceili((area.end.y - r.end.y) / dy - 0.5))
+		var j1 := mini(res.y - 1, ceili((area.end.y - r.position.y) / dy - 0.5) - 1)
+		if i1 >= i0 and j1 >= j0:
+			img.fill_rect(Rect2i(i0, j0, i1 - i0 + 1, j1 - j0 + 1), Color.BLACK)
+	return img.get_data()
 
 
 ## Part de jour dans un masque (0..1).
@@ -285,13 +294,24 @@ func _ray(space: PhysicsDirectSpaceState3D, a: Vector3, b: Vector3) -> Dictionar
 ## fond en `bz` (z local), dégagée sur ±`hw`, sous un plafond à `cy`.
 ## `found` faux : dehors ouvert (aucun mur derrière), pas de carte.
 func place(bz: float, hw: float, cy: float, found: bool) -> void:
+	# Replacé (tests) : on repart de zéro.
+	for n: Node in [card, frame, shaft, beams, motes]:
+		if n:
+			n.free()
+	card = null
+	frame = null
+	shaft = null
+	beams = null
+	motes = null
+	_mask_tex = null
+	_proj_tex = null
+	card_size = Vector2.ZERO
 	back_z = bz
 	half_width = hw
 	ceil_y = cy
 	has_back = found
 	var b := barricade
 	params = params_for(b.seed, b.is_door())
-	var tint := tint_for(b.zone)
 	if found:
 		var w: float
 		var y0: float
@@ -308,20 +328,34 @@ func place(bz: float, hw: float, cy: float, found: bool) -> void:
 			card_size = Vector2(w, snappedf(y1 - y0, 0.05))
 			card_center = Vector3(snappedf(float(params.light_x) * 0.5, 0.05) if not b.is_door() else 0.0,
 					y0 + card_size.y * 0.5, bz + CARD_GAP)
-			_build_card(tint)
+			_build_card()
 			_build_frame()
 	# Lueur de la poche : devant la carte (ou au fond supposé).
 	glow.position = Vector3(0.0, 2.0, maxf(bz + 0.6, b.barrier_mid - b.barrier_depth * 0.5 - 1.4))
-	glow.light_color = tint.lerp(Color(0.45, 0.55, 0.78), 0.3)
-	_build_shaft(tint)
-	_build_beams(tint)
-	_build_motes(tint)
+	_build_shaft()
+	_build_beams()
+	_build_motes()
+	apply_tint(tint_for(b.zone))
 	apply_quality(RenderQuality.current())
 	refresh_mask()
 	_target = _target_activity()
 	activity = _target
 	_push_activity()
 	set_process(true)
+
+
+## Couleur du dehors (carte, lueur, projecteur, faisceaux, poussière) ; à
+## rappeler quand l'ambiance de la pièce change (mood_provider).
+func apply_tint(tint: Color) -> void:
+	if card:
+		card.set_instance_shader_parameter("wo_tint", tint)
+	glow.light_color = tint.lerp(Color(0.45, 0.55, 0.78), 0.3)
+	if shaft:
+		shaft.light_color = tint.lerp(Color(0.8, 0.95, 1.0), 0.3)
+	if _beams_mat:
+		_beams_mat.set_shader_parameter("color", tint.lerp(Color(0.85, 0.95, 1.0), 0.35))
+	if _motes_mat:
+		_motes_mat.set_shader_parameter("color", tint.lerp(Color.WHITE, 0.5))
 
 
 func _build_glow() -> void:
@@ -346,7 +380,7 @@ static func card_material() -> ShaderMaterial:
 	return _card_mat
 
 
-func _build_card(tint: Color) -> void:
+func _build_card() -> void:
 	var q := QuadMesh.new()
 	q.size = card_size
 	card = MeshInstance3D.new()
@@ -360,7 +394,6 @@ func _build_card(tint: Color) -> void:
 	card.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	var p := params
 	card.set_instance_shader_parameter("wo_seed", p.seed)
-	card.set_instance_shader_parameter("wo_tint", tint)
 	card.set_instance_shader_parameter("wo_size", card_size)
 	# Fenêtre : le sol du dehors est plus haut que celui de la salle (la poche
 	# est en contrebas, comme un soupirail) : les silhouettes passent au
@@ -436,19 +469,18 @@ static func frame_mesh(size: Vector2, panes: Vector2, door := false) -> ArrayMes
 ## sol de la salle. Pas de brume volumétrique (elle ignore la texture de
 ## projection : un cône plein à travers le mur) : les faisceaux visibles sont
 ## marchés par window_beams.gdshader.
-func _build_shaft(tint: Color) -> void:
+func _build_shaft() -> void:
 	var b := barricade
 	var area := opening_rect(b)
 	shaft = SpotLight3D.new()
 	shaft.name = "Shaft"
-	shaft.light_color = tint.lerp(Color(0.8, 0.95, 1.0), 0.3)
 	shaft.light_energy = SHAFT_ENERGY * (DOOR_LIGHT if b.is_door() else 1.0)
 	shaft.light_volumetric_fog_energy = 0.0
 	shaft.shadow_enabled = false
 	shaft.light_specular = 0.25
 	var outer := b.barrier_mid - b.barrier_depth * 0.5
 	# Source haute et lointaine (lumière du dehors, rayons presque parallèles).
-	var src := Vector3(area.get_center().x + float(params.light_x), area.end.y + 1.1, outer - 3.2)
+	var src := Vector3(area.get_center().x + float(params.light_x), area.end.y + 0.8, outer - 2.0)
 	var aim := Vector3(area.get_center().x, area.position.y + area.size.y * 0.4, b.barrier_mid)
 	shaft.transform = Transform3D(Basis.looking_at(aim - src, Vector3.UP), src)
 	# Cône : couvre l'ouverture vue de la source (+ marge).
@@ -461,7 +493,7 @@ func _build_shaft(tint: Color) -> void:
 	shaft.spot_angle = rad_to_deg(ang) + 3.0
 	shaft.spot_angle_attenuation = 0.2
 	# Lumière du dehors : pas d'atténuation avec la distance (rayons parallèles).
-	shaft.spot_range = 12.0
+	shaft.spot_range = 7.5
 	shaft.spot_attenuation = 0.0
 	shaft.distance_fade_enabled = true
 	shaft.distance_fade_begin = SHAFT_FAR
@@ -483,7 +515,7 @@ func _faces() -> Vector2:
 
 ## Faisceaux visibles : boîte devant l'ouverture (de la couche des planches à
 ## BEAM_LENGTH dans la salle), marchée par window_beams.gdshader.
-func _build_beams(tint: Color) -> void:
+func _build_beams() -> void:
 	var area := opening_rect(barricade)
 	var src := shaft.position
 	var f := _faces()
@@ -509,7 +541,6 @@ func _build_beams(tint: Color) -> void:
 	_beams_mat.set_shader_parameter("area", Vector4(area.position.x, area.position.y, area.size.x, area.size.y))
 	_beams_mat.set_shader_parameter("box_min", lo)
 	_beams_mat.set_shader_parameter("box_max", hi)
-	_beams_mat.set_shader_parameter("color", tint.lerp(Color(0.85, 0.95, 1.0), 0.35))
 	# Porte : la cour est plus sombre qu'un dehors derrière une vitre.
 	_beams_mat.set_shader_parameter("energy", BEAM_ENERGY * (DOOR_LIGHT if barricade.is_door() else 1.0))
 	_beams_mat.set_shader_parameter("offset", (lo + hi) * 0.5)
@@ -527,7 +558,7 @@ func _build_beams(tint: Color) -> void:
 
 ## Grains de poussière : cubes de 2,5 cm qui flottent devant l'ouverture,
 ## allumés seulement dans les raies (window_motes.gdshader).
-func _build_motes(tint: Color) -> void:
+func _build_motes() -> void:
 	var area := opening_rect(barricade)
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -548,7 +579,6 @@ func _build_motes(tint: Color) -> void:
 	_motes_mat.set_shader_parameter("area", Vector4(area.position.x, area.position.y, area.size.x, area.size.y))
 	_motes_mat.set_shader_parameter("box_min", bmin)
 	_motes_mat.set_shader_parameter("box_size", bsize)
-	_motes_mat.set_shader_parameter("color", tint.lerp(Color.WHITE, 0.5))
 	motes = MultiMeshInstance3D.new()
 	motes.name = "Motes"
 	motes.multimesh = mm
@@ -579,7 +609,8 @@ func refresh_mask() -> void:
 		_beams_mat.set_shader_parameter("gap_mask", _mask_tex)
 	else:
 		_mask_tex.update(mask_image)
-	var proj := Image.create_from_data(PROJ_RES, PROJ_RES, false, Image.FORMAT_L8, projector_data(m, _proj_index))
+	proj_image = Image.create_from_data(PROJ_RES, PROJ_RES, false, Image.FORMAT_L8, projector_data(m, _proj_index))
+	var proj := proj_image
 	if _proj_tex == null:
 		_proj_tex = ImageTexture.create_from_image(proj)
 		shaft.light_projector = _proj_tex
@@ -664,6 +695,8 @@ func apply_quality(q: Dictionary) -> void:
 	for n: Node3D in [shaft, beams, motes]:
 		if n:
 			n.visible = live
+	if _beams_mat:
+		_beams_mat.set_shader_parameter("steps", BEAM_STEPS_HIGH if q.get("name") == "high" else BEAM_STEPS)
 	_target = _target_activity()
 	if not live:
 		activity = 0.0

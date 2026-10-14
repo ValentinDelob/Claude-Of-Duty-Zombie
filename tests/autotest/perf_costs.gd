@@ -171,6 +171,21 @@ func _modes(zombies: bool) -> Array:
 			var pool := l.get_node_or_null("Pool") as SpotLight3D
 			if pool:
 				pool.visible = on])
+	# Dehors des fenêtres (WindowOutside) : tout, puis chaque partie.
+	if game.barricades:
+		var outs: Array = []
+		for b: Barricade in game.barricades.windows:
+			if b.outside:
+				outs.append(b.outside)
+		m.append(["dehors des fenêtres (tout)", func(on: bool):
+			for o: WindowOutside in outs:
+				o.visible = on])
+		for part in ["card", "beams", "shaft", "motes"]:
+			m.append(["~ fenêtres : " + part, func(on: bool):
+				for o: WindowOutside in outs:
+					var n := o.get(part) as Node3D
+					if n:
+						n.visible = on and (part == "card" or o.live)])
 	if at.get_viewport().msaa_3d != Viewport.MSAA_DISABLED:
 		m.append(["MSAA", func(on: bool): at.get_viewport().msaa_3d = RenderQuality.current().msaa if on else Viewport.MSAA_DISABLED])
 	if zombies:

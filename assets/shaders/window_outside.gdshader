@@ -12,7 +12,7 @@ shader_type spatial;
 // sur une grille de 5 cm (style cubique), noyés dans la brume selon leur
 // profondeur : on les lit comme lointains et flous, jamais comme de vrais
 // zombies. Tout est paramétré par instance (un seul matériau partagé).
-render_mode unshaded, cull_back, depth_draw_opaque;
+render_mode unshaded, cull_back, depth_draw_opaque, fog_disabled;
 
 instance uniform vec4 wo_seed = vec4(0.1, 0.4, 0.7, 0.9);
 // Activité des silhouettes (0 : aucune ; 1 : manche en cours).
