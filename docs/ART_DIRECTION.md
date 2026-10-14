@@ -1092,7 +1092,13 @@ plus en plus loin de la cible.
   ses écarts).
 - [x] Palette bleu-vert / vert d'eau : couleur moyenne de la cible par
   tranche de luminance (12 tranches, mesurées) appliquée aux ombres et tons
-  moyens ; ombres virées vers le cyan-bleu-vert.
+  moyens ; ombres virées vers le cyan-bleu-vert. Les deux ne touchent QUE
+  les pixels déjà froids (teinte bleu-vert, cyan, bleu) : les ambiances
+  chaudes des pièces (RoomMood : dortoir et garde orangés, générateur en
+  alarme rouge) gardent leur teinte (écart de teinte moyenne mesuré
+  < 10° avec le CLASSIQUE : garde 68° -> 75°, dortoir 34° -> 35°,
+  générateur 344° -> 350°), et une couleur qui dépasserait le blanc est
+  ramenée en bloc (un orange relevé ne vire pas au jaune).
 - [x] Chaleur locale (lampes, peau, bois) : seuls les pixels déjà orange /
   ambre et saturés gagnent de la saturation (+25 % au plus) ; aucune teinte
   chaude ajoutée par la luminance (le sol éclairé virait au jaune citron).

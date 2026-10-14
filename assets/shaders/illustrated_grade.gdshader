@@ -85,6 +85,15 @@ void fragment() {
 	vec2 px = SCREEN_PIXEL_SIZE;
 	vec3 src = textureLod(screen_tex, SCREEN_UV, 0.0).rgb;
 	vec3 c = src;
+	// Teinte propre de la scène respectée : la carte de couleurs de la cible
+	// et le virage bleu-vert des ombres ne touchent que les pixels FROIDS
+	// (bleu-vert, cyan, bleu). Les pièces chaudes
+	// (bois orangé, lampes ambrées, alarme rouge) gardent leur ambiance.
+	vec3 hsv_c = rgb2hsv(src);
+	float cool = smoothstep(0.35, 0.42, hsv_c.x) * (1.0 - smoothstep(0.72, 0.8, hsv_c.x));
+	// (les gris presque purs gardent aussi leur teinte : sinon le sol neutre
+	// d’une pièce chaude deviendrait bleu-vert entre les flaques chaudes).
+	float map_w = cool;
 	// Netteté locale : écart à la moyenne d'un voisinage de ~6 px (1080p).
 	float k = (1.0 / px.y) / ref_height;
 	vec2 o = px * 6.0 * k;
@@ -115,17 +124,16 @@ void fragment() {
 	vec3 hue_tgt = tc / max(luma(tc), 1e-4);
 	// Carte de la cible seulement sous les hautes lumières (ses tranches
 	// claires mélangent lampes chaudes et carrelage bleu-vert : olive).
-	vec3 col = l2 * mix(hue_own, hue_tgt, map_k * (1.0 - smoothstep(0.3, 0.5, l2)));
+	vec3 col = l2 * mix(hue_own, hue_tgt, map_k * map_w * (1.0 - smoothstep(0.3, 0.5, l2)));
 	// Saturation relevée dans les ombres et tons moyens seulement (le
 	// carrelage clair ne vire pas au jaune citron).
 	col = max(mix(vec3(luma(col)), col, mix(saturation, 1.0, smoothstep(0.3, 0.5, l2))), vec3(0.0));
 	// Ombres et tons sombres vers le cyan-bleu-vert ; les hautes lumières
 	// gardent leur teinte du CLASSIQUE (le carrelage crème reste crème).
 	float lo = 1.0 - smoothstep(0.3, 0.5, l2);
-	col *= mix(vec3(1.0), shadow_tint, split_k * lo);
+	col *= mix(vec3(1.0), shadow_tint, split_k * lo * map_w);
 	// Chaleur : seulement les pixels DÉJÀ orange / ambre et assez saturés
 	// (ampoules, halos des lampes, peau, bois) : saturation +25 % au plus.
-	vec3 hsv_c = rgb2hsv(src);
 	float orange = smoothstep(0.02, 0.05, hsv_c.x) * (1.0 - smoothstep(0.11, 0.14, hsv_c.x))
 			* smoothstep(0.22, 0.3, hsv_c.y);
 	col = max(mix(vec3(luma(col)), col, 1.0 + warm_boost * orange), vec3(0.0));
@@ -145,6 +153,12 @@ void fragment() {
 			halo += max(s - vec3(glow_threshold), vec3(0.0));
 		}
 		col += halo * (glow / 8.0);
+	}
+	// Teinte gardée aux fortes valeurs : un canal qui dépasserait 1 serait
+	// écrêté seul (orange relevé -> jaune) ; toute la couleur est ramenée.
+	float mx = max(col.r, max(col.g, col.b));
+	if (mx > 1.0) {
+		col /= mx;
 	}
 	// Vignette douce.
 	vec2 v = SCREEN_UV - 0.5;
