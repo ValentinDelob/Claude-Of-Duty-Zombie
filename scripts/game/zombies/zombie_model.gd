@@ -41,9 +41,9 @@ const BONE := Color(0.72, 0.66, 0.52)
 const TEETH := Color(0.62, 0.56, 0.4)
 const SOCKET := Color(0.06, 0.03, 0.03)
 const HAIR := [Color(0.1, 0.085, 0.07), Color(0.2, 0.17, 0.12), Color(0.3, 0.29, 0.27)]
-## Yeux jaunes de Kino der Toten.
+## Yeux jaunes de Kino der Toten ; lueur jaune-vert (docs/art/gemini_target.webp).
 const EYE := Color(1.0, 0.86, 0.3)
-const EYE_EMISSION := Color(1.0, 0.78, 0.18)
+const EYE_EMISSION := Color(0.88, 1.0, 0.26)
 const COAT := [Color(0.7, 0.69, 0.62), Color(0.62, 0.62, 0.56)]
 const SHIRT := [Color(0.62, 0.6, 0.53), Color(0.48, 0.47, 0.43), Color(0.42, 0.44, 0.47)]
 const VEST := [Color(0.22, 0.17, 0.13), Color(0.18, 0.18, 0.19), Color(0.28, 0.24, 0.18)]
@@ -146,6 +146,10 @@ static func variant_of(arch: int, n := 0) -> int:
 const MODEL_PATH := "res://assets/models/zombies/zombie_voxel.glb"
 ## Côté d'un cube du modèle (m) : dissolution cube par cube (zombie.gdshader).
 const MODEL_CUBE := 0.025
+## Lueur des yeux du modèle cubique, de près ; renforcée avec la distance
+## (eye_far_boost, zombie_expressive.gdshaderinc) : lisible au fond d'un
+## couloir sans noyer le visage dans le halo de près.
+const MODEL_EYE_ENERGY := 5.0
 static var use_model := not ("--procedural-zombies" in OS.get_cmdline_user_args())
 static var _model_skin: Skin
 static var _voxel_material: ShaderMaterial
@@ -196,10 +200,19 @@ static func _voxel_mat(dissolve: bool) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://assets/shaders/zombie_voxel_dissolve.gdshader") if dissolve else preload("res://assets/shaders/zombie_voxel.gdshader")
 	mat.set_shader_parameter("emission_color", EYE_EMISSION)
-	mat.set_shader_parameter("emission_energy", 6.5)
+	mat.set_shader_parameter("emission_energy", MODEL_EYE_ENERGY)
 	mat.set_shader_parameter("voxel_cell", MODEL_CUBE)
+	# Variantes de visage et de blouse par zombie (zombie_expressive.gdshaderinc).
+	mat.set_shader_parameter("face_detail", 1.0)
 	IllustratedStyle.bind(mat, IllustratedStyle.Kind.CHAR)
 	return mat
+
+
+## Graine d'apparence (0..1) du zombie `variant` : phase du scintillement des
+## yeux, variante de visage, éclaboussures de la blouse (déterministe : la
+## même sur tous les pairs).
+static func look_seed(variant: int) -> float:
+	return fposmod(float(posmod(variant, 100003)) * 0.6180339887, 1.0)
 
 
 static func _build_model(variant: int) -> Skeleton3D:
@@ -222,6 +235,7 @@ static func _build_model(variant: int) -> Skeleton3D:
 	var tint: Array = MODEL_TINTS[posmod(variant, MODEL_TINTS.size())]
 	var c: Color = tint[0]
 	mi.set_instance_shader_parameter("look_tint", Color(c.r, c.g, c.b, tint[1]))
+	mi.set_instance_shader_parameter("look_seed", look_seed(variant))
 	return skel
 
 

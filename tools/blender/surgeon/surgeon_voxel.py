@@ -731,6 +731,8 @@ def build(use_cache=False):
     else:
         m = describe()
         vx.save_cache(m, CACHE)
+    # Orbites lisibles (lueur des yeux dans un creux sombre).
+    info["sockets"] = vx.eye_sockets(m)
     ob, mi = vx.build_mesh(m, "surgeon_voxel")
     info.update(mi)
     rig = vx.build_armature("surgeon_voxel_rig", BONES, CUBE)

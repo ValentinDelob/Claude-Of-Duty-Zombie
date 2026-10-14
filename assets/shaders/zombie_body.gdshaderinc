@@ -4,6 +4,8 @@
 // 3 métal, 4 plaie/sang, 5 os/dents), bruit calculé sur la position de REPOS
 // (UV.xy, UV2.x : les taches ne glissent pas pendant l'animation), yeux
 // émissifs (alpha du sommet), flash de touche (uniforms par instance).
+// VOXEL : yeux vivants, orbites, sang lisible et variantes de visage dans
+// zombie_expressive.gdshaderinc (deux appels : xp_albedo, xp_emission).
 // DISSOLVE (variante des corps qui se dissolvent) : `discard`. Un shader sans
 // `discard` garde la pré-passe de profondeur et les passes d'ombre simples
 // (ce fragment n'y est pas exécuté) : les zombies vivants n'en paient pas le
@@ -32,6 +34,8 @@ instance uniform float heart_glow = 1.0;
 instance uniform vec4 look_tint = vec4(1.0);
 // Contre-jour froid (x couleur de la face) : lumière d'ambiance des cartes.
 uniform vec4 rim_color : source_color = vec4(0.35, 0.75, 0.8, 1.0);
+// Yeux vivants, orbites, variantes de visage et de blouse.
+#include "res://assets/shaders/zombie_expressive.gdshaderinc"
 #endif
 
 varying vec3 rest_pos;
@@ -81,6 +85,7 @@ void fragment() {
 	} else if (vm < 1.5) {
 		vcol *= look_tint.a;
 	}
+	vcol = xp_albedo(vcol, vm, p, rest_n, voxel_cell);
 	bool wet = vm > 3.5 && vm < 4.5;
 	ALBEDO = mix(vcol, vec3(1.0, 0.2, 0.15), hit_flash * 0.6);
 	ROUGHNESS = wet ? 0.3 : 0.85;
@@ -93,6 +98,7 @@ void fragment() {
 	float heart_k = step(0.25, COLOR.a) * step(COLOR.a, 0.75);
 	EMISSION = emission_color.rgb * emission_energy * eye_k * eye_glow
 		+ COLOR.rgb * heart_energy * heart_k * heart_glow + vec3(0.6, 0.05, 0.02) * hit_flash;
+	EMISSION += xp_emission(COLOR, vcol, emission_color.rgb * emission_energy * eye_glow, TIME, length(VERTEX));
 	// Contre-jour froid (docs/ART_DIRECTION.md « Lumière et ambiance ») :
 	// les faces vues de biais prennent un peu de la lumière bleu-vert de la
 	// pièce : la silhouette se détache du fond même dans le noir.

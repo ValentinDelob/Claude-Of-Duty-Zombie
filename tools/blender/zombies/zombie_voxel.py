@@ -510,6 +510,155 @@ def split_skirt(m):
     return n
 
 
+# ---------------------------------------------------------------------------
+# Expressivité (docs/ART_DIRECTION.md « Zombie patient », visage et blouse) :
+# passe déterministe APRÈS la planche ou le cache (le cache garde le modèle
+# prélevé ; cette passe est rejouée à chaque export, comme split_skirt).
+# ---------------------------------------------------------------------------
+
+SOCKET = (0.06, 0.07, 0.05)       # fond des orbites (matière « socket »)
+BROW = 0.62                       # arcades froncées : face avant assombrie
+SKIN_HOLLOW = 0.72                # joues creuses
+SKIN_BONE = 1.14                  # pommettes
+BLOOD_DRY = (0.30, 0.06, 0.05)
+BLOOD_FRESH = (0.44, 0.05, 0.04)
+TEAR_SKIN = (0.26, 0.32, 0.22)    # peau vue par une déchirure
+TEAR_EDGE = (0.40, 0.38, 0.30)    # tissu effiloché
+GOWN = ("torso", "skirt")
+
+# Motifs plaqués sur la blouse : (x gauche, z du haut, rangées, face) ; une
+# rangée par z (vers le bas), un caractère par x : « o » déchirure (cube de
+# devant ôté, peau ou vide derrière), « # » sang séché, « r » sang frais.
+GOWN_MARKS = [
+    # Déchirure en biais sur le ventre (côté droit du zombie), bord sanglant
+    # et coulure.
+    (-7, 35, ["....#r",
+              "...#oo",
+              "..#oor",
+              ".#oo#.",
+              "#oor..",
+              "#o#...",
+              ".r....",
+              ".r#...",
+              "..r..."], "-y"),
+    # Sang craché qui coule de l'encolure sur la poitrine.
+    (-1, 45, ["rr.",
+              "#r.",
+              "#rr",
+              ".r#",
+              ".r.",
+              ".#."], "-y"),
+    # Grosse tache sur la hanche droite.
+    (-9, 28, [".##..",
+              "#rr#.",
+              "#rrr#",
+              ".#r##",
+              "..#r.",
+              "...#."], "-y"),
+    # Accroc au bas de la blouse (côté gauche), sang autour.
+    (5, 20, [".#.",
+             "#o#",
+             "oo#",
+             ".o."], "-y"),
+    # Dos : traînée de sang (plaie du dos) et accroc.
+    (-5, 41, ["..##.",
+              ".#rr#",
+              "#rorr",
+              ".#oo#",
+              "..r#.",
+              "..r..",
+              "..#.."], "+y"),
+]
+
+
+def _surface(m, x, z, parts, d):
+    """Cellule de `parts` la plus en avant (d = « -y ») ou en arrière
+    (« +y ») de la colonne (x, z), ou None."""
+    ys = [c[1] for c, v in m.vox.items() if c[0] == x and c[2] == z and v.part in parts]
+    if not ys:
+        return None
+    return (x, min(ys) if d == "-y" else max(ys), z)
+
+
+def expressive_pass(m):
+    info = {}
+    # --- orbites : trou noir autour des yeux (reflet de la lueur en jeu) ---
+    info["sockets"] = vx.eye_sockets(m, SOCKET, rim=0.42)
+    # --- arcades froncées (colère) : la saillie descend vers le nez ---
+    head = [c for c, v in m.vox.items() if v.part == "head"]
+    brow_y = min(c[1] for c in head)   # rangée en saillie (arcades)
+    for x_out, x_in in ((-6, -2), (5, 1)):
+        m.vox.pop((x_out, brow_y, 62), None)
+        if (x_in, brow_y, 62) in m.vox:
+            m.set(x_in, brow_y, 61, "skin", "head", "head", SKIN)
+    for c in [c for c, v in m.vox.items() if v.part == "head" and c[1] == brow_y]:
+        for d in ("-y", "-x", "+x"):
+            m.face_color[(c[0], c[1], c[2], d)] = vx.tone(SKIN, BROW)
+        m.face_color[(c[0], c[1], c[2], "-z")] = SOCKET
+    # --- joues creuses, pommettes, cernes ---
+    def front(x, z, parts=("head",)):
+        return _surface(m, x, z, parts, "-y")
+
+    def tone_face(c, d, f):
+        if c is not None and m.mat_of(c, d) not in ("eye", "socket", "wound", "bone"):
+            m.face_color[(c[0], c[1], c[2], d)] = vx.tone(m.color_of(c, d), f)
+
+    for z in (56, 57, 58):
+        for x in (-8, -7, -6, 5, 6, 7):
+            tone_face(front(x, z), "-y", SKIN_HOLLOW)
+    for x in (-8, -7, 6, 7):
+        tone_face(front(x, 59), "-y", SKIN_BONE)
+    for x in list(range(-5, -2)) + list(range(2, 5)):
+        tone_face(front(x, 58), "-y", 0.66)
+    # Côtés de la tête sous les pommettes : creusés aussi.
+    for c, v in list(m.vox.items()):
+        if v.part == "head" and 56 <= c[2] <= 58:
+            for d in ("-x", "+x"):
+                if (c[0] + vx.DIRS[d][0], c[1], c[2]) not in m.vox:
+                    tone_face(c, d, 0.82)
+    # --- bouche béante : dents irrégulières en plus (un croc plus long) ---
+    teeth = [c for c, v in m.vox.items() if v.part == "teeth"]
+    if teeth:
+        ty = teeth[0][1]
+        for x, z in ((-4, 52), (3, 52), (-3, 54)):
+            if (x, ty, z) not in m.vox:
+                m.set(x, ty, z, "bone", "jaw", "teeth", TOOTH)
+    # --- blouse : déchirures et sang ---
+    tears = blood = 0
+    for x0, ztop, rows, d in GOWN_MARKS:
+        n = vx.DIRS[d]
+        for k, row in enumerate(rows):
+            z = ztop - k
+            for i, ch in enumerate(row):
+                if ch == ".":
+                    continue
+                c = _surface(m, x0 + i, z, GOWN, d)
+                if c is None:
+                    continue
+                if ch == "o":
+                    v = m.vox.pop(c)
+                    tears += 1
+                    # Derrière : peau (torse plein) ; jupe creuse : on voit
+                    # l'intérieur (ou la jambe).
+                    b = (c[0] - n[0], c[1] - n[1], c[2] - n[2])
+                    if b in m.vox and m.vox[b].part in GOWN:
+                        m.face_color[b + (d,)] = TEAR_SKIN
+                        m.face_mat[b + (d,)] = "skin"
+                    for dd, nn in vx.DIRS.items():
+                        w = (c[0] + nn[0], c[1] + nn[1], c[2] + nn[2])
+                        inward = [k2 for k2, v2 in vx.DIRS.items() if v2 == (-nn[0], -nn[1], -nn[2])][0]
+                        if w in m.vox and m.vox[w].part in GOWN and dd != d and w != b:
+                            m.face_color[w + (inward,)] = TEAR_EDGE
+                    del v
+                else:
+                    m.face_color[c + (d,)] = BLOOD_FRESH if ch == "r" else BLOOD_DRY
+                    m.face_mat[c + (d,)] = "wound"
+                    blood += 1
+    info["gown_tears"] = tears
+    info["gown_blood"] = blood
+    return info
+
+
 def build(use_cache=False):
     ref = None if use_cache else _ref_path()
     info = {}
@@ -524,6 +673,7 @@ def build(use_cache=False):
         m = vx.load_cache(CACHE)
         info["from_cache"] = True
     info["skirt_on_thighs"] = split_skirt(m)
+    info["expressive"] = expressive_pass(m)
     ob, mi = vx.build_mesh(m, "zombie_voxel")
     info.update(mi)
     rig = vx.build_armature("zombie_voxel_rig", BONES, CUBE)
