@@ -37,11 +37,11 @@ const WET_SURFACES := {
 const BASE_FOG_COLOR := Color(0.045, 0.085, 0.095)
 const BASE_FOG_DENSITY := 0.018
 const BASE_AMBIENT_COLOR := Color(0.24, 0.48, 0.53)
-const BASE_AMBIENT_ENERGY := 1.3
+const BASE_AMBIENT_ENERGY := 1.45
 const BASE_SATURATION := 0.9
 ## Brume volumétrique (qualités MEDIUM et HIGH, voir RenderQuality) : voile
 ## bleu-vert léger (part de l'ambiante diffusée) et faisceaux des lampes.
-const BASE_VOLUMETRIC_DENSITY := 0.016
+const BASE_VOLUMETRIC_DENSITY := 0.019
 const VOLUMETRIC_ALBEDO := Color(0.7, 0.86, 0.88)
 const VOLUMETRIC_AMBIENT_INJECT := 0.25
 

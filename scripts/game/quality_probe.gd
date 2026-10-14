@@ -27,8 +27,11 @@ const DEV_SCORE := 3.5
 ## volumétrique, flaques LampPool sous les néons, lampe de bureau) : le menu
 ## coûte 1,23 fois plus (1,84 -> 2,27 ms mesurés en 1080p par tools/perf.sh
 ## boot, avant / après, même machine) : référence relevée d'autant, pour que
-## le préréglage choisi ne change pas.
-const REF_MENU_MS := 3.55
+## le préréglage choisi ne change pas. Ambiance des pièces (14/10/2026 :
+## écran, tubes et panneau de sortie éclairés, salle chaude du couloir
+## transversal, ambiante relevée) : 2,36-2,42 -> 2,47 ms (x 1,03, même
+## mesure), référence relevée d'autant.
+const REF_MENU_MS := 3.65
 ## Indice minimal pour MEDIUM (60 fps en 1080p en partie) et pour HIGH.
 const MEDIUM_MIN := 0.9
 const HIGH_MIN := 2.6

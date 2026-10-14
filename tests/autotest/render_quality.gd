@@ -19,7 +19,11 @@ func run() -> void:
 	await H.clear_zombies(self)
 	var env: Environment = (game.world.get_node("WorldEnvironment") as WorldEnvironment).environment
 	var lamps := tree().get_nodes_in_group(RenderQuality.LAMP_GROUP)
-	at.check(lamps.size() == 24, "24 lampes gérées par RenderQuality (%d)" % lamps.size())
+	# 24 lampes de plafond + les sources d'appoint colorées de BUNKER K-7
+	# (MapDef.accent_lights : jamais d'ombre, voir le décompte plus bas).
+	var accents := lamps.filter(func(l): return l.has_meta("no_shadow")).size()
+	at.check(lamps.size() - accents == 24, "24 lampes de plafond gérées par RenderQuality (%d)" % (lamps.size() - accents))
+	at.check(accents == game.map_def.accent_lights.size(), "sources d'appoint gérées (%d)" % accents)
 	# Quelques zombies au fond de la salle de garde : sur place mais animés
 	# (squelettes en mouvement : les ombres des lampes proches sont
 	# redessinées), à la même distance pour chaque préréglage.

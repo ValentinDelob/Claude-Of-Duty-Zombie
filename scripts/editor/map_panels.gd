@@ -219,6 +219,21 @@ func _option(box: Container, label: String, items: Array, selected_i: int, apply
 	return o
 
 
+## Format 23 : choix de l'ambiance (RoomMood) d'une pièce ou d'une zone
+## `target` ; premier choix « Auto » (`auto_txt`), qui retire la clé.
+func _mood_option(box: Container, target: Dictionary, auto_txt: String) -> OptionButton:
+	var items := [auto_txt]
+	for m in RoomMood.ORDER:
+		items.append(RoomMood.display_name(m))
+	var o := _option(box, Lang.t("Ambiance", "Mood"), items, RoomMood.ORDER.find(EditorMap.mood_value(target)) + 1, func(i):
+		ed.push_undo()
+		EditorMap.set_mood(target, RoomMood.AUTO if i == 0 else String(RoomMood.ORDER[i - 1]))
+		ed.changed())
+	o.tooltip_text = Lang.t("Couleur des lampes, lumière d'ambiance et brume de la pièce : froid (bleu-vert), chaud (orange), alarme (rouge qui pulse), néon (violet), éteint (presque noir). Auto : déduite du nom, du sol et des luminaires.",
+		"Lamp colour, ambient light and haze of the room: cold (teal), warm (orange), alarm (pulsing red), neon (violet), lights out (nearly dark). Auto: derived from the name, floor and fixtures.")
+	return o
+
+
 func _check(box: Container, text: String, value: bool, apply: Callable) -> CheckBox:
 	var c := CheckBox.new()
 	c.text = text
@@ -605,8 +620,14 @@ func _room_props(r: Dictionary) -> void:
 		_note(_props, Lang.t("Pièce haute : elle traverse le niveau du dessus (vide et murs ; une pièce posée au-dessus est une mezzanine).",
 			"High room: it goes through the level above (void and walls; a room placed above is a mezzanine)."))
 	MapPanelsShape.room_shape(self, r)
-	# Textures de la pièce (par défaut : celles de sa zone).
 	var z := ed.doc.zone(String(r.get("zone", "")))
+	# Format 23 : ambiance de la pièce (RoomMood) ; « Auto » : celle de la
+	# zone si elle en a une, sinon déduite (nom, sol, luminaires).
+	var zm := EditorMap.mood_value(z)
+	var auto_txt := Lang.t("Auto (zone : %s)", "Auto (zone: %s)") % RoomMood.display_name(zm) if zm != "" \
+		else Lang.t("Auto (déduite : %s)", "Auto (derived: %s)") % RoomMood.display_name(ed.doc.derived_mood(r))
+	_mood_option(_props, r, auto_txt)
+	# Textures de la pièce (par défaut : celles de sa zone).
 	_title(_props, Lang.t("Textures", "Textures"))
 	_surface_option(_props, Lang.t("Sol", "Floor"), r, "surface_sol", String(z.get("sol", "concrete")))
 	_surface_option(_props, Lang.t("Murs", "Walls"), r, "surface_murs", String(z.get("murs", "wall")))
@@ -1331,6 +1352,8 @@ func _fill_zone_form() -> void:
 	_surface_option(_zone_form, Lang.t("Plafond", "Ceiling"), z, "plafond", "ceiling", true)
 	_note(_zone_form, Lang.t("Textures par défaut des pièces de la zone (chaque pièce peut avoir les siennes : onglet Propriétés).",
 		"Default textures of the zone's rooms (each room may have its own: Properties tab)."))
+	# Format 23 : ambiance par défaut des pièces de la zone.
+	_mood_option(_zone_form, z, Lang.t("Auto (déduite par pièce)", "Auto (derived per room)"))
 	var rooms := ed.doc.rooms_of_zone(_zone_sel).map(func(p): return String(p.get("nom", p.id)))
 	_note(_zone_form, Lang.t("Pièces : %s", "Rooms: %s") % ", ".join(rooms))
 	var start := _zone_sel == ed.doc.depart

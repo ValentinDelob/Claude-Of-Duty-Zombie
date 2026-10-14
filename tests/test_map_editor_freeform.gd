@@ -807,7 +807,14 @@ func test_format_4_round_trip_and_older_formats() -> void:
 	var lang := Settings.language
 	Settings.language = "fr"
 	var vd := _check(draft)
-	var sha := JSON.stringify(MapLayoutExport.build(vd), "", true).sha256_text()
+	var lay := MapLayoutExport.build(vd)
+	# Format 23 : ambiances DÉDUITES des noms (« Salle des machines » -> alarme,
+	# « Couloir de service » -> froid...) en plus ; la géométrie reste octet
+	# pour octet celle d'avant.
+	var moods: Array = lay.get("moods", [])
+	assert_false(moods.is_empty(), "DRAFT ARENA : ambiances déduites des noms")
+	lay.erase("moods")
+	var sha := JSON.stringify(lay, "", true).sha256_text()
 	Settings.language = lang
 	assert_true(vd.ok(), _errs(vd))
 	assert_eq(sha, DRAFT_LAYOUT_SHA, "DRAFT ARENA construite octet pour octet comme avant")

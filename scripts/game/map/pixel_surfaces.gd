@@ -84,7 +84,9 @@ const DEFS := {
 	"wall_ritual": {"gen": "stone", "tone": ["stone", "charred", 0.4], "f": 0.32, "seed": 24, "glow": 1.1, "veins": 2,
 		"blood": true, "matte": true, "wall": true},
 	# Plafonds : dalles suspendues, voûte, caissons.
-	"ceiling": {"gen": "ceiling", "tone": "ash", "f": 0.4, "seed": 25, "ps": 16, "rough": 1.0},
+	# Plafond sombre mais LISIBLE (docs/ART_DIRECTION.md « Ambiance des
+	# pièces » : la cible garde des plafonds bleu-vert foncé, pas noirs).
+	"ceiling": {"gen": "ceiling", "tone": "ash", "f": 0.55, "seed": 25, "ps": 16, "rough": 1.0},
 	"vault_theater": {"gen": "ceiling", "tone": ["plaster", "ash", 0.5], "f": 0.36, "seed": 26, "ps": 32, "rough": 1.0},
 	"ceiling_theater": {"gen": "ceiling", "tone": "wood_dark", "f": 0.48, "seed": 27, "ps": 16, "coffer": true, "rough": 1.0},
 	# Moquettes et tissu.

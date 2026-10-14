@@ -171,6 +171,28 @@ func _modes(zombies: bool) -> Array:
 			var pool := l.get_node_or_null("Pool") as SpotLight3D
 			if pool:
 				pool.visible = on])
+	# Ambiance des pièces (docs/ART_DIRECTION.md « Ambiance des pièces »).
+	var props := game.world.find_child("Props", true, false)
+	var mz := props.get_node_or_null("Moods") if props else null
+	if mz:
+		m.append(["ambiances : remplissage", func(on: bool):
+			for f in mz.find_children("Fill*", "OmniLight3D", false, false):
+				f.visible = on])
+		m.append(["ambiances : brume teintée", func(on: bool):
+			for f in mz.find_children("*", "FogVolume", false, false):
+				f.visible = on])
+	m.append(["rebond des lampes (plafond)", func(on: bool):
+		for l: OmniLight3D in tree().get_nodes_in_group(RenderQuality.LAMP_GROUP):
+			var b := l.get_node_or_null("Bounce") as Light3D
+			if b:
+				b.visible = on])
+	var dust := props.get_node_or_null("LampDust") if props else null
+	if dust:
+		m.append(["poussière des lampes", func(on: bool): dust.visible = on and RenderQuality.current().name != "low"])
+	m.append(["sources d'appoint (gyrophares, écrans...)", func(on: bool):
+		for l: OmniLight3D in tree().get_nodes_in_group(RenderQuality.LAMP_GROUP):
+			if l.has_meta("no_shadow"):
+				l.visible = on])
 	if at.get_viewport().msaa_3d != Viewport.MSAA_DISABLED:
 		m.append(["MSAA", func(on: bool): at.get_viewport().msaa_3d = RenderQuality.current().msaa if on else Viewport.MSAA_DISABLED])
 	if zombies:

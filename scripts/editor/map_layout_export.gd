@@ -31,6 +31,8 @@ var nav_blocks: Array = []
 ## (MapEffects ; aucune collision). « ground » : distance (m) de l'effet au sol.
 var effects: Array = []
 var zone_boxes: Array = []   # [niveau, volume, zone, boîte]
+## Format 23 : « zone|ambiance|niveau » -> {mood, boxes [[x0,y0,z0,x1,y1,z1]...]}.
+var mood_areas: Dictionary = {}
 ## Boîtes de zone des morceaux de sol le long des murs obliques : testées après
 ## celles des salles de la grille (une boîte englobante déborde un peu du mur).
 var filler_boxes: Array = []
@@ -171,6 +173,12 @@ func _build() -> Dictionary:
 		out["effects"] = effects
 	if not nav_blocks.is_empty():
 		out["nav_blocks"] = nav_blocks
+	# Format 23 : ambiances des pièces (RoomMood, MeshMapBuilder._build_moods) :
+	# [{mood, boxes}] par zone, ambiance et niveau (ordre stable).
+	if not mood_areas.is_empty():
+		var mk := mood_areas.keys()
+		mk.sort()
+		out["moods"] = mk.map(func(key): return mood_areas[key])
 	# Format 20 : filet de sécurité, toute l'architecture sur la grille des
 	# cubes de 5 cm (cartes reçues, anciennes valeurs, morceaux calculés).
 	snap_layout(out)
@@ -371,17 +379,20 @@ func _rooms(f: MapValidator.Floor) -> void:
 				zone = String(md.room_zone.get(rid, ""))
 			if door_of[k].has(c):
 				key = "porte%s|%s|%s" % [door_of[k][c].id, ce[0], ce[1]]
-				info[key] = [door_of[k][c].id, zone, ce, "wood", "ceiling"]
+				info[key] = [door_of[k][c].id, zone, ce, "wood", "ceiling", "", false]
 			else:
 				var fm := surface_of(rid, "sol", zone, "concrete")
 				var cm := surface_of(rid, "plafond", zone, "ceiling")
-				key = "%s|%s|%s|%s|%s" % [zone, ce[0], ce[1], fm, cm]
-				info[key] = ["", zone, ce, fm, cm]
+				# Format 23 : l'ambiance sépare aussi les salles (boîtes d'ambiance).
+				var mood := String(md.room_mood.get(rid, ""))
+				key = "%s|%s|%s|%s|%s|%s" % [zone, ce[0], ce[1], fm, cm, mood]
+				info[key] = ["", zone, ce, fm, cm, mood, false]
 			# Plafond masqué (format 17) : son propre plafond, pièce sans plafond.
 			if bool(ce[1]) and MapVertical.open_at(md, k, c):
-				var ik: Array = info[key]
+				var ik: Array = (info[key] as Array).duplicate()
+				ik[6] = true
 				key += "|ciel"
-				info[key] = ik + [true]
+				info[key] = ik
 			keys[y * f.w + x] = key
 	var n := 0
 	for rk in merge_rects(f.w, f.h, keys):
@@ -394,7 +405,7 @@ func _rooms(f: MapValidator.Floor) -> void:
 			"floor_mat": String(inf[3]), "ceiling_mat": String(inf[4])}
 		if not inf[2][1]:
 			room["ceiling"] = under_slab(float(inf[2][0]))
-		if inf.size() > 5:
+		if bool(inf[6]):
 			# Ciel ouvert : ni plafond ni collision (MeshMapGeometry) ; « ceiling »
 			# reste le plafond virtuel (zones, luminaires accrochés).
 			room["no_ceiling"] = true
@@ -407,6 +418,13 @@ func _rooms(f: MapValidator.Floor) -> void:
 			var lo := f.sol - (0.5 if k == 0 else 0.15)
 			var b := [wx(r.position.x), _r(lo), wx(r.position.y), wx(r.end.x), _r(inf[2][0]), wx(r.end.y)]
 			zone_boxes.append([k, (b[3] - b[0]) * (b[4] - b[1]) * (b[5] - b[2]), zone, b])
+			# Format 23 : boîte d'ambiance (du sol au plafond de la salle).
+			var mood := String(inf[5])
+			if mood != "":
+				var mk := "%s|%s|%d" % [zone, mood, k]
+				if not mood_areas.has(mk):
+					mood_areas[mk] = {"mood": mood, "boxes": []}
+				mood_areas[mk].boxes.append([b[0], _r(f.sol), b[2], b[3], b[4], b[5]])
 
 
 ## Matériau d'un demi-mur : la moitié (sx, sy) de la case de mur `c` (0 :

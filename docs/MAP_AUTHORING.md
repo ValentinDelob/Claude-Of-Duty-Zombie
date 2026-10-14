@@ -496,6 +496,11 @@ jeu (`EditorPrefabs` : table et chaise renversées, chariot,
   commun des lampes (`MapProps.add_lamp` : `PowerGrid`, `LightFlicker`,
   `RenderQuality` pour les ombres et le fondu) ; leurs objets ne projettent
   pas d'ombre.
+- **Sources d'appoint colorées** (format 23, docs/MAP_OBJECTS.md § 18) :
+  gyrophare d'alarme et panneau de sortie (au mur), écran de contrôle et
+  tubes à essai lumineux (au sol ou sur un meuble), enseigne au néon (au
+  mur, 1 m) ; lumière courte, jamais d'ombre ; un gyrophare met sa pièce en
+  alarme, une enseigne en néon (ambiance déduite, § 4).
 
 Règles de pose en plus (`MapRules.layer_of`) :
 - décor et luminaires au sol : dans une pièce, sans toucher ses murs, sans
@@ -782,10 +787,18 @@ garde la valeur) ; une altitude peut être négative (sous-sol).
   (le jeu construit les murs par demi-cases de 0,25 m). Sous une pièce posée
   au-dessus, on voit d'en bas le **plafond de la pièce du bas** (sa texture,
   juste sous la dalle) et, d'en haut, le sol de la pièce du dessus.
+  **Ambiance** (format 23, docs/ART_DIRECTION.md « Ambiance des pièces ») :
+  Froid, Chaud, Alarme, Néon, Éteint, ou « Auto » : celle de la zone, sinon
+  déduite du nom de la pièce et de sa zone (« Laboratoire » : froid,
+  « Dortoir » : chaud, « Générateur » : alarme...), de son sol et de ses
+  luminaires (affichée : « Auto (déduite : Froid) »). Elle colore les lampes
+  du réseau électrique de la pièce (sauf un luminaire recoloré), ajoute une
+  lumière de remplissage et une brume teintée ; l'alarme pulse.
 - **Zone** (onglet Zones) : un groupe de pièces qui s'ouvre d'un coup (ses
   fenêtres s'activent ensemble, comme les zones de BO1). Par défaut une zone
   par pièce. Renommer en français et en anglais (noms affichés en jeu selon la
-  langue), textures par défaut du sol, des murs et du plafond, **fusionner** (les pièces d'une zone
+  langue), textures par défaut du sol, des murs et du plafond, **ambiance**
+  par défaut de ses pièces (format 23), **fusionner** (les pièces d'une zone
   rejoignent une autre), **séparer** (une zone par pièce), **zone de départ**
   (★, ouverte au début). Les pièces d'une même zone doivent être reliées par
   un passage libre ; une zone peut s'étendre sur plusieurs niveaux (achat et

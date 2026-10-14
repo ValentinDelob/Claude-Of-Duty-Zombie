@@ -421,6 +421,28 @@ static func _light(ci: CanvasItem, kind: String, _p: Rect2, cx: Vector2, s: floa
 			for q in [[-0.12, 0.3], [0.0, 0.45], [0.12, 0.32]]:
 				ci.draw_colored_polygon(PackedVector2Array([cx + Vector2(q[0] - 0.1, -0.05) * s, cx + Vector2(q[0] + 0.1, -0.05) * s,
 					cx + Vector2(q[0], -0.05 - q[1]) * s]), Color(1.0, 0.5, 0.1))
+		"gyrophare":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.28, s * 0.12), Vector2(s * 0.56, s * 0.14)), Color(0.3, 0.3, 0.32))
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.18, -s * 0.22), Vector2(s * 0.36, s * 0.34)), c)
+			ci.draw_line(cx + Vector2(-s * 0.45, -s * 0.05), cx + Vector2(-s * 0.22, -s * 0.05), c, 1.5)
+			ci.draw_line(cx + Vector2(s * 0.22, -s * 0.05), cx + Vector2(s * 0.45, -s * 0.05), c, 1.5)
+		"ecran":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.38, -s * 0.32), Vector2(s * 0.76, s * 0.52)), Color(0.22, 0.23, 0.24))
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.3, -s * 0.25), Vector2(s * 0.6, s * 0.38)), c)
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.06, s * 0.2), Vector2(s * 0.12, s * 0.16)), Color(0.22, 0.23, 0.24))
+		"tubes":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.4, s * 0.12), Vector2(s * 0.8, s * 0.1)), Color(0.55, 0.57, 0.6))
+			for x in [-0.25, 0.0, 0.25]:
+				ci.draw_rect(Rect2(cx + Vector2((x - 0.06) * s, -s * 0.35), Vector2(s * 0.12, s * 0.47)), c if x != 0.0 else Color(0.4, 0.7, 1.0))
+		"sortie":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.42, -s * 0.2), Vector2(s * 0.84, s * 0.4)), c)
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.3, -s * 0.08), Vector2(s * 0.3, s * 0.16)), Color(0.95, 1.0, 0.95))
+			ci.draw_colored_polygon(PackedVector2Array([cx + Vector2(s * 0.08, -s * 0.12), cx + Vector2(s * 0.32, 0), cx + Vector2(s * 0.08, s * 0.12)]), Color(0.95, 1.0, 0.95))
+		"enseigne":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.45, -s * 0.25), Vector2(s * 0.9, s * 0.5)), Color(0.12, 0.1, 0.14))
+			ci.draw_polyline(PackedVector2Array([cx + Vector2(-s * 0.32, s * 0.12), cx + Vector2(-s * 0.32, -s * 0.12), cx + Vector2(-s * 0.1, s * 0.12),
+				cx + Vector2(-s * 0.1, -s * 0.12)]), c, 2.0)
+			ci.draw_arc(cx + Vector2(s * 0.2, 0), s * 0.13, 0, TAU, 12, Color(0.3, 0.9, 1.0), 2.0)
 		_:
 			ci.draw_circle(cx, s * 0.3, glow)
 

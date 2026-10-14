@@ -558,6 +558,23 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
 | Post-traitement (`FilmPost`) | multiplicatif (grain, vignette) | lecture d'écran + aberration | idem |
 | Contour noir (`ScreenOutline`, option CONTOUR) | oui | oui | oui |
 
+- **Ambiance des pièces** (14/10/2026, docs/ART_DIRECTION.md « Ambiance des
+  pièces ») : remplissage d'ambiance (MoodZones : 2 par pièce, 11 m au plus ;
+  LOW : 1), brume teintée (FogVolume), rebond des lampes vers le plafond
+  (SpotLight3D sans ombre), poussière des cônes (un GPUParticles3D, MEDIUM et
+  HIGH), sources d'appoint colorées (sans ombre). Coût par poste
+  (`PERF_ARGS="--only=ambiances,rebond,poussière,appoint" sh tools/perf.sh
+  perf_costs`, labo + 24 zombies, 1080p, LOW) : remplissage +0,27 ms,
+  rebond +0,07 ms, appoint +0,10 ms, brume teintée et poussière ~0 (sous le
+  bruit) ; première mesure du remplissage à 3 par pièce et 14 m : +0,57 ms
+  en MEDIUM, d'où les bornes actuelles. `tools/perf.sh` (machine partagée
+  avec d'autres jeux en cours : +/- 0,5 ms de bruit), avant -> après :
+  menu MEDIUM 2,36-2,42 -> 2,47 ms (QualityProbe.REF_MENU_MS relevé
+  d'autant) ; map_tour MEDIUM, pire vue 3,19 -> 3,65 ms (232 fps, seuil
+  150) ; LOW 1,37-1,86 -> 1,60-2,47 ms (329 fps au plus bas) ; HIGH
+  4,78-5,91 -> 5,08-6,48 ms (141 fps : sous le seuil de 150 du scénario,
+  qui échouait déjà avant à 129 fps sur cette machine chargée).
+
 - **Contour noir** (`ScreenOutline`, voir docs/ART_DIRECTION.md « Contour noir
   en jeu ») : quad plein écran en tête des transparents, profondeur seule.
   Coût GPU mesuré (`PERF_ARGS="--only=contour" sh tools/perf.sh perf_costs`,

@@ -192,6 +192,24 @@ const LIGHTS := {
 	"feu": {"fr": "Brasero (feu)", "en": "Fire barrel", "mount": "sol", "fp": [2, 2], "y": 1.15,
 		"couleur": "#ff7a2a", "intensite": 2.4, "portee": 9.0, "courant": false, "vacille": true, "model": "voxel/feu", "bloque": "solide",
 		"boxes": [{"center": [0, 0.45, 0], "size": [0.62, 0.9, 0.62]}], "color": Color(1.0, 0.45, 0.1)},
+	# Sources d'appoint colorées (« accent », LampStyle.ACCENT : lumière courte,
+	# jamais d'ombre ; docs/ART_DIRECTION.md « Ambiance des pièces ») : elles
+	# racontent la pièce (alarme, moniteurs, expériences, sortie, néon).
+	"gyrophare": {"fr": "Gyrophare d'alarme", "en": "Alarm beacon", "mount": "mur", "fp": [1, 1], "y": 2.3,
+		"couleur": "#ff2a12", "intensite": 1.4, "portee": 4.5, "courant": false, "vacille": false, "model": "voxel/gyrophare",
+		"accent": "beacon", "color": Color(1.0, 0.18, 0.08)},
+	"ecran": {"fr": "Écran de contrôle", "en": "Monitor screen", "mount": "sol", "fp": [1, 1], "y": 0.22,
+		"couleur": "#5cffb4", "intensite": 0.55, "portee": 2.5, "courant": true, "vacille": false, "model": "voxel/ecran", "bloque": "non",
+		"accent": "screen", "color": Color(0.36, 1.0, 0.7)},
+	"tubes": {"fr": "Tubes à essai lumineux", "en": "Glowing test tubes", "mount": "sol", "fp": [1, 1], "y": 0.12,
+		"couleur": "#8cff3c", "intensite": 0.4, "portee": 2.6, "courant": false, "vacille": false, "model": "voxel/tubes", "bloque": "non",
+		"accent": "glow", "color": Color(0.55, 1.0, 0.24)},
+	"sortie": {"fr": "Panneau de sortie", "en": "Exit sign", "mount": "mur", "fp": [1, 1], "y": 2.45,
+		"couleur": "#3cff78", "intensite": 0.25, "portee": 2.5, "courant": false, "vacille": false, "model": "voxel/sortie",
+		"accent": "sign", "color": Color(0.24, 1.0, 0.47)},
+	"enseigne": {"fr": "Enseigne au néon", "en": "Neon sign", "mount": "mur", "fp": [2, 1], "y": 2.0,
+		"couleur": "#ff3cc8", "intensite": 1.0, "portee": 4.0, "courant": true, "vacille": true, "model": "voxel/enseigne",
+		"accent": "sign", "color": Color(1.0, 0.24, 0.78)},
 }
 
 ## Effets (format 10, type « effet » de objets.json, docs/MAP_OBJECTS.md §
@@ -1609,13 +1627,16 @@ static func room_keys() -> Dictionary:
 		"plafond": {"t": "number", "min": MapVertical.ROOM_CEILING[0]},
 		# Plafond masqué (format 17) : « true » seulement (EditorMap.no_ceiling).
 		"sans_plafond": {"t": "bool"},
-		"surface_sol": surf, "surface_murs": surf, "surface_plafond": surf, "forme": {"t": "shape"}}
+		"surface_sol": surf, "surface_murs": surf, "surface_plafond": surf, "forme": {"t": "shape"},
+		# Format 23 : ambiance choisie (RoomMood ; absente : déduite).
+		"ambiance": {"t": "enum", "values": RoomMood.ORDER}}
 
 
 ## Clés admises d'une zone (zones.json) ; {"t": "names", "max"} : {fr, en}.
 static func zone_keys() -> Dictionary:
 	var surf := {"t": "enum", "values": allowed_surfaces(), "map": true}
-	return {"id": {"t": "id"}, "nom": {"t": "names", "max": 64}, "sol": surf, "murs": surf, "plafond": surf}
+	return {"id": {"t": "id"}, "nom": {"t": "names", "max": 64}, "sol": surf, "murs": surf, "plafond": surf,
+		"ambiance": {"t": "enum", "values": RoomMood.ORDER}}
 
 
 # ------------------------------------------------------------------ surfaces (aperçu, noms)
