@@ -1,0 +1,20 @@
+{
+    "title":  {
+                  "en":  "Scarier, more expressive zombies",
+                  "fr":  "Des zombies plus expressifs et plus effrayants"
+              },
+    "items":  [
+                  {
+                      "en":  "Zombies have a meaner face: glowing yellow-green eyes deep in dark sockets, a frowning brow, hollow cheeks and a gaping mouth full of crooked teeth. Their eyes flicker and stay visible at the far end of a dark corridor.",
+                      "fr":  "Les zombies ont une sale tête : yeux jaune-vert qui brillent au fond d'orbites noires, sourcils froncés, joues creuses et bouche béante pleine de dents tordues. Leurs yeux vacillent et restent visibles au fond d'un couloir sombre."
+                  },
+                  {
+                      "en":  "Hospital gowns are torn and bloodstained, and no two zombies look quite alike: bloody chin, bruised eyes, split skull, splashes of blood.",
+                      "fr":  "Les blouses d'hôpital sont déchirées et tachées de sang, et deux zombies ne se ressemblent plus tout à fait : menton ensanglanté, yeux meurtris, crâne fendu, éclaboussures de sang."
+                  },
+                  {
+                      "en":  "Blood now stays red in dim rooms instead of turning black, and dogs, the Stretcher-Bearer, the Nurse and the Surgeon get the same darker eye sockets and flickering eyes.",
+                      "fr":  "Le sang reste rouge dans les pièces sombres au lieu de virer au noir, et les chiens, le Brancardier, l'Infirmière et le Chirurgien ont eux aussi des orbites sombres et des yeux qui vacillent."
+                  }
+              ]
+}

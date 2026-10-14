@@ -57,7 +57,9 @@ CUBE_DECOR = 0.05
 # Compatibilité : pas par défaut (décor).
 CUBE = CUBE_DECOR
 MATERIALS = ("skin", "eye", "cloth", "leather", "metal", "wound", "bone", "team",
-             "wood", "stone", "concrete", "fabric", "rubber", "glass", "glow", "heart")
+             "wood", "stone", "concrete", "fabric", "rubber", "glass", "glow", "heart", "socket")
+# « socket » : orbites des personnages (eye_sockets) : faces sombres autour des
+# yeux, qui prennent un reflet de leur lueur dans le jeu (ZombieGlb.SOCKET_ALPHA).
 # Matières propres au décor (aperçus Blender ; « glow » : faces émissives).
 DECOR_MATERIALS = ("wood", "stone", "concrete", "fabric", "rubber", "glass", "glow")
 # Matières dont les faces portent un alpha 0 dans le .glb (émissives dans le
@@ -548,6 +550,56 @@ def quantize(model, k_per_mat, iters=12, seed=1):
             model.face_color[(c[0], c[1], c[2], d)] = tuple(float(x) for x in cent[j])
 
 
+def eye_sockets(model, color=(0.07, 0.08, 0.06), rim=0.55, skip_parts=()):
+    """Orbites lisibles (yeux qui « brillent dans un trou noir ») : autour de
+    chaque face d'œil (matière « eye »), les faces qui l'entourent passent en
+    matière « socket » (couleur `color`, reflet de la lueur de l'œil dans le
+    jeu) : parois du trou devant un œil en retrait, ou faces voisines dans le
+    plan d'un œil affleurant ; les faces de surface autour de l'orbite sont
+    assombries (x `rim`). Couleurs de faces seules (aucune cellule ajoutée).
+    `skip_parts` : parties émissives qui ne sont pas des yeux (gorge...).
+    Renvoie (faces d'orbite, faces assombries)."""
+    eyes = [(c, d) for c, d in model.exposed()
+            if model.mat_of(c, d) == "eye" and model.vox[c].part not in skip_parts]
+    exposed = set(model.exposed())
+    sock, ring = set(), set()
+
+    def add(c, v):
+        return (c[0] + v[0], c[1] + v[1], c[2] + v[2])
+
+    for c, d in eyes:
+        n = DIRS[d]
+        perp = [v for v in DIRS.values() if v[0] * n[0] + v[1] * n[1] + v[2] * n[2] == 0]
+        diag = perp + [add(a, b) for a in perp for b in perp if a < b and add(a, b) != (0, 0, 0)]
+        hole = add(c, n)
+        recessed = False
+        for p in perp:
+            w = add(hole, p)
+            if w in model.vox:
+                recessed = True
+                inward = [k for k, v in DIRS.items() if v == (-p[0], -p[1], -p[2])][0]
+                if (w, inward) in exposed and model.mat_of(w, inward) != "eye":
+                    sock.add((w, inward))
+        if not recessed:
+            # Œil affleurant : couronne d'orbite dans son propre plan.
+            for o in diag:
+                w = add(c, o)
+                if w in model.vox and (w, d) in exposed and model.mat_of(w, d) != "eye":
+                    sock.add((w, d))
+            continue
+        for o in diag:
+            w = add(hole, o)
+            if w in model.vox and (w, d) in exposed and model.mat_of(w, d) != "eye":
+                ring.add((w, d))
+    for c, d in sock:
+        model.face_color[(c[0], c[1], c[2], d)] = color
+        model.face_mat[(c[0], c[1], c[2], d)] = "socket"
+    ring -= sock
+    for c, d in ring:
+        model.face_color[(c[0], c[1], c[2], d)] = tone(model.color_of(c, d), rim)
+    return len(sock), len(ring)
+
+
 # ---------------------------------------------------------------------------
 # Maillage.
 # ---------------------------------------------------------------------------
@@ -614,6 +666,10 @@ def _material(name):
     if name in ("eye", "heart") or name in EMISSIVE:
         nt.links.new(attr.outputs["Color"], bsdf.inputs["Emission Color"])
         bsdf.inputs["Emission Strength"].default_value = 3.0
+    elif name == "socket":
+        # Reflet de la lueur des yeux au fond des orbites (aperçu).
+        bsdf.inputs["Emission Color"].default_value = (1.0, 0.85, 0.2, 1.0)
+        bsdf.inputs["Emission Strength"].default_value = 0.06
     return m
 
 
