@@ -3203,6 +3203,21 @@
     "en": "Scarier zombies, moodier bunker",
     "fr": "Des zombies plus effrayants, un bunker plein d'ambiance"
    }
+  },
+  "v0.2.1-snapshot.773": {
+   "channel": "snapshot",
+   "date": "2026-10-14",
+   "images": [],
+   "items": [
+    {
+     "en": "New trial option OPTIONS > VIDEO > STYLE: ILLUSTRATED gives the picture a painted look (smoothed colour areas, teal shadows, warm lamp glows, soft vignette). CLASSIC stays the default.",
+     "fr": "Nouvelle option à l’essai OPTIONS > VIDÉO > STYLE : ILLUSTRÉ donne à l’image un aspect peint (aplats de couleur adoucis, ombres bleu-vert, lueurs chaudes des lampes, vignette douce). CLASSIQUE reste le réglage par défaut."
+    }
+   ],
+   "title": {
+    "en": "A painted look, as an option",
+    "fr": "Un rendu peint, en option"
+   }
   }
  }
 }
