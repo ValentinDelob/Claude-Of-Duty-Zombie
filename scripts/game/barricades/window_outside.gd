@@ -69,7 +69,7 @@ const BEAM_LENGTH := 2.8
 const BEAM_ENERGY := 0.08
 ## Pas de la marche des faisceaux (par pixel) : MEDIUM, HIGH.
 const BEAM_STEPS := 10
-const BEAM_STEPS_HIGH := 16
+const BEAM_STEPS_HIGH := 12
 ## Porte : faisceau et projecteur plus faibles.
 const DOOR_LIGHT := 0.5
 ## Activité des silhouettes : manche en cours, entre deux manches.

@@ -837,7 +837,7 @@ matière suivent la grille de 5 cm (variation par cube, flaques en pixels).
 | SSAO (ombres de contact des cubes) | non | non (+0,66 ms mesuré : trop pour la GTX 1050) | demi-résolution, basse |
 | SSR (reflets des flaques) | non | non | oui (48 pas) |
 | Bloom | non | oui | oui (bicubique) |
-| Dehors des fenêtres : vitre rétroéclairée | fixe | silhouettes, raies, faisceaux (10 pas), poussière | idem, faisceaux 16 pas |
+| Dehors des fenêtres : vitre rétroéclairée | fixe | silhouettes, raies, faisceaux (10 pas), poussière | idem, faisceaux 12 pas |
 
 Il n'y a pas de préréglage ULTRA (Settings.Quality : LOW, MEDIUM, HIGH).
 Coûts mesurés : docs/ARCHITECTURE.md (« Rendu et performances ») ;
@@ -893,7 +893,7 @@ de la fenêtre, `WindowOutside.params_for`).
 - **Faisceaux visibles** (`window_beams.gdshader`) : la brume volumétrique de
   Godot ignore la texture de projection (elle dessinait un cône plein à
   travers le mur) ; le faisceau est donc **marché** dans une boîte devant
-  l'ouverture (faces arrière seulement, 10 pas en MEDIUM, 16 en HIGH, arrêt
+  l'ouverture (faces arrière seulement, 10 pas en MEDIUM, 12 en HIGH, arrêt
   sur la profondeur de la scène) : un point est éclairé si le rayon venu de
   la source passe par l'embrasure et un interstice des planches. Additif,
   plus dense près de l'ouverture, nul au sol ; projecteur sans part

@@ -28,7 +28,7 @@ uniform float energy = 0.5;
 // Longueur de décroissance du faisceau dans la salle (m).
 uniform float falloff = 1.6;
 
-// Pas de la marche (préréglage : 10 en MEDIUM, 16 en HIGH).
+// Pas de la marche (préréglage : 10 en MEDIUM, 12 en HIGH).
 uniform int steps = 10;
 
 // Milieu de la boîte dans le repère de la barricade (le nœud y est placé).
