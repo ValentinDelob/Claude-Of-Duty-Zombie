@@ -1,37 +1,12 @@
 {
-    "title":  null,
+    "title":  {
+                  "en":  "A painted look, as an option",
+                  "fr":  "Un rendu peint, en option"
+              },
     "items":  [
                   {
-                      "en":  "Zombies have a meaner face: glowing yellow-green eyes deep in dark sockets, a frowning brow, hollow cheeks and a gaping mouth full of crooked teeth. Their eyes flicker and stay visible at the far end of a dark corridor.",
-                      "fr":  "Les zombies ont une sale tête : yeux jaune-vert qui brillent au fond d'orbites noires, sourcils froncés, joues creuses et bouche béante pleine de dents tordues. Leurs yeux vacillent et restent visibles au fond d'un couloir sombre."
-                  },
-                  {
-                      "en":  "Hospital gowns are torn and bloodstained, and no two zombies look quite alike: bloody chin, bruised eyes, split skull, splashes of blood.",
-                      "fr":  "Les blouses d'hôpital sont déchirées et tachées de sang, et deux zombies ne se ressemblent plus tout à fait : menton ensanglanté, yeux meurtris, crâne fendu, éclaboussures de sang."
-                  },
-                  {
-                      "en":  "Blood now stays red in dim rooms instead of turning black, and dogs, the Stretcher-Bearer, the Nurse and the Surgeon get the same darker eye sockets and flickering eyes.",
-                      "fr":  "Le sang reste rouge dans les pièces sombres au lieu de virer au noir, et les chiens, le Brancardier, l'Infirmière et le Chirurgien ont eux aussi des orbites sombres et des yeux qui vacillent."
-                  },
-                  {
-                      "fr":  "La lumière raconte le bunker : salle de garde et dortoir chauds, couloir et labo froids, générateur en alarme rouge qui pulse, salle du rituel plongée dans le noir.",
-                      "en":  "Light tells the bunker's story: a warm guard room and barracks, a cold corridor and lab, a generator pulsing with red alarm light, a ritual room left in the dark."
-                  },
-                  {
-                      "fr":  "Nouvelles sources de lumière colorée : gyrophares d'alarme qui tournent, écrans de contrôle, tubes à essai lumineux, panneaux de sortie et enseigne au néon.",
-                      "en":  "New coloured light sources: spinning alarm beacons, monitor screens, glowing test tubes, exit signs and a neon sign."
-                  },
-                  {
-                      "fr":  "Plafonds lisibles, poussière qui danse dans les faisceaux des lampes et halos plus marqués.",
-                      "en":  "Readable ceilings, dust drifting in the lamp beams and stronger light shafts."
-                  },
-                  {
-                      "fr":  "Éditeur de cartes : choisissez l'ambiance d'une pièce ou d'une zone (froid, chaud, alarme, néon, éteint), ou laissez le jeu la deviner d'après son nom.",
-                      "en":  "Map editor: pick the mood of a room or zone (cold, warm, alarm, neon, lights out), or let the game guess it from its name."
-                  },
-                  {
-                      "fr":  "Nouvelle option à l’essai OPTIONS \u003e VIDÉO \u003e STYLE : ILLUSTRÉ donne à l’image un aspect peint (aplats de couleur adoucis, ombres bleu-vert, lueurs chaudes des lampes, vignette douce). CLASSIQUE reste le réglage par défaut.",
-                      "en":  "New trial option OPTIONS \u003e VIDEO \u003e STYLE: ILLUSTRATED gives the picture a painted look (smoothed colour areas, teal shadows, warm lamp glows, soft vignette). CLASSIC stays the default."
+                      "fr":  "Nouvelle option à l’essai OPTIONS > VIDÉO > STYLE : ILLUSTRÉ donne à l’image un aspect peint (aplats de couleur adoucis, ombres bleu-vert, lueurs chaudes des lampes, vignette douce). CLASSIQUE reste le réglage par défaut.",
+                      "en":  "New trial option OPTIONS > VIDEO > STYLE: ILLUSTRATED gives the picture a painted look (smoothed colour areas, teal shadows, warm lamp glows, soft vignette). CLASSIC stays the default."
                   }
               ]
 }
