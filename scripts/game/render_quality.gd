@@ -55,6 +55,7 @@ const PRESETS := [
 		"aberration": 0.0,
 		"zombie_shadows": 0,        # zombies à ombre portée (les plus proches)
 		"zombie_shadow_dist": 0.0,  # ... à moins de cette distance (m)
+		"window_life": false,       # dehors des fenêtres : silhouettes, faisceaux, poussière (sinon carte fixe)
 	},
 	# MEDIUM (défaut) — le rendu de référence.
 	{
@@ -83,6 +84,7 @@ const PRESETS := [
 		"aberration": 0.003,
 		"zombie_shadows": 6,
 		"zombie_shadow_dist": 12.0,
+		"window_life": true,
 	},
 	# HIGH — ombres sur 2 lampes sur 3, filtrées et visibles plus loin,
 	# SSAO léger, glow à suréchantillonnage bicubique, MSAA 2x.
@@ -109,6 +111,7 @@ const PRESETS := [
 		"aberration": 0.0035,
 		"zombie_shadows": 12,
 		"zombie_shadow_dist": 20.0,
+		"window_life": true,
 	},
 ]
 

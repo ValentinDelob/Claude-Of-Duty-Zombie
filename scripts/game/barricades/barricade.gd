@@ -196,6 +196,8 @@ var _fallen: Array[Transform3D] = []
 ## Animation par planche : [type (0 aucune, 1 arrachée, 2 reposée), temps].
 var _anim: Array = []
 var _animating := false
+## Le dehors de l'ouverture (WindowOutside, purement visuel).
+var outside: WindowOutside
 
 
 func setup(w: BarricadeLayout.Opening) -> void:
@@ -271,20 +273,10 @@ func _ready() -> void:
 		add_child(ZombieDoorModel.build(kind, width, opening_height, seed))
 	_build_planks()
 	_build_barrier()
-	# Faible lueur froide « du dehors » : les planches se découpent en
-	# silhouette et un peu de lumière filtre dans la salle (sans ombre).
-	var glow := OmniLight3D.new()
-	glow.name = "OutsideGlow"
-	glow.light_color = Color(0.45, 0.55, 0.78)
-	glow.light_energy = 0.55
-	glow.omni_range = 3.2
-	glow.omni_attenuation = 1.4
-	glow.shadow_enabled = false
-	glow.distance_fade_enabled = true
-	glow.distance_fade_begin = 22.0
-	glow.distance_fade_length = 6.0
-	glow.position = Vector3(0, 2.0, -1.4)
-	add_child(glow)
+	# Le dehors (purement visuel) : vitres et silhouettes ou couloir sur le mur
+	# du fond de la poche, lueur froide, raies de lumière entre les planches.
+	outside = WindowOutside.new(self)
+	add_child(outside)
 	set_process(false)
 	set_physics_process(false)
 
@@ -492,6 +484,8 @@ func set_mask(new_mask: int, animate := true) -> void:
 	mask = new_mask & full_mask()
 	if _mms.is_empty():
 		return
+	if outside and mask != old:
+		outside.refresh_mask()
 	if not animate:
 		for i in plank_count:
 			_anim[i] = [0, 0.0]
